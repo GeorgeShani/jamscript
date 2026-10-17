@@ -256,9 +256,6 @@
 .jam-toolbar button {
   min-height: 28px;
 }
-.jam-wordmark {
-  font-size: 14px;
-}
 .jam-session-name {
   font-size: 14px;
 }
@@ -380,9 +377,6 @@
   .jam-toolbar {
     padding-inline: 16px;
     column-gap: 8px;
-  }
-  .jam-wordmark {
-    font-size: 14px;
   }
   .jam-session-name {
     font-size: 14px;

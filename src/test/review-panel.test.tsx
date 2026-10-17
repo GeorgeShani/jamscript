@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReviewPanel } from "@/components/jam/InlinePanel";
-import { REVIEW_EXAMPLES, type ReviewKind } from "@/components/jam/review-fixtures";
+import { ReviewPanel } from "@/features/review/ReviewPanel";
+import { REVIEW_EXAMPLES, type ReviewKind } from "@/features/review/review-fixtures";
 
 afterEach(cleanup);
 
@@ -11,14 +11,18 @@ describe("Presentation-only reviews", () => {
     const view = render(<ReviewPanel review={REVIEW_EXAMPLES.repo} onClose={onClose} />);
     for (const kind of ["repo", "take", "rework"] as ReviewKind[]) {
       view.rerender(<ReviewPanel review={REVIEW_EXAMPLES[kind]} onClose={onClose} />);
-      expect(document.activeElement).toBe(screen.getByRole("heading", { name: REVIEW_EXAMPLES[kind].title }));
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { name: REVIEW_EXAMPLES[kind].title }),
+      );
       expect(screen.getAllByRole("region", { name: REVIEW_EXAMPLES[kind].title })).toHaveLength(1);
     }
   });
 
   it("never provides an enabled apply action for fixture proposals", () => {
     render(<ReviewPanel review={REVIEW_EXAMPLES.rework} onClose={vi.fn()} />);
-    const accept = screen.getByRole("button", { name: "Accept change, unavailable in this example" });
+    const accept = screen.getByRole("button", {
+      name: "Accept change, unavailable in this example",
+    });
     expect(accept).toBeDisabled();
     fireEvent.click(accept);
     expect(accept).toBeDisabled();

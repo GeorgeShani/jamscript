@@ -4,60 +4,72 @@
 
 ## Platform
 
-web
+Desktop music IDE for Windows, macOS and Linux, with a collaborative browser companion. The current implementation is a browser editor; native packaging and connected services are planned.
 
 ## Stack
 
-Lovable (TanStack Start in SPA mode, React, Tailwind v4, shadcn/ui) for the shells; the engine in `src/engine/` is written by hand (CodeMirror 6, Strudel, Yjs), and so are Git in `src/git/` (isomorphic-git) and one Cloudflare Pages Function that proxies Git requests to GitHub. Chosen in the project plan, not by this pass.
+Current: TanStack Start in SPA mode, React 19, TypeScript, Tailwind v4, shadcn/ui, CodeMirror 6 and Strudel. The app originated in Lovable and remains connected through Git.
+
+Chosen additions: Tauri v2 for desktop; Supabase for email authentication, workspace metadata and invitations; Liveblocks/Yjs for shared documents; an owned Strudel language service; Gemini behind a private backend endpoint. These are product decisions, not installed capabilities. See IMPLEMENTATION_PLAN.md for delivery order.
 
 ## Users
 
-Two audiences, one product.
-
-- Players: people who have heard of Strudel live coding or want to try it, and who sit with headphones on, usually in a dim room, often with a friend. They know what a knob and a drum grid are; many have never written code.
-- Coders: people who already live-code with Strudel and want controls without leaving their code.
-  Judges at Hacktoberfest Georgia 2026 see the landing page and the editor first, on a projector or a laptop, in a bright hall, for a few minutes.
+Developers who jam and musicians comfortable exploring code. Someone should be able to make and save music without knowing Git or owning a GitHub account. Shared projects should work across desktop and browser participants.
 
 ## Product Purpose
 
-A browser editor where Strudel code stays the source of truth and knobs and step grids (lenses) are live, editable views of it. Success: a visitor turns a knob and sees exactly the characters of code that changed, shares a link and sees a friend's change arrive, and never loses their code to a bad edit.
+Code is the source. Lenses are how you play it. JamScript keeps Strudel programs directly editable while rhythm controls and knobs project precisely identified parts of that code. A VS Code style workbench organizes projects, history and assistance around this music editor.
 
 ## Positioning
 
-Projections with a safety rule: "if we cannot prove an edit is safe, we do not modify the source." A lens is drawn but locked when the code is outside the safe subset. A neighbouring product that generates code from a visual patch, or hides code behind a GUI, cannot truthfully say this.
+The differentiator is the combination of inferred editable lenses, shared projections, musical history and reviewed assistance. Strudel supplies the music runtime. JamScript supplies the workbench and safe editing tools. Complex Strudel programs must remain usable even when a lens cannot safely edit an expression.
 
 ## Operating Context
 
-Two surfaces: a landing page (visitor decides in seconds) and the editor (a long session of listening, tweaking and jamming). The editor plays sound; audio only starts after a click. Collaboration is two tabs in one browser for the hackathon demo (BroadcastChannel), real sync via Yjs later. Repo, an optional set of Git buttons behind a top-bar chip, keeps a song in a GitHub repo; its working copy, identity and token stay in the person's own browser.
+Browser: initialize an app-managed workspace and edit its documents; add collaboration and assistance when their services are implemented. There is no native filesystem permission, folder picker, disk watcher, direct disk read/write or browser File System Access API path.
+
+Desktop: initialize a workspace or open a selected local folder. Native file access, watching, saving and Git are desktop-only capabilities. Local work requires no account and works offline with available audio assets. Sharing explicitly publishes selected project content; it does not expose the participant's filesystem.
+
+The workbench uses an activity bar, primary sidebar, file tabs, central music editor, bottom panels and assistant pane. It preserves DESIGN.md's compact editor and inline source-to-control relationships. The new workbench layout is planned, not yet built.
+
+Musicians work primarily in BPM. The current tempo component uses four beats per cycle: 120 BPM equals 0.5 CPS. Editing BPM updates a supported source expression after typing pauses, with immediate Enter/blur application and the editor's undo history. Code edits update the display; unsupported or ambiguous tempo expressions disable visual writes. A per-document beats-per-cycle setting and advanced CPS view remain planned. A cycle is not inherently a bar or a beat; changing its interpretation must not silently change playback speed.
 
 ## Capabilities and Constraints
 
-- Lenses: rhythm (step grid) and parameter (knob), drawn directly under the line of code they come from, over a Music IR and patcher; edits are minimal text changes, one undo step each.
-- Collaboration with Yjs; Takes (semantic history labelled in musical words); optional AI "Rework" that proposes a diff with Parses, Plays and Keeps-what-you-asked checks. Rework is cut if it is not working at hour 19.
-- Repo: Clone, Add, Commit, Push and Pull for the one open file, on GitHub over HTTPS. Commit messages are written from what changed in the music ("bass lpf 1200 to 430"). Safe by default: no force push, no merge, never overwrites unsaved code. Cut if it is not working at hour 19.
-- Built on Strudel, AGPL-3.0-or-later; the source link and attribution are required.
-- 25-hour build, two people. Terms: Lens, Take, Session, Rework, Repo.
-- Product name: JamScript.
+| Capability                                      | Current state                                                                                                                     |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Editing, rhythm/parameter lenses and undo       | Working CodeMirror editor; simple flat sound/rest strings and numeric gain/room/lpf/hpf arguments                                 |
+| Playback                                        | Real browser-only Strudel adapter evaluates current editor text; sample availability and audible output need runtime verification |
+| Complex programs                                | Editable as code; full example compatibility, General MIDI initialization and complex editable lenses are pending                 |
+| Takes, Repo, presence and Rework                | Explicit presentation examples; no real history, Git, collaboration, model call or apply path                                     |
+| Share                                           | Copies the current page URL; does not create an invitation or shared workspace                                                    |
+| Desktop files, IntelliSense and workspace agent | Planned; no native file service, language server or agent is connected                                                            |
+
+Future releases must support the complete eddyflux "coastline" program, including sample packs, variables, nested stacks, chords, voicing, mini-notation and modulation. Complex lenses edit explicit syntax without flattening patterns or replacing expressions with constants. Arbitrary modulation graph builders are outside this release.
+
+The workspace agent uses Gemini, with the project owner's key stored only in private server configuration. It can propose reviewed edits across files and request explicit Git actions. General shell execution is excluded. Local use is anonymous; shared workspaces use email sign-in, invitations and owner/editor/viewer roles.
 
 ## Brand Commitments
 
-- Tagline: "Code is the source. Lenses are how you play it."
-- Credit Strudel for its own note highlighting; never present it as ours.
-- Visual world carried over from the approved v1 DESIGN.md (deep indigo, warm paper text, one amber action colour, two typefaces). It was not re-rolled in this pass; it was audited and repaired.
+- Name: JamScript. Tagline: "Code is the source. Lenses are how you play it."
+- Dark indigo surfaces, warm paper text, sparse amber actions and the two existing font families.
+- A compact JS/code-and-rhythm symbol with a Schibsted Grotesk wordmark; use the production assets in public/brand.
+- Credit Strudel and preserve third-party notices. The project licence is AGPL-3.0-or-later in LICENSE; runtime notices are in THIRD_PARTY_NOTICES.txt. Keep the corresponding source available when distributing or hosting the application.
+- audiocn is a candidate for audio UI primitives, fed by Strudel's actual output and styled through JamScript tokens. Its integration is tracked separately from the current editor implementation.
 
 ## Evidence on Hand
 
-- A plan with a frozen scope, Demo A and Demo B scripts, and a synthetic "Night bus" session.
-- No users, testimonials, benchmarks, download counts or logos exist. None may be invented. All demo content is synthetic and must read as a demo.
+The original "Night bus" song and surrounding examples are synthetic. The editor and patcher have automated regression coverage. There are no verified adoption figures, testimonials, live collaborators or connected AI/Git service claims. Historical UI reports described an earlier static editor and have been retired; current behavior is recorded above and verified by the test suite.
 
 ## Product Principles
 
-1. The code is always the source; a lens never owns it.
-2. Safe edits only: refuse visibly rather than guess. Repo follows it: no force push, no merge, no silent overwrite.
-3. Show the connection: every control and its characters of code light together.
-4. Plain musical words, not engineering words. Repo's buttons keep Git's names (Clone, Add, Commit, Push, Pull) and nothing deeper.
-5. Prove it on the page; do not claim it.
+1. Source text is authoritative; controls, analysis and history labels derive from it.
+2. Refuse unsafe or ambiguous edits visibly. Preserve unrelated source and one-gesture undo.
+3. Local music projects do not require Git knowledge, an account or a network connection.
+4. Keep browser workspaces app-managed; expose native files only through desktop adapters.
+5. Review assistant proposals against the actual source version before applying them.
+6. Show real service states. Fixtures cannot simulate collaboration, validation or successful writes.
 
 ## Accessibility & Inclusion
 
-WCAG AA contrast minimum, 3:1 for control boundaries; every control works by keyboard (knobs are sliders, cells are toggle buttons); no meaning by colour alone; `prefers-reduced-motion` respected; the landing page must read on a projector.
+Keep keyboard access, meaningful labels, visible focus, non-color status cues, reduced-motion support and local scrolling. Target WCAG AA contrast. Preserve the existing source/lens focus behavior while reorganizing the surrounding application.

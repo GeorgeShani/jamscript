@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TakesRail } from "@/components/jam/TakesRail";
-import { TAKE_FIXTURES, EXAMPLE_TAKES, TAKE_COMPARISONS } from "@/components/jam/take-fixtures";
+import { TakesRail } from "@/features/takes/TakesRail";
+import { TAKE_FIXTURES, EXAMPLE_TAKES, TAKE_COMPARISONS } from "@/features/takes/take-fixtures";
 import { EditorSlot } from "@/components/jam/EditorSlot";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SAMPLE_CODE } from "@/components/jam/session";

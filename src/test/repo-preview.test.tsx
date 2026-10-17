@@ -1,13 +1,22 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
-import { RepoPopover } from "@/components/jam/RepoPopover";
-import { REPO_FIXTURES, addPreviewChanges, canPreviewCommit, commitPreview, repoPrimaryAction } from "@/components/jam/repo-fixtures";
+import { RepoPopover } from "@/features/repository/RepoPopover";
+import {
+  REPO_FIXTURES,
+  addPreviewChanges,
+  canPreviewCommit,
+  commitPreview,
+  repoPrimaryAction,
+} from "@/features/repository/repo-fixtures";
 import { SAMPLE_CODE } from "@/components/jam/session";
-import { TAKE_FIXTURES } from "@/components/jam/take-fixtures";
+import { TAKE_FIXTURES } from "@/features/takes/take-fixtures";
 
 vi.mock("sonner", () => ({ toast: vi.fn() }));
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 describe("Repo preview rules", () => {
   it("chooses only Clone, Commit or Push as the next action", () => {
@@ -45,18 +54,31 @@ describe("Repo preview rules", () => {
   it("keeps the Open marker fixed when another file is selected and blocks loading", () => {
     render(<RepoPopover open onOpenDiff={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "ideas.js" }));
-    expect(screen.getByRole("button", { name: "ideas.js" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "ideas.js" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(screen.getByRole("button", { name: "ideas.js" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByRole("button", { name: "night-bus.js Open" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "night-bus.js Open" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(screen.getByRole("button", { name: "Open selected file" })).toBeDisabled();
   });
 
   it("creates only a preview commit, leaving the source, current Take and fixtures untouched", () => {
-    const before = { code: SAMPLE_CODE, takes: JSON.stringify(TAKE_FIXTURES), repo: JSON.stringify(REPO_FIXTURES) };
+    const before = {
+      code: SAMPLE_CODE,
+      takes: JSON.stringify(TAKE_FIXTURES),
+      repo: JSON.stringify(REPO_FIXTURES),
+    };
     render(<RepoPopover open onOpenDiff={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Add all" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
-    fireEvent.keyDown(screen.getByRole("textbox", { name: "Commit message" }), { key: "Enter", ctrlKey: true });
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Commit message" }), {
+      key: "Enter",
+      ctrlKey: true,
+    });
     expect(toast).toHaveBeenCalledExactlyOnceWith("Preview commit created");
     expect(screen.queryByRole("textbox", { name: "Commit message" })).toBeNull();
     expect(screen.getByRole("button", { name: "Push to main" })).toBeDisabled();
@@ -75,18 +97,21 @@ describe("Repo preview rules", () => {
     expect(toast).not.toHaveBeenCalled();
   });
 
-  it.each(Object.keys(REPO_FIXTURES) as (keyof typeof REPO_FIXTURES)[])("renders %s with publishing and pulling unavailable and no credentials", (key) => {
-    render(<RepoPopover open fixture={REPO_FIXTURES[key]} onOpenDiff={vi.fn()} />);
-    if (REPO_FIXTURES[key].exists) {
-      const push = screen.getByRole("button", { name: "Push to main" });
-      const pull = screen.getByRole("button", { name: "Pull" });
-      expect(push).toBeDisabled();
-      expect(pull).toBeDisabled();
-      fireEvent.click(push);
-      fireEvent.click(pull);
-    }
-    expect(document.querySelector('input[type="password"]')).toBeNull();
-    expect(screen.queryByRole("textbox", { name: /token|email|name/i })).toBeNull();
-    expect(toast).not.toHaveBeenCalled();
-  });
+  it.each(Object.keys(REPO_FIXTURES) as (keyof typeof REPO_FIXTURES)[])(
+    "renders %s with publishing and pulling unavailable and no credentials",
+    (key) => {
+      render(<RepoPopover open fixture={REPO_FIXTURES[key]} onOpenDiff={vi.fn()} />);
+      if (REPO_FIXTURES[key].exists) {
+        const push = screen.getByRole("button", { name: "Push to main" });
+        const pull = screen.getByRole("button", { name: "Pull" });
+        expect(push).toBeDisabled();
+        expect(pull).toBeDisabled();
+        fireEvent.click(push);
+        fireEvent.click(pull);
+      }
+      expect(document.querySelector('input[type="password"]')).toBeNull();
+      expect(screen.queryByRole("textbox", { name: /token|email|name/i })).toBeNull();
+      expect(toast).not.toHaveBeenCalled();
+    },
+  );
 });

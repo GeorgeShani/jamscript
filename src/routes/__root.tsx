@@ -81,7 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "JamScript" },
-      { name: "description", content: "Make music with Strudel code, with knobs and step grids as live views of it." },
+      {
+        name: "description",
+        content: "Make music with Strudel code, with knobs and step grids as live views of it.",
+      },
     ],
     links: [
       {
@@ -95,6 +98,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,100..800&family=Schibsted+Grotesk:wght@400..900&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/brand/app-icon.svg", type: "image/svg+xml" },
     ],
   }),
   shellComponent: RootShell,

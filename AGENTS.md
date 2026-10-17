@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,7 +8,19 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
+
+## Project context
+
+- Read PRODUCT.md for current capability status, DESIGN.md for visual work, and IMPLEMENTATION_PLAN.md for execution order. PRODUCT_PLAN.md preserves the superseded hackathon plan as historical context; its old freeze and single-screen restrictions do not govern the new workbench.
+- This cleanup executes Steps 1–2 plus the explicitly requested BPM control. Keep `code-editor.ts`, `live-lenses.ts`, `session.ts` and all `src/engine/` files unchanged. `EditorSlot.tsx` exposes only an additive editor-ready callback for the tempo control; complex syntax belongs to later feature slices.
+- Keep route files thin. The session shell lives in `src/workbench/`; Takes, review, repository, collaboration and assistant presentation live in `src/features/`. Shared UI primitives stay in `src/components/ui/`. Introduce service interfaces only with a working consumer.
+- Browser workspaces are initialized and managed within the app. Native folder access, disk reads/writes, watchers and Git are desktop-only; do not add a browser File System Access API fallback.
+- Keep the durable Markdown set to AGENTS.md, README.md, DESIGN.md, PRODUCT.md, PRODUCT_PLAN.md and IMPLEMENTATION_PLAN.md. Update these owners instead of adding verification or handoff reports.
+- When `/graphify` is invoked, read and follow the installed graphify skill before running its workflow.
+
+## Existing editor and preview guardrails
 
 - CodeMirror's document is the live music source. `session.ts` supplies only the initial demo song; Play must evaluate current editor text, and source-derived controls must write through the checked patcher and the same undo history.
 - Contain the editor in a dynamic-viewport frame with shrinkable children; code lines scroll locally while lenses wrap, and the toolbar switches to a two-row grid when its controls cannot fit, preserving access without document overflow.

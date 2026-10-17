@@ -1,0 +1,35 @@
+{
+  "name": "JamScript",
+  "date": "2026-10-17",
+  "method": "Built-in imagegen concept, followed by a flat vector redraw and outlined Schibsted Grotesk wordmark. Production images are rendered from the SVG masters.",
+  "prompt": "Use case: logo-brand.\nCreate a single professional brand concept for JamScript, a desktop music coding IDE where source code and editable rhythm controls are the same object.\nAsset type: logo exploration, one symbol with a horizontal wordmark below.\nDesign a bold, compact abstract JS monogram. Use the geometry of paired code brackets and a connected stepped rhythm / patch cable to suggest a J and an S in one distinctive, balanced mark. Very few shapes, uniform bold construction, open negative space, modestly rounded corners. It must survive at 16px. Avoid literal music notes, headphones, play triangles, generic waveforms, sparkles, circuits, 3D, shadows, gradients, mockups and all decorative extras.\nSymbol solid amber #FCB452. Exact wordmark text \"JamScript\", warm white #EFEBE1, friendly precise grotesk similar to Schibsted Grotesk Semibold. Transparent background, centered, generous separation and padding. No other text, no background shapes, no cyan. The mark should be easy to redraw as a clean vector.",
+  "colors": {
+    "amber": "#FCB452",
+    "paper": "#EFEBE1",
+    "ink": "#121322"
+  },
+  "font": {
+    "name": "Schibsted Grotesk",
+    "weight": 600,
+    "source": "https://github.com/google/fonts/tree/main/ofl/schibstedgrotesk",
+    "license": "SIL Open Font License 1.1",
+    "notice": "Schibsted-Grotesk-OFL.txt"
+  },
+  "assets": {
+    "mark": "mark.svg",
+    "paper": "mark-paper.svg",
+    "ink": "mark-ink.svg",
+    "lockup": "logo.svg",
+    "lockupInk": "logo-ink.svg",
+    "wordmark": "wordmark.svg",
+    "wordmarkInk": "wordmark-ink.svg",
+    "desktopMaster": "app-icon.svg",
+    "pngSizes": [16, 24, 32, 64, 128, 256, 512, 1024],
+    "windows": "../favicon.ico",
+    "macos": "jamscript.icns"
+  },
+  "checks": {
+    "wordmarksOutlined": true,
+    "transparentLogoPng": true
+  }
+}
