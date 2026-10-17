@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import "@clerk/ui/themes/shadcn.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -63,6 +64,12 @@
   --channel-mute: var(--muted-foreground);
   --channel-solo: var(--warning);
   --channel-monitor: var(--link);
+  --meter-ok-foreground: var(--success);
+  --meter-warn-foreground: var(--warning);
+  --meter-clip-foreground: var(--destructive);
+  --channel-mute-foreground: var(--muted-foreground);
+  --channel-solo-foreground: var(--warning);
+  --channel-monitor-foreground: var(--link);
 
   /* shadcn chart + sidebar tokens */
   --chart-1: var(--track-1);
@@ -135,6 +142,18 @@
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) * 1.35);
+  --color-meter-ok: var(--meter-ok);
+  --color-meter-warn: var(--meter-warn);
+  --color-meter-clip: var(--meter-clip);
+  --color-channel-mute: var(--channel-mute);
+  --color-channel-solo: var(--channel-solo);
+  --color-channel-monitor: var(--channel-monitor);
+  --color-meter-ok-foreground: var(--meter-ok-foreground);
+  --color-meter-warn-foreground: var(--meter-warn-foreground);
+  --color-meter-clip-foreground: var(--meter-clip-foreground);
+  --color-channel-mute-foreground: var(--channel-mute-foreground);
+  --color-channel-solo-foreground: var(--channel-solo-foreground);
+  --color-channel-monitor-foreground: var(--channel-monitor-foreground);
 }
 
 @layer base {
@@ -255,9 +274,6 @@
 }
 .jam-toolbar button {
   min-height: 28px;
-}
-.jam-wordmark {
-  font-size: 14px;
 }
 .jam-session-name {
   font-size: 14px;
@@ -381,9 +397,6 @@
     padding-inline: 16px;
     column-gap: 8px;
   }
-  .jam-wordmark {
-    font-size: 14px;
-  }
   .jam-session-name {
     font-size: 14px;
   }
@@ -456,6 +469,12 @@
 .cm-linked-source {
   background: color-mix(in oklch, var(--link) 25%, transparent);
 }
+.jam-code-editor .cm-playback-hit {
+  background: color-mix(in oklch, var(--foreground) 13%, transparent);
+  outline: 1px solid var(--foreground);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
 .jam-live-strip {
   display: flex;
   flex-wrap: wrap;
@@ -498,6 +517,25 @@
 }
 .jam-live-rhythm button:hover {
   filter: brightness(1.1);
+}
+.jam-live-rhythm .jam-rhythm-subdivision {
+  display: flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--input);
+  border-radius: 4px;
+  background: var(--muted);
+}
+.jam-rhythm-subdivision i {
+  flex: 1;
+  min-width: 0;
+  background: var(--muted);
+}
+.jam-rhythm-subdivision i + i {
+  border-left: 1px solid var(--background);
+}
+.jam-rhythm-subdivision i.is-on {
+  background: var(--primary);
 }
 .jam-live-param {
   display: flex;
@@ -559,5 +597,1392 @@
     transition-duration: 0ms !important;
     animation: none !important;
     animation-duration: 0ms !important;
+  }
+}
+
+/* Browser workbench. The editor remains a shrinkable, locally scrolling pane. */
+.jam-loading {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  color: var(--muted-foreground);
+}
+.jam-chooser {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+}
+.jam-chooser > header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  justify-content: space-between;
+}
+.jam-auth-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+/* Clerk's shadcn input fill inherits our control-edge token; use the stage fill instead. */
+.cl-formFieldInput {
+  background: var(--background);
+  border: 1px solid var(--input);
+  box-shadow: none;
+  color: var(--foreground);
+}
+.cl-formFieldInput::placeholder {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+.cl-formFieldInput:focus-visible {
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.jam-chooser-body {
+  width: min(100%, 780px);
+  margin: 0 auto;
+  padding: 76px 24px 72px;
+}
+.jam-eyebrow {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+.jam-chooser h1 {
+  margin-top: 12px;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.12;
+}
+.jam-chooser-intro {
+  margin-top: 16px;
+  max-width: 530px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.jam-create-form {
+  margin-top: 40px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+.jam-create-form label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.jam-create-form > div {
+  display: flex;
+  gap: 10px;
+}
+.jam-create-form input,
+.jam-inline-form input,
+.jam-new-file input {
+  min-width: 0;
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--input);
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--foreground);
+}
+.jam-create-form button {
+  height: 38px;
+}
+.jam-chooser-section {
+  margin-top: 38px;
+}
+.jam-chooser-section h2 {
+  margin-bottom: 14px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.jam-chooser-section ul {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.jam-chooser-section li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 56px;
+  padding: 6px 8px;
+  background: var(--card);
+}
+.jam-chooser-section li + li {
+  border-top: 1px solid var(--border);
+}
+.jam-recent-open {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 10px;
+  text-align: left;
+}
+.jam-recent-open span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.jam-recent-open small {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.jam-recent-open:hover,
+.jam-example:hover {
+  background: var(--muted);
+}
+.jam-example {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  text-align: left;
+}
+.jam-example > span:nth-child(2) {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+.jam-example small,
+.jam-muted {
+  color: var(--muted-foreground);
+}
+.jam-chooser > footer {
+  margin-top: auto;
+  padding: 14px 28px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-chooser > footer a {
+  margin-left: 10px;
+  color: var(--foreground);
+  text-decoration: underline;
+}
+.jam-help {
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+}
+.jam-help-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-help-header a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-foreground);
+}
+.jam-help-header a:hover {
+  color: var(--foreground);
+}
+.jam-help-content {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 72px 24px 96px;
+}
+.jam-help h1 {
+  margin-top: 12px;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+.jam-help-content > p:not(.jam-eyebrow),
+.jam-help section p,
+.jam-help li {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+.jam-help section {
+  margin-top: 42px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+}
+.jam-help h2 {
+  margin-bottom: 12px;
+  font-size: 19px;
+  font-weight: 650;
+}
+.jam-help ul {
+  display: grid;
+  gap: 12px;
+  padding-left: 22px;
+  list-style: disc;
+}
+.jam-help kbd {
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.jam-library-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 32px;
+  padding: 0 12px;
+  height: 42px;
+  border: 1px solid var(--input);
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  background: var(--card);
+}
+.jam-library-search:focus-within {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.jam-library-search input {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+}
+.jam-library .jam-library-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 0;
+  list-style: none;
+}
+.jam-library-list a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+}
+.jam-library-list a:hover,
+.jam-library-list a:focus-visible {
+  background: var(--muted);
+}
+.jam-library-list a span {
+  display: grid;
+  gap: 2px;
+}
+.jam-library-list a strong {
+  color: var(--foreground);
+}
+.jam-library-list a small {
+  color: var(--muted-foreground);
+}
+.jam-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  color: var(--destructive);
+}
+.jam-conflict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--destructive) 12%, var(--card));
+  color: var(--foreground);
+  font-size: 13px;
+}
+.jam-conflict span {
+  margin-right: auto;
+}
+
+.jam-workbench {
+  display: flex;
+  flex-direction: column;
+}
+.jam-workbench-toolbar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 48px;
+  flex: none;
+  gap: 12px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-brand-button {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.jam-toolbar-divider {
+  width: 1px;
+  height: 21px;
+  background: var(--border);
+}
+.jam-workspace-switch {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.jam-workspace-switch:hover {
+  color: var(--primary);
+}
+.jam-current-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-transport {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.jam-tempo-advanced {
+  position: relative;
+  flex: none;
+  font-size: 12px;
+}
+.jam-tempo-advanced summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  list-style: none;
+}
+.jam-tempo-advanced summary::-webkit-details-marker {
+  display: none;
+}
+.jam-tempo-advanced[open] {
+  z-index: 21;
+  color: var(--foreground);
+}
+.jam-tempo-advanced[open] > label,
+.jam-tempo-advanced[open] > output {
+  position: absolute;
+  right: 0;
+  display: flex;
+  width: 180px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-tempo-advanced[open] > label {
+  top: 25px;
+}
+.jam-tempo-advanced[open] > output {
+  top: 62px;
+  font-family: "Martian Mono", monospace;
+}
+.jam-tempo-advanced select {
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+.jam-export-control {
+  position: relative;
+  flex: none;
+}
+.jam-export-control summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  list-style: none;
+}
+.jam-export-control summary::-webkit-details-marker {
+  display: none;
+}
+.jam-export-control summary:hover {
+  border-color: var(--primary);
+}
+.jam-export-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 7px);
+  right: 0;
+  width: 245px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  box-shadow: 0 12px 32px #0007;
+  font-size: 12px;
+}
+.jam-export-menu strong {
+  font-size: 13px;
+}
+.jam-export-menu p {
+  margin: 7px 0 13px;
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+.jam-export-menu form {
+  display: grid;
+  gap: 10px;
+}
+.jam-export-menu label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted-foreground);
+}
+.jam-export-menu select {
+  width: 100%;
+  height: 30px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--foreground);
+  background: var(--background);
+}
+.jam-export-menu form button,
+.jam-export-progress button {
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  color: var(--primary);
+}
+.jam-export-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.jam-export-progress {
+  display: grid;
+  gap: 7px;
+}
+.jam-export-progress progress {
+  width: 100%;
+  accent-color: var(--primary);
+}
+.jam-export-progress button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.jam-workbench-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.jam-activity-bar {
+  flex: 0 0 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-activity-bar button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: var(--muted-foreground);
+  border-left: 2px solid transparent;
+}
+.jam-activity-bar button:hover,
+.jam-activity-bar button.is-active {
+  color: var(--foreground);
+  background: var(--muted);
+  border-left-color: var(--primary);
+}
+.jam-file-sidebar {
+  flex: 0 0 var(--jam-files-width, 232px);
+  min-width: 0;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-panel-heading {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+.jam-panel-heading button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--foreground);
+}
+.jam-panel-heading button:hover {
+  color: var(--primary);
+}
+.jam-sidebar-workspace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 15px 12px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-new-file {
+  display: flex;
+  gap: 5px;
+  padding: 0 9px 12px;
+}
+.jam-new-file input {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+.jam-new-file button {
+  width: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--input);
+  border-radius: 4px;
+}
+.jam-file-list li {
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+}
+.jam-file-button {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 22px;
+  text-align: left;
+  font-size: 12px;
+}
+.jam-file-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-file-button.is-active {
+  color: var(--primary);
+  background: var(--muted);
+}
+.jam-file-button:hover {
+  background: var(--muted);
+}
+.jam-file-action {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 26px;
+  flex: none;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.jam-file-action:hover {
+  color: var(--foreground);
+}
+.jam-inline-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.jam-inline-form input {
+  height: 27px;
+  font-size: 12px;
+}
+.jam-inline-form button {
+  font-size: 11px;
+}
+.jam-editor-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.jam-tabs {
+  flex: none;
+  display: flex;
+  min-height: 36px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-tab {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 220px;
+  border-right: 1px solid var(--border);
+  border-top: 2px solid transparent;
+  color: var(--muted-foreground);
+}
+.jam-tab.is-active {
+  border-top-color: var(--primary);
+  color: var(--foreground);
+  background: var(--background);
+}
+.jam-tab > button:first-child {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  padding: 6px 10px 6px 12px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.jam-tab-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  margin-right: 5px;
+  border-radius: 3px;
+}
+.jam-tab-close:hover {
+  background: var(--muted);
+}
+.jam-editor-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.jam-editor-pane {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+}
+.jam-editor-pane[hidden] {
+  display: none;
+}
+.jam-empty-editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted-foreground);
+  text-align: center;
+  padding: 24px;
+}
+.jam-empty-editor h2 {
+  color: var(--foreground);
+  font-size: 17px;
+  font-weight: 600;
+}
+.jam-empty-editor p {
+  max-width: 280px;
+  font-size: 12px;
+}
+.jam-inspector {
+  flex: 0 0 var(--jam-inspector-width, 256px);
+  min-width: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-pane-resizer {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 6px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  background: var(--card);
+}
+.jam-pane-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 2px;
+  background: var(--border);
+  transition: background-color 0.15s ease;
+}
+.jam-pane-resizer:hover::after,
+.jam-pane-resizer:focus-visible::after,
+.jam-pane-resizer:active::after {
+  background: var(--primary);
+}
+.jam-pane-resizer:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+.jam-inspector-section {
+  padding: 18px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-inspector-section h2 {
+  margin-bottom: 12px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+}
+.jam-inspector-empty {
+  padding: 16px 14px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.jam-mixer {
+  display: grid;
+  gap: 12px;
+}
+.jam-mixer h2 {
+  margin-bottom: 0;
+}
+.jam-mix-tracks {
+  display: grid;
+  gap: 11px;
+}
+.jam-mix-track {
+  display: grid;
+  gap: 5px;
+}
+.jam-mix-track-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.jam-mix-track-heading span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-mix-track-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.jam-mix-track-name .jam-track-dot {
+  flex: none;
+}
+.jam-mix-track-actions {
+  display: flex;
+  flex: none;
+  gap: 3px;
+}
+.jam-mix-track-heading button {
+  width: 25px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-weight: 700;
+  color: var(--muted-foreground);
+}
+.jam-mix-rename {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 4px;
+}
+.jam-mix-rename input {
+  min-width: 0;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 3px 5px;
+  font-size: 11px;
+}
+.jam-mix-rename button {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 10px;
+}
+.jam-mix-rename p {
+  grid-column: 1 / -1;
+  color: var(--destructive);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.jam-mix-palette {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0;
+}
+.jam-mix-palette button {
+  width: 18px;
+  height: 18px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+}
+.jam-mix-palette button:hover,
+.jam-mix-palette button[aria-pressed="true"] {
+  outline: 1px solid var(--foreground);
+  outline-offset: 2px;
+}
+.jam-mix-track-heading button:hover,
+.jam-mix-track-heading button.is-solo {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--muted);
+}
+.jam-mix-level {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 33px;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.jam-mix-level input {
+  width: 100%;
+  accent-color: var(--primary);
+}
+.jam-mix-level output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.jam-mix-hint {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.jam-track-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.jam-track-list button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+}
+.jam-track-list button:hover,
+.jam-track-list button.is-active {
+  border-color: var(--primary);
+  background: var(--muted);
+}
+.jam-track-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.jam-track-1 {
+  background: var(--track-1);
+}
+.jam-track-2 {
+  background: var(--track-2);
+}
+.jam-track-3 {
+  background: var(--track-3);
+}
+.jam-track-4 {
+  background: var(--track-4);
+}
+.jam-track-5 {
+  background: var(--track-5);
+}
+.jam-track-6 {
+  background: var(--track-6);
+}
+.jam-parameter-list {
+  display: grid;
+  gap: 15px;
+}
+.jam-parameter {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.jam-parameter [data-slot="knob"] {
+  flex: none;
+}
+.jam-parameter [data-slot="parameter-slider"] {
+  min-width: 0;
+}
+.jam-output {
+  flex: 0 0 var(--jam-output-height, 174px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-output-resizer {
+  position: relative;
+  flex: none;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+.jam-output-resize-cue {
+  position: absolute;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transform: translateX(-50%);
+  color: var(--muted-foreground);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.jam-output-resizer:hover,
+.jam-output-resizer:focus-visible,
+.jam-output-resizer:active {
+  background: var(--muted);
+}
+.jam-output-resizer:hover .jam-output-resize-cue,
+.jam-output-resizer:focus-visible .jam-output-resize-cue,
+.jam-output-resizer:active .jam-output-resize-cue {
+  color: var(--primary);
+  opacity: 1;
+}
+.jam-output-resizer:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.jam-output .jam-output-state {
+  color: var(--success);
+}
+.jam-output-tabs {
+  display: flex;
+  flex: none;
+  height: 28px;
+  gap: 2px;
+  padding: 0 9px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-output-tabs button {
+  padding: 0 9px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.jam-output-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--primary);
+  color: var(--foreground);
+}
+.jam-output-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.jam-problems-body {
+  overflow-y: auto;
+}
+.jam-problems-body p {
+  padding: 13px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-problems-body li button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 13px;
+  text-align: left;
+  color: var(--foreground);
+  font-size: 12px;
+}
+.jam-problems-body li button:hover {
+  background: var(--muted);
+}
+.jam-problems-body li button span:last-child {
+  color: var(--muted-foreground);
+  font-family: "Martian Mono", monospace;
+  white-space: nowrap;
+}
+.jam-output-idle {
+  padding: 16px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-output-error {
+  display: flex;
+  gap: 10px;
+  padding: 6px 14px;
+  color: var(--destructive);
+  font-size: 12px;
+}
+.jam-output-error button {
+  text-decoration: underline;
+}
+.jam-output-visuals {
+  display: flex;
+  align-items: stretch;
+  gap: 15px;
+  height: 100%;
+  min-height: 0;
+  padding: 10px 14px;
+}
+.jam-level-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.jam-level-wrap [data-slot="level-meter"] {
+  height: 100%;
+}
+.jam-output-visuals [data-slot="spectrum"] {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+.jam-statusbar {
+  flex: none;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  padding: 0 12px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.jam-statusbar span:first-child {
+  color: var(--success);
+}
+.jam-statusbar button:hover,
+.jam-statusbar a:hover {
+  color: var(--foreground);
+}
+.jam-statusbar a {
+  margin-left: 0;
+}
+.jam-statusbar a:first-of-type {
+  margin-left: auto;
+}
+.jam-command-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: min(16vh, 120px) 16px 16px;
+  background: oklch(0.1 0.02 278 / 70%);
+}
+.jam-command-palette {
+  width: min(100%, 500px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--popover);
+  box-shadow: 0 16px 40px #0008;
+}
+.jam-command-palette input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+}
+.jam-command-palette input:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+.jam-command-palette ul {
+  max-height: min(48vh, 340px);
+  overflow-y: auto;
+  padding: 5px;
+}
+.jam-command-palette li button {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  color: var(--foreground);
+  text-align: left;
+  font-size: 13px;
+}
+.jam-command-palette li[aria-selected="true"] button,
+.jam-command-palette li button:hover {
+  background: var(--muted);
+}
+.jam-command-empty {
+  padding: 10px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+@media (max-width: 899px) {
+  .jam-workbench-toolbar {
+    height: 76px;
+    display: grid;
+    grid-template-columns: auto 1px minmax(0, 1fr) auto;
+    grid-template-rows: 38px 36px;
+    gap: 0 8px;
+  }
+  .jam-brand-button {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .jam-toolbar-divider {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .jam-workspace-switch {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .jam-current-file {
+    display: none;
+  }
+  .jam-workbench-toolbar > .jam-auth-controls {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .jam-transport {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: end;
+  }
+  .jam-file-sidebar,
+  .jam-inspector {
+    position: absolute;
+    z-index: 5;
+    top: 76px;
+    bottom: 25px;
+    width: min(80vw, 280px);
+    box-shadow: 10px 0 25px #0005;
+  }
+  .jam-pane-resizer {
+    display: none;
+  }
+  .jam-file-sidebar {
+    left: 46px;
+  }
+  .jam-inspector {
+    right: 0;
+  }
+}
+@media (max-width: 680px) {
+  .jam-workbench-toolbar {
+    padding-inline: 9px;
+  }
+  .jam-transport {
+    gap: 7px;
+  }
+  .jam-export-control summary {
+    width: 32px;
+    padding: 0;
+  }
+  .jam-export-control summary span {
+    display: none;
+  }
+  .jam-current-file {
+    display: none;
+  }
+  .jam-chooser-body {
+    padding-top: 50px;
+  }
+  .jam-create-form > div {
+    flex-wrap: wrap;
+  }
+  .jam-create-form input {
+    flex-basis: 100%;
+  }
+}
+
+/* The app welcome screen is a compact launcher, not a second marketing page. */
+.jam-chooser > header {
+  height: 58px;
+  gap: 20px;
+}
+.jam-chooser-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.jam-chooser-header-actions > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-chooser-header-actions > a:hover {
+  color: var(--foreground);
+}
+.jam-chooser-body {
+  width: min(100%, 1160px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr);
+  gap: 74px;
+  align-items: start;
+  padding: clamp(44px, 9vh, 96px) 28px 70px;
+}
+.jam-chooser-primary {
+  padding-top: 14px;
+}
+.jam-chooser h1 {
+  margin-top: 17px;
+  font-size: clamp(40px, 4vw, 58px);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+}
+.jam-chooser h1 em {
+  color: var(--primary);
+  font-style: normal;
+}
+.jam-chooser-intro {
+  max-width: 440px;
+  margin-top: 20px;
+  font-size: 16px;
+}
+.jam-create-form {
+  margin-top: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.jam-create-form label {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+.jam-create-form input,
+.jam-create-form button {
+  height: 43px;
+}
+.jam-chooser-privacy {
+  margin-top: 13px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-chooser-section {
+  margin-top: 0;
+}
+.jam-chooser-section + .jam-chooser-section {
+  margin-top: 32px;
+}
+.jam-chooser-section h2 {
+  margin-bottom: 12px;
+}
+.jam-chooser-section li {
+  min-height: 66px;
+}
+.jam-chooser-section .jam-recent-open {
+  gap: 10px;
+}
+.jam-chooser-section .jam-recent-open svg,
+.jam-example > svg {
+  color: var(--primary);
+  flex: none;
+}
+.jam-chooser-section .jam-recent-open small {
+  font-size: 11px;
+}
+.jam-example {
+  min-height: 82px;
+}
+.jam-chooser > footer {
+  padding: 13px 28px;
+}
+
+@media (max-width: 1100px) {
+  .jam-chooser-body {
+    gap: 35px;
+  }
+}
+@media (max-width: 720px) {
+  .jam-chooser-body {
+    display: block;
+    padding: 48px 20px 64px;
+  }
+  .jam-chooser-secondary {
+    margin-top: 52px;
+  }
+  .jam-chooser-section .jam-recent-open {
+    flex-wrap: wrap;
+  }
+  .jam-chooser-section .jam-recent-open small {
+    margin-left: 27px;
+    width: 100%;
+  }
+  .jam-chooser-section li {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 440px) {
+  .jam-chooser-header-actions {
+    gap: 8px;
+  }
+  .jam-chooser-header-actions > a {
+    display: none;
+  }
+  .jam-chooser > header {
+    padding: 0 14px;
+  }
+  .jam-chooser > header img {
+    width: 128px;
   }
 }

@@ -10,33 +10,160 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as ApiSharedProjectsRouteImport } from './routes/api.shared-projects'
+import { Route as ApiSharedWorkspacesRouteImport } from './routes/api.shared-workspaces'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppHelpRouteImport } from './routes/app.help'
+import { Route as AppLibraryRouteImport } from './routes/app.library'
+import { Route as ApiCollaborationAuthRouteImport } from './routes/api.collaboration.auth'
+import { Route as AppInvitationsTokenRouteImport } from './routes/app.invitations.$token'
+import { Route as AppSharedDocumentIdRouteImport } from './routes/app.shared.$documentId'
+import { Route as AppWorkspacesWorkspaceIdRouteImport } from './routes/app.workspaces.$workspaceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSharedProjectsRoute = ApiSharedProjectsRouteImport.update({
+  id: '/api/shared-projects',
+  path: '/api/shared-projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSharedWorkspacesRoute = ApiSharedWorkspacesRouteImport.update({
+  id: '/api/shared-workspaces',
+  path: '/api/shared-workspaces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHelpRoute = AppHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLibraryRoute = AppLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => AppRoute,
+} as any)
+const ApiCollaborationAuthRoute = ApiCollaborationAuthRouteImport.update({
+  id: '/api/collaboration/auth',
+  path: '/api/collaboration/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppInvitationsTokenRoute = AppInvitationsTokenRouteImport.update({
+  id: '/invitations/$token',
+  path: '/invitations/$token',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSharedDocumentIdRoute = AppSharedDocumentIdRouteImport.update({
+  id: '/shared/$documentId',
+  path: '/shared/$documentId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkspacesWorkspaceIdRoute =
+  AppWorkspacesWorkspaceIdRouteImport.update({
+    id: '/workspaces/$workspaceId',
+    path: '/workspaces/$workspaceId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/api/shared-projects': typeof ApiSharedProjectsRoute
+  '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
+  '/app/help': typeof AppHelpRoute
+  '/app/library': typeof AppLibraryRoute
+  '/app/': typeof AppIndexRoute
+  '/api/collaboration/auth': typeof ApiCollaborationAuthRoute
+  '/app/invitations/$token': typeof AppInvitationsTokenRoute
+  '/app/shared/$documentId': typeof AppSharedDocumentIdRoute
+  '/app/workspaces/$workspaceId': typeof AppWorkspacesWorkspaceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/shared-projects': typeof ApiSharedProjectsRoute
+  '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
+  '/app/help': typeof AppHelpRoute
+  '/app/library': typeof AppLibraryRoute
+  '/app': typeof AppIndexRoute
+  '/api/collaboration/auth': typeof ApiCollaborationAuthRoute
+  '/app/invitations/$token': typeof AppInvitationsTokenRoute
+  '/app/shared/$documentId': typeof AppSharedDocumentIdRoute
+  '/app/workspaces/$workspaceId': typeof AppWorkspacesWorkspaceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/api/shared-projects': typeof ApiSharedProjectsRoute
+  '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
+  '/app/help': typeof AppHelpRoute
+  '/app/library': typeof AppLibraryRoute
+  '/app/': typeof AppIndexRoute
+  '/api/collaboration/auth': typeof ApiCollaborationAuthRoute
+  '/app/invitations/$token': typeof AppInvitationsTokenRoute
+  '/app/shared/$documentId': typeof AppSharedDocumentIdRoute
+  '/app/workspaces/$workspaceId': typeof AppWorkspacesWorkspaceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/api/shared-projects'
+    | '/api/shared-workspaces'
+    | '/app/help'
+    | '/app/library'
+    | '/app/'
+    | '/api/collaboration/auth'
+    | '/app/invitations/$token'
+    | '/app/shared/$documentId'
+    | '/app/workspaces/$workspaceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/shared-projects'
+    | '/api/shared-workspaces'
+    | '/app/help'
+    | '/app/library'
+    | '/app'
+    | '/api/collaboration/auth'
+    | '/app/invitations/$token'
+    | '/app/shared/$documentId'
+    | '/app/workspaces/$workspaceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/api/shared-projects'
+    | '/api/shared-workspaces'
+    | '/app/help'
+    | '/app/library'
+    | '/app/'
+    | '/api/collaboration/auth'
+    | '/app/invitations/$token'
+    | '/app/shared/$documentId'
+    | '/app/workspaces/$workspaceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  ApiSharedProjectsRoute: typeof ApiSharedProjectsRoute
+  ApiSharedWorkspacesRoute: typeof ApiSharedWorkspacesRoute
+  ApiCollaborationAuthRoute: typeof ApiCollaborationAuthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +175,105 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shared-projects': {
+      id: '/api/shared-projects'
+      path: '/api/shared-projects'
+      fullPath: '/api/shared-projects'
+      preLoaderRoute: typeof ApiSharedProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shared-workspaces': {
+      id: '/api/shared-workspaces'
+      path: '/api/shared-workspaces'
+      fullPath: '/api/shared-workspaces'
+      preLoaderRoute: typeof ApiSharedWorkspacesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/help': {
+      id: '/app/help'
+      path: '/help'
+      fullPath: '/app/help'
+      preLoaderRoute: typeof AppHelpRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/library': {
+      id: '/app/library'
+      path: '/library'
+      fullPath: '/app/library'
+      preLoaderRoute: typeof AppLibraryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/api/collaboration/auth': {
+      id: '/api/collaboration/auth'
+      path: '/api/collaboration/auth'
+      fullPath: '/api/collaboration/auth'
+      preLoaderRoute: typeof ApiCollaborationAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/invitations/$token': {
+      id: '/app/invitations/$token'
+      path: '/invitations/$token'
+      fullPath: '/app/invitations/$token'
+      preLoaderRoute: typeof AppInvitationsTokenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/shared/$documentId': {
+      id: '/app/shared/$documentId'
+      path: '/shared/$documentId'
+      fullPath: '/app/shared/$documentId'
+      preLoaderRoute: typeof AppSharedDocumentIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/workspaces/$workspaceId': {
+      id: '/app/workspaces/$workspaceId'
+      path: '/workspaces/$workspaceId'
+      fullPath: '/app/workspaces/$workspaceId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppHelpRoute: typeof AppHelpRoute
+  AppLibraryRoute: typeof AppLibraryRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppInvitationsTokenRoute: typeof AppInvitationsTokenRoute
+  AppSharedDocumentIdRoute: typeof AppSharedDocumentIdRoute
+  AppWorkspacesWorkspaceIdRoute: typeof AppWorkspacesWorkspaceIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppHelpRoute: AppHelpRoute,
+  AppLibraryRoute: AppLibraryRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppInvitationsTokenRoute: AppInvitationsTokenRoute,
+  AppSharedDocumentIdRoute: AppSharedDocumentIdRoute,
+  AppWorkspacesWorkspaceIdRoute: AppWorkspacesWorkspaceIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  ApiSharedProjectsRoute: ApiSharedProjectsRoute,
+  ApiSharedWorkspacesRoute: ApiSharedWorkspacesRoute,
+  ApiCollaborationAuthRoute: ApiCollaborationAuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

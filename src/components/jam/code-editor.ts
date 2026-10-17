@@ -29,6 +29,7 @@ import {
   type MusicTrack,
 } from "@/engine/music-document";
 import { createTrackControls, trackShape, updateTrackControls } from "./live-lenses";
+import { playbackHighlightExtension } from "./playback-highlights";
 
 export const musicModel = StateField.define<MusicDocument>({
   create: (state) => deriveMusic(state.doc.toString()),
@@ -45,6 +46,7 @@ const linkedLens = StateField.define<string | null>({
 const controlGesture = Annotation.define<boolean>();
 
 export function dispatchLensEdit(view: EditorView, edit: LensEdit, gestureTime?: number) {
+  if (!view.state.facet(EditorView.editable)) return false;
   const patch = lensPatch(view.state.doc.toString(), edit);
   if (!patch) return false;
   view.dispatch({
@@ -155,6 +157,7 @@ export function createMusicEditor(
         linkedLens,
         widgets,
         relationship,
+        playbackHighlightExtension,
         history({ joinToEvent: (tr, adjacent) => !!tr.annotation(controlGesture) || adjacent }),
         lineNumbers(),
         drawSelection(),

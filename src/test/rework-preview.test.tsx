@@ -1,18 +1,27 @@
 import { useRef, useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReworkBar } from "@/components/jam/ReworkBar";
-import { ReviewPanel } from "@/components/jam/InlinePanel";
-import { REWORK_FIXTURES, REWORK_SAMPLE_REQUEST, reworkRequestKind } from "@/components/jam/rework-fixtures";
-import { REVIEW_EXAMPLES, type ReviewExample } from "@/components/jam/review-fixtures";
+import { ReworkBar } from "@/features/assistant/ReworkBar";
+import { ReviewPanel } from "@/features/review/ReviewPanel";
+import {
+  REWORK_FIXTURES,
+  REWORK_SAMPLE_REQUEST,
+  reworkRequestKind,
+} from "@/features/assistant/rework-fixtures";
+import { REVIEW_EXAMPLES, type ReviewExample } from "@/features/review/review-fixtures";
 import { SAMPLE_CODE } from "@/components/jam/session";
-import { TAKE_FIXTURES } from "@/components/jam/take-fixtures";
+import { TAKE_FIXTURES } from "@/features/takes/take-fixtures";
 
 afterEach(cleanup);
 function Harness() {
   const input = useRef<HTMLInputElement>(null);
   const [review, setReview] = useState<ReviewExample | null>(null);
-  return <><ReworkBar inputRef={input} onPreview={(next) => setReview(next)} />{review && <ReviewPanel review={review} onClose={() => setReview(null)} />}</>;
+  return (
+    <>
+      <ReworkBar inputRef={input} onPreview={(next) => setReview(next)} />
+      {review && <ReviewPanel review={review} onClose={() => setReview(null)} />}
+    </>
+  );
 }
 describe("Sample-only Rework", () => {
   it("rejects empty and whitespace-only input", () => {
@@ -42,7 +51,9 @@ describe("Sample-only Rework", () => {
   });
   it("selects the sample deliberately, opens only its fixed proposal, and preserves input on Discard", () => {
     render(<Harness />);
-    fireEvent.click(screen.getByRole("button", { name: `Example request: ${REWORK_SAMPLE_REQUEST}` }));
+    fireEvent.click(
+      screen.getByRole("button", { name: `Example request: ${REWORK_SAMPLE_REQUEST}` }),
+    );
     expect(screen.getByRole("textbox")).toHaveValue(REWORK_SAMPLE_REQUEST);
     expect(screen.queryByRole("region", { name: "Example proposal" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Preview proposal" }));
@@ -66,18 +77,27 @@ describe("Sample-only Rework", () => {
     expect(SAMPLE_CODE).toBe(source);
     expect(JSON.stringify(TAKE_FIXTURES)).toBe(takes);
   });
-  it.each(Object.keys(REWORK_FIXTURES) as (keyof typeof REWORK_FIXTURES)[])("never enables apply in %s check presentation", (key) => {
-    const fixture = REWORK_FIXTURES[key];
-    expect(fixture.checks?.map((check) => check.label)).toEqual(["Parses", "Plays", "Keeps what you asked"]);
-    expect(fixture.checks?.map((check) => check.status)).toEqual(Array(3).fill(key === "normal" ? "notChecked" : key));
-    const view = render(<ReviewPanel review={fixture} onClose={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /Accept change/ })).toBeDisabled();
-    expect(fixture.summary).toBe(REWORK_FIXTURES.normal.summary);
-    // Replacing this proposal with another review must not stack either panel.
-    view.rerender(<ReviewPanel review={REVIEW_EXAMPLES.repo} onClose={vi.fn()} />);
-    expect(screen.queryByRole("region", { name: "Example proposal" })).toBeNull();
-    expect(screen.getAllByRole("region", { name: "Changes in night-bus.js" })).toHaveLength(1);
-  });
+  it.each(Object.keys(REWORK_FIXTURES) as (keyof typeof REWORK_FIXTURES)[])(
+    "never enables apply in %s check presentation",
+    (key) => {
+      const fixture = REWORK_FIXTURES[key];
+      expect(fixture.checks?.map((check) => check.label)).toEqual([
+        "Parses",
+        "Plays",
+        "Keeps what you asked",
+      ]);
+      expect(fixture.checks?.map((check) => check.status)).toEqual(
+        Array(3).fill(key === "normal" ? "notChecked" : key),
+      );
+      const view = render(<ReviewPanel review={fixture} onClose={vi.fn()} />);
+      expect(screen.getByRole("button", { name: /Accept change/ })).toBeDisabled();
+      expect(fixture.summary).toBe(REWORK_FIXTURES.normal.summary);
+      // Replacing this proposal with another review must not stack either panel.
+      view.rerender(<ReviewPanel review={REVIEW_EXAMPLES.repo} onClose={vi.fn()} />);
+      expect(screen.queryByRole("region", { name: "Example proposal" })).toBeNull();
+      expect(screen.getAllByRole("region", { name: "Changes in night-bus.js" })).toHaveLength(1);
+    },
+  );
   it("can discard a pending fixture without scheduling later state changes", () => {
     const schedule = vi.spyOn(window, "setTimeout");
     const onClose = vi.fn();

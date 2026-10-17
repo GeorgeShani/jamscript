@@ -1,10 +1,14 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const web = vi.hoisted(() => ({
   initStrudel: vi.fn(),
+  initAudio: vi.fn(),
   evaluate: vi.fn(),
   hush: vi.fn(),
   samples: vi.fn(),
+  getSuperdoughAudioController: vi.fn().mockReturnValue(null),
+  getAudioContext: vi.fn().mockReturnValue(null),
 }));
 vi.mock("@strudel/web", () => web);
 beforeEach(() => {
@@ -12,6 +16,7 @@ beforeEach(() => {
   vi.stubEnv("SSR", false);
   Object.values(web).forEach((fn) => fn.mockReset());
   web.initStrudel.mockResolvedValue(undefined);
+  web.initAudio.mockResolvedValue(undefined);
   web.evaluate.mockResolvedValue({ pattern: true });
 });
 
@@ -81,5 +86,46 @@ describe("Live playback adapter", () => {
     await Promise.all([first, stopped, resumed]);
     expect(web.hush).not.toHaveBeenCalled();
     expect(web.evaluate).toHaveBeenCalledWith('s("sd")');
+  });
+
+  it("routes solo and levels through Strudel's live orbit and master gains", async () => {
+    const gain = () => ({ setTargetAtTime: vi.fn() });
+    const master = gain();
+    const drums = gain();
+    const hats = gain();
+    web.getAudioContext.mockReturnValue({ currentTime: 3 });
+    web.getSuperdoughAudioController.mockReturnValue({
+      output: { destinationGain: { gain: master } },
+      nodes: { 64: { output: { gain: drums } }, 65: { output: { gain: hats } } },
+    });
+    const playback = await import("@/engine/playback");
+    playback.setMix({ drums: 0.4, hats: 0.8 }, "drums", 0.5);
+    expect(await playback.play('drums: s("bd");\nhats: s("hh");')).toBe(true);
+    expect(web.evaluate).toHaveBeenCalledWith(
+      'drums: (s("bd")).orbit(64);\nhats: (s("hh")).orbit(65);',
+    );
+    expect(master.setTargetAtTime).toHaveBeenCalledWith(0.5, 3, 0.015);
+    expect(drums.setTargetAtTime).toHaveBeenCalledWith(0.4, 3, 0.015);
+    expect(hats.setTargetAtTime).toHaveBeenCalledWith(0, 3, 0.015);
+    await playback.stop();
+  });
+
+  it("evaluates a post-stack-effects song without moving its branches into separate orbits", async () => {
+    const playback = await import("@/engine/playback");
+    const source = 'stack(s("bd"), s("hh")).room(.5).late(.01)';
+    expect(await playback.play(source)).toBe(true);
+    expect(web.evaluate).toHaveBeenCalledWith(source);
+    await playback.stop();
+  });
+
+  it("plays the coastline program with its crate samples and General MIDI parts intact", async () => {
+    const playback = await import("@/engine/playback");
+    const source = readFileSync("public/fixtures/coastline.strudel", "utf8");
+    expect(await playback.play(source)).toBe(true);
+    expect(web.evaluate).toHaveBeenCalledWith(source);
+    expect(web.initStrudel.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ prebake: expect.any(Function) }),
+    );
+    await playback.stop();
   });
 });

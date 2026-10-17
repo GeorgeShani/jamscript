@@ -1,0 +1,405 @@
+// Apocalypse-style arrangement
+//
+// Tempo: 96 BPM
+//
+// Main guitar picking:
+// high e → B → G → D
+// high e → B → G → D
+//
+// Ending:
+// ONE smooth F strum
+// then reverb tail
+// then ~7.7 seconds of silence
+//
+// No drums
+// No bass
+// No hi-hats
+// No repeated guitar picking
+
+setcps(96 / 60 / 4)
+
+
+// ====================================================
+// HARMONIC PROGRESSIONS
+// ====================================================
+
+const progressionA =
+  chord("<F Dm Am C>")
+    .dict("ireal")
+
+const progressionB =
+  chord("<Bb F Bb Dm Bb C F C>")
+    .dict("ireal")
+
+const progressionC =
+  chord("<Bb F Bb Dm Bb C F F>")
+    .dict("ireal")
+
+const progressionD =
+  chord("<Gm Gm Am Am>")
+    .dict("ireal")
+
+const progressionE =
+  chord("<Bb Gm F Dm Gm Gm C7 C7>")
+    .dict("ireal")
+
+const progressionF =
+  chord("<Bb F Bb F Bb C>")
+    .dict("ireal")
+
+
+// ====================================================
+// MAIN HARMONIC ARRANGEMENT
+// ====================================================
+
+const mainSong = arrange(
+
+  [8, progressionA],
+
+  [8, progressionA],
+
+  [8, progressionB],
+
+  [8, progressionA],
+
+  [8, progressionC],
+
+  [8, progressionD],
+
+  [8, progressionE],
+
+  [8, progressionA],
+
+  [8, progressionC],
+
+  [6, progressionF]
+)
+
+
+// ====================================================
+// PHYSICAL GUITAR STRING PICKING
+//
+// high e → B → G → D
+//
+// repeated twice:
+//
+// e B G D  e B G D
+// ====================================================
+
+
+// F
+const pickF =
+  note("[a4 f4 c4 a3]*2")
+
+
+// Dm
+const pickDm =
+  note("[a4 f4 d4 a3]*2")
+
+
+// Am
+const pickAm =
+  note("[a4 e4 c4 a3]*2")
+
+
+// C
+const pickC =
+  note("[a4 e4 c4 g3]*2")
+
+
+// Bb
+const pickBb =
+  note("[bb4 f4 d4 bb3]*2")
+
+
+// Gm
+const pickGm =
+  note("[bb4 g4 d4 g3]*2")
+
+
+// C7
+const pickC7 =
+  note("[bb4 e4 c4 g3]*2")
+
+
+// ====================================================
+// GUITAR PROGRESSION PATTERNS
+// ====================================================
+
+
+// F Dm Am C
+const guitarA = cat(
+  pickF,
+  pickDm,
+  pickAm,
+  pickC
+)
+
+
+// Bb F Bb Dm Bb C F C
+const guitarB = cat(
+  pickBb,
+  pickF,
+  pickBb,
+  pickDm,
+  pickBb,
+  pickC,
+  pickF,
+  pickC
+)
+
+
+// Bb F Bb Dm Bb C F F
+const guitarC = cat(
+  pickBb,
+  pickF,
+  pickBb,
+  pickDm,
+  pickBb,
+  pickC,
+  pickF,
+  pickF
+)
+
+
+// Gm Gm Am Am
+const guitarD = cat(
+  pickGm,
+  pickGm,
+  pickAm,
+  pickAm
+)
+
+
+// Bb Gm F Dm Gm Gm C7 C7
+const guitarE = cat(
+  pickBb,
+  pickGm,
+  pickF,
+  pickDm,
+  pickGm,
+  pickGm,
+  pickC7,
+  pickC7
+)
+
+// Bb F Bb F Bb C
+const guitarF = cat(
+  pickBb,
+  pickF,
+  pickBb,
+  pickF,
+  pickBb,
+  pickC
+)
+
+
+// ====================================================
+// MAIN GUITAR ARRANGEMENT
+// ====================================================
+
+const mainGuitar = arrange(
+
+  [8, guitarA],
+
+  [8, guitarA],
+
+  [8, guitarB],
+
+  [8, guitarA],
+
+  [8, guitarC],
+
+  [8, guitarD],
+
+  [8, guitarE],
+
+  [8, guitarA],
+
+  [8, guitarC],
+  
+  [6, guitarF],
+)
+
+
+// ====================================================
+// MAIN BODY
+// ====================================================
+
+const mainBody = stack(
+
+  // --------------------------------------------------
+  // AMBIENT ELECTRIC PIANO
+  // --------------------------------------------------
+
+  mainSong
+    .voicing()
+    .s("gm_epiano1")
+    .anchor("c4")
+
+    .gain(.20)
+
+    .attack(.12)
+    .release(2.4)
+
+    .lpf(2200)
+
+    .room(.84)
+    .size(.92)
+
+    .delay(.16),
+
+
+  // --------------------------------------------------
+  // DREAMY ELECTRIC GUITAR PICKING
+  // --------------------------------------------------
+
+  mainGuitar
+    .s("gm_electric_guitar_clean")
+
+    .attack(.012)
+    .release(1.45)
+
+    .gain(.32)
+
+    .lpf(3300)
+
+    .room(.91)
+    .size(.97)
+
+    .delay(.27)
+
+    .shape(.07),
+
+
+  // --------------------------------------------------
+  // BASS
+  //
+  // Pattern:
+  // root → rest → fifth → root
+  //
+  // Gives a soft:
+  // DUM — DUM dum
+  // --------------------------------------------------
+
+  n("0 ~ 2 0")
+    .set(mainSong)
+    .mode("root:f2")
+    .voicing()
+
+    .s("gm_electric_bass_finger")
+
+    .gain(.27)
+
+    .attack(.02)
+    .release(.7)
+
+    .lpf(900)
+
+    .room(.08),
+
+
+  // --------------------------------------------------
+  // DREAMY LIVE DRUM GROOVE
+  //
+  //        1   &   2   &   3   &   4   &
+  // Kick   ●               ●
+  // Rim            ●               ●
+  // Hats   x   x   x   x   x   x   x   x
+  // --------------------------------------------------
+
+  stack(
+
+    // BOOM on beats 1 and 3
+    s("bd ~ bd ~")
+      .gain(.16)
+      .lpf(1600)
+      .room(.08),
+
+    // soft BAM on beats 2 and 4
+    s("~ rim ~ rim")
+      .gain(.085)
+      .lpf(3300)
+      .room(.32)
+      .size(.55),
+
+    // continuous soft hi-hat:
+    // ts ts ts ts ts ts ts ts
+    s("hh*8")
+      .gain("[.032 .022]*4")
+      .lpf(5200)
+      .room(.22)
+      .size(.5)
+  )
+)
+
+
+// ====================================================
+// ONE-SHOT FINAL F STRUM
+//
+// The four notes happen only once.
+//
+// A3 → C4 → F4 → A4
+//
+// They occur at the beginning of the cycle.
+// The rest of the cycle is silence.
+// ====================================================
+
+const ending =
+  note("[a3 c4 f4 a4] ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~")
+
+    .s("gm_electric_guitar_clean")
+
+    // natural pick attack
+    .attack(.01)
+
+    // long overlapping ring
+    .release(4.8)
+
+    .gain(.36)
+
+    // darker dreamy tone
+    .lpf(3200)
+
+    // huge ambient space
+    .room(.97)
+    .size(1)
+
+    // subtle echo
+    .delay(.30)
+
+    // slight soft saturation
+    .shape(.05)
+
+
+// ====================================================
+// SILENCE AFTER ENDING
+//
+// At 96 BPM:
+//
+// 1 cycle ≈ 2.55 seconds
+// 3 cycles ≈ 7.66 seconds
+//
+// Some of the first part will still contain the
+// remaining reverb tail from the final F strum.
+// ====================================================
+
+const silenceTail =
+  note("~")
+
+
+// ====================================================
+// FINAL ARRANGEMENT
+// ====================================================
+
+arrange(
+
+  // MAIN SONG
+  [78, mainBody],
+
+  // ONE FINAL F STRUM
+  [1, ending],
+
+  // THREE SILENT CYCLES
+  [3, silenceTail]
+)

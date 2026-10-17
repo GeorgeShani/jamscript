@@ -1,0 +1,251 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { SessionWorkbench } from "@/workbench/SessionWorkbench";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  createDocument,
+  createWorkspace,
+  listDocuments,
+  listWorkspaces,
+} from "@/workspaces/storage";
+import * as playback from "@/engine/playback";
+
+vi.mock("@/engine/playback", () => ({
+  onError: vi.fn(),
+  onAsset: vi.fn(),
+  onHighlight: vi.fn(),
+  play: vi.fn().mockResolvedValue(true),
+  stop: vi.fn().mockResolvedValue(undefined),
+  getOutputNode: vi.fn().mockReturnValue(null),
+  setMix: vi.fn(),
+}));
+vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
+
+afterEach(cleanup);
+
+describe("browser workbench", () => {
+  it("opens files and commands from one keyboard driven palette", async () => {
+    render(
+      <TooltipProvider>
+        <SessionWorkbench />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+    await screen.findByRole("tab", { name: "night-bus.js" });
+    fireEvent.click(screen.getByRole("button", { name: "Show files" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "New document name" }), {
+      target: { value: "second" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create document" }));
+    await screen.findByRole("tab", { name: "second.js" });
+
+    fireEvent.keyDown(window, { key: "p", ctrlKey: true });
+    const search = screen.getByRole("combobox", { name: "Find a file" });
+    fireEvent.change(search, { target: { value: "night" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(screen.getByRole("tab", { name: "night-bus.js" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    fireEvent.keyDown(window, { key: "P", ctrlKey: true, shiftKey: true });
+    const command = screen.getByRole("combobox", { name: "Find a command" });
+    fireEvent.change(command, { target: { value: "Hide Output" } });
+    fireEvent.keyDown(command, { key: "Enter" });
+    expect(screen.getByRole("button", { name: "Show output" })).toBeInTheDocument();
+  });
+
+  it("reopens a workspace from its URL identity and reports a missing local workspace", async () => {
+    const route = vi.fn();
+    const rendered = render(
+      <TooltipProvider>
+        <SessionWorkbench onWorkspaceRoute={route} />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+    const workspace = (await listWorkspaces()).find((item) => item.name === "Night bus");
+    expect(workspace).toBeDefined();
+    await waitFor(() => expect(route).toHaveBeenCalledWith(workspace!.id));
+    rendered.rerender(
+      <TooltipProvider>
+        <SessionWorkbench workspaceId={workspace!.id} onWorkspaceRoute={route} />
+      </TooltipProvider>,
+    );
+    expect(await screen.findByRole("tab", { name: "night-bus.js" })).toBeInTheDocument();
+    rendered.rerender(
+      <TooltipProvider>
+        <SessionWorkbench workspaceId="missing-local-workspace" onWorkspaceRoute={route} />
+      </TooltipProvider>,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("not found in this browser");
+  });
+
+  it("shows source controls for the supplied complex Strudel song", async () => {
+    const source = readFileSync("public/fixtures/coastline.strudel", "utf8");
+    const { workspace } = await createWorkspace("Coastline controls", source);
+    render(
+      <TooltipProvider>
+        <SessionWorkbench workspaceId={workspace.id} />
+      </TooltipProvider>,
+    );
+    const controls = await screen.findByRole("button", { name: /source controls/ });
+    expect(Number(controls.textContent?.split(" ")[0])).toBeGreaterThan(0);
+    fireEvent.click(controls);
+    expect(screen.getByRole("complementary", { name: "Track inspector" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Original audio routing is preserved; source controls below still work/),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the selected library document directly", async () => {
+    const { workspace } = await createWorkspace("Library selection");
+    const selected = await createDocument(workspace.id, "selected.js");
+    render(
+      <TooltipProvider>
+        <SessionWorkbench workspaceId={workspace.id} initialDocumentId={selected.id} />
+      </TooltipProvider>,
+    );
+    expect(await screen.findByRole("tab", { name: "selected.js" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("stops playback when closing the active song tab", async () => {
+    vi.mocked(playback.play).mockClear();
+    vi.mocked(playback.stop).mockClear();
+    render(
+      <TooltipProvider>
+        <SessionWorkbench />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+    await screen.findByRole("tab", { name: "night-bus.js" });
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    await waitFor(() => expect(playback.play).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Close night-bus.js tab" }));
+    await waitFor(() => expect(playback.stop).toHaveBeenCalled());
+  });
+
+  it("keeps side drawers mutually exclusive below 900px", async () => {
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
+    try {
+      render(
+        <TooltipProvider>
+          <SessionWorkbench />
+        </TooltipProvider>,
+      );
+      fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+      await screen.findByRole("tab", { name: "night-bus.js" });
+      fireEvent.click(screen.getByRole("button", { name: "Show files" }));
+      expect(screen.getByRole("button", { name: "Hide files" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Show inspector" }));
+      expect(screen.getByRole("button", { name: "Show files" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Hide inspector" })).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: previousWidth });
+    }
+  });
+
+  it("bounds sidebar resizing and supports keyboard fader-pane controls", async () => {
+    render(
+      <TooltipProvider>
+        <SessionWorkbench />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show files" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Show inspector" }, { timeout: 5000 }),
+    );
+
+    const files = screen.getByRole("separator", { name: "Resize Files pane" });
+    const inspector = screen.getByRole("separator", { name: "Resize Inspector pane" });
+    fireEvent.keyDown(files, { key: "Home" });
+    expect(files).toHaveAttribute("aria-valuenow", "170");
+    fireEvent.keyDown(inspector, { key: "Home" });
+    expect(inspector).toHaveAttribute("aria-valuenow", "190");
+    fireEvent.keyDown(files, { key: "End" });
+    expect(Number(files.getAttribute("aria-valuenow"))).toBeGreaterThan(170);
+    expect(Number(files.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(340);
+    fireEvent.keyDown(inspector, { key: "ArrowLeft" });
+    expect(Number(inspector.getAttribute("aria-valuenow"))).toBeGreaterThan(190);
+    Object.defineProperty(files, "setPointerCapture", { value: vi.fn() });
+    Object.defineProperty(files, "hasPointerCapture", { value: () => false });
+    fireEvent.keyDown(files, { key: "Home" });
+    fireEvent(files, new MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: 100 }));
+    fireEvent(files, new MouseEvent("pointermove", { bubbles: true, clientX: 900 }));
+    fireEvent(files, new MouseEvent("pointerup", { bubbles: true, clientX: 900 }));
+    expect(Number(files.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(340);
+    expect(Number(files.getAttribute("aria-valuenow"))).toBeGreaterThan(170);
+    expect(
+      screen
+        .getByRole("button", { name: "Hide inspector" })
+        .querySelector("svg.lucide-sliders-vertical"),
+    ).toBeTruthy();
+    const output = screen.getByRole("separator", { name: "Resize Output panel" });
+    fireEvent.keyDown(output, { key: "Home" });
+    expect(output).toHaveAttribute("aria-valuenow", "110");
+    fireEvent.keyDown(output, { key: "ArrowUp" });
+    expect(output).toHaveAttribute("aria-valuenow", "126");
+    fireEvent.keyDown(output, { key: "End" });
+    expect(Number(output.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(500);
+    Object.defineProperty(output, "setPointerCapture", { value: vi.fn() });
+    Object.defineProperty(output, "hasPointerCapture", { value: () => false });
+    fireEvent(output, new MouseEvent("pointerdown", { bubbles: true, button: 0, clientY: 200 }));
+    fireEvent(output, new MouseEvent("pointermove", { bubbles: true, clientY: -500 }));
+    fireEvent(output, new MouseEvent("pointerup", { bubbles: true, clientY: -500 }));
+    expect(Number(output.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(500);
+    expect(window.localStorage.getItem("jamscript-output-height")).toBe(
+      output.getAttribute("aria-valuenow"),
+    );
+  });
+
+  it("keeps per-document editor and undo state when switching tabs and autosaves changes", async () => {
+    render(
+      <TooltipProvider>
+        <SessionWorkbench />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+    const tempo = await screen.findByRole("spinbutton", { name: "Tempo in BPM" });
+    await waitFor(() => expect(tempo).toHaveValue(144));
+    const workspaceName = "Night bus";
+    const workspace = (await listWorkspaces()).find((item) => item.name === workspaceName);
+    expect(workspace).toBeDefined();
+
+    fireEvent.change(tempo, { target: { value: "120" } });
+    fireEvent.keyDown(tempo, { key: "Enter" });
+    expect(document.querySelector(".jam-editor-pane:not([hidden]) .cm-line")?.textContent).toBe(
+      "setcps(0.5);",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show files" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "New document name" }), {
+      target: { value: "second" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create document" }));
+    await screen.findByRole("tab", { name: "second.js" });
+    expect(screen.getByRole("tab", { name: "second.js" })).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(screen.getByRole("tab", { name: "night-bus.js" }));
+    expect(document.querySelector(".jam-editor-pane:not([hidden]) .cm-line")?.textContent).toBe(
+      "setcps(0.5);",
+    );
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Music code" }), {
+      key: "z",
+      code: "KeyZ",
+      ctrlKey: true,
+    });
+    expect(document.querySelector(".jam-editor-pane:not([hidden]) .cm-line")?.textContent).toBe(
+      "setcps(0.6);",
+    );
+    await waitFor(() => expect(screen.getByText("Saved locally")).toBeInTheDocument());
+    await waitFor(async () => {
+      const docs = await listDocuments(workspace!.id);
+      expect(docs.find((item) => item.name === "night-bus.js")?.source).toContain("setcps(0.6)");
+      expect(docs.some((item) => item.name === "second.js")).toBe(true);
+    });
+  });
+});

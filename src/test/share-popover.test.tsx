@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SharePopover } from "@/components/jam/SharePopover";
-import { ExampleAvatar } from "@/components/jam/ExampleAvatar";
+import { SharePopover } from "@/features/collaboration/SharePopover";
+import { ExampleAvatar } from "@/features/collaboration/ExampleAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 vi.mock("sonner", () => ({ toast: vi.fn() }));
-afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function ShareHarness() {
   const [open, setOpen] = useState(false);
@@ -17,7 +21,12 @@ function ShareHarness() {
 describe("Preview sharing", () => {
   it("only writes the current page URL after Copy link, and waits for success", async () => {
     let complete: (() => void) | undefined;
-    const writeText = vi.fn(() => new Promise<void>((resolve) => { complete = resolve; }));
+    const writeText = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          complete = resolve;
+        }),
+    );
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     render(<ShareHarness />);
     fireEvent.click(screen.getByRole("button", { name: "Share" }));
@@ -35,7 +44,10 @@ describe("Preview sharing", () => {
   });
 
   it("never claims success when clipboard writes fail", async () => {
-    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error("Denied")) } });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error("Denied")) },
+    });
     render(<ShareHarness />);
     fireEvent.click(screen.getByRole("button", { name: "Share" }));
     fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
@@ -55,7 +67,12 @@ describe("Preview sharing", () => {
   });
 
   it("exposes example avatars as keyboard-focusable descriptions, not management actions", () => {
-    render(<TooltipProvider><ExampleAvatar initials="NK" ring="ring-track-6" /><ExampleAvatar initials="GS" ring="ring-track-5" /></TooltipProvider>);
+    render(
+      <TooltipProvider>
+        <ExampleAvatar initials="NK" ring="ring-track-6" />
+        <ExampleAvatar initials="GS" ring="ring-track-5" />
+      </TooltipProvider>,
+    );
     for (const initials of ["NK", "GS"]) {
       const avatar = screen.getByLabelText(`Example collaborator ${initials}`);
       act(() => avatar.focus());

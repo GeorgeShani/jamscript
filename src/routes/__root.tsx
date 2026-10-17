@@ -8,12 +8,13 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { ClerkProvider } from "@clerk/tanstack-react-start";
+import { shadcn } from "@clerk/ui/themes";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -40,10 +41,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -81,7 +78,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "JamScript" },
-      { name: "description", content: "Make music with Strudel code, with knobs and step grids as live views of it." },
+      {
+        name: "description",
+        content: "Make music with Strudel code, with knobs and step grids as live views of it.",
+      },
     ],
     links: [
       {
@@ -95,6 +95,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,100..800&family=Schibsted+Grotesk:wght@400..900&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/brand/app-icon.svg", type: "image/svg+xml" },
     ],
   }),
   shellComponent: RootShell,
@@ -110,7 +111,22 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        {import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"] ? (
+          <ClerkProvider
+            appearance={{
+              theme: { ...shadcn, cssLayerName: "clerk" },
+              options: { logoImageUrl: "/brand/logo.svg", logoLinkUrl: "/" },
+            }}
+            localization={{
+              signIn: { start: { title: "Sign in to JamScript" } },
+              signUp: { start: { title: "Create your JamScript account" } },
+            }}
+          >
+            {children}
+          </ClerkProvider>
+        ) : (
+          children
+        )}
         <Scripts />
       </body>
     </html>
