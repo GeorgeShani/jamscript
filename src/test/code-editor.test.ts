@@ -1,0 +1,66 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { isolateHistory, redo, undo } from "@codemirror/commands";
+import type { EditorView } from "@codemirror/view";
+import { createMusicEditor, dispatchLensEdit, musicModel } from "@/components/jam/code-editor";
+import { SAMPLE_CODE } from "@/components/jam/session";
+
+const views: EditorView[] = [];
+afterEach(() => {
+  for (const view of views.splice(0)) view.destroy();
+  document.body.innerHTML = "";
+});
+function editor(code = SAMPLE_CODE, change = vi.fn()) {
+  const parent = document.createElement("div");
+  document.body.append(parent);
+  const view = createMusicEditor(parent, code, change, vi.fn());
+  views.push(view);
+  return view;
+}
+describe("Real music editor", () => {
+  it("lets users type arbitrary code and re-derives the controls", () => {
+    const change = vi.fn();
+    const view = editor(SAMPLE_CODE, change);
+    const source = 'claps: s("cp ~").gain(0.3);';
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+    expect(change).toHaveBeenLastCalledWith(source, expect.objectContaining({ valid: true }));
+    expect(view.state.field(musicModel).tracks[0]!.name).toBe("claps");
+    expect(view.contentDOM.getAttribute("contenteditable")).toBe("true");
+  });
+  it("uses one source and undo history for typing, toggles and parameter changes", () => {
+    const view = editor();
+    dispatchLensEdit(view, { target: "drums/rhythm", step: 1 });
+    const afterToggle = view.state.doc.toString();
+    expect(afterToggle).toContain('s("bd bd sd ~ bd bd sd ~")');
+    dispatchLensEdit(view, { target: "bass/param/lpf", value: 430 });
+    expect(view.state.doc.toString()).toContain(".lpf(430)");
+    expect(undo(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe(afterToggle);
+    undo(view);
+    expect(view.state.doc.toString()).toBe(SAMPLE_CODE);
+    redo(view);
+    expect(view.state.doc.toString()).toBe(afterToggle);
+  });
+  it("groups a whole knob gesture as one undo step, separate from earlier edits", () => {
+    const view = editor();
+    dispatchLensEdit(view, { target: "hats/param/gain", value: 0.7 });
+    const beforeDrag = view.state.doc.toString();
+    view.dispatch({ annotations: isolateHistory.of("after") });
+    const time = Date.now();
+    for (const value of [1100, 800, 430])
+      dispatchLensEdit(view, { target: "bass/param/lpf", value }, time);
+    view.dispatch({ annotations: isolateHistory.of("after") });
+    undo(view);
+    expect(view.state.doc.toString()).toBe(beforeDrag);
+    undo(view);
+    expect(view.state.doc.toString()).toBe(SAMPLE_CODE);
+  });
+  it("updates a focused knob in place when its source changes", () => {
+    const view = editor();
+    const slider = view.dom.querySelector<HTMLElement>('[aria-label="bass lpf"]')!;
+    slider.focus();
+    dispatchLensEdit(view, { target: "bass/param/lpf", value: 800 });
+    expect(view.dom.querySelector('[aria-label="bass lpf"]')).toBe(slider);
+    expect(slider.getAttribute("aria-valuenow")).toBe("800");
+    expect(document.activeElement).toBe(slider);
+  });
+});

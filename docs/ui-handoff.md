@@ -1,5 +1,17 @@
 # JamScript UI handoff
 
+## Current local implementation: compact working editor
+
+The latest user request supersedes the UI-only boundary and the roomier revision below. The editor now uses CodeMirror 6, with the document as the source of truth. The immutable sample initializes it once. `src/engine/music-document.ts` derives a narrow music model from Lezer syntax and creates checked minimal source patches; `src/components/jam/code-editor.ts` owns the editor, inline widgets, exact linked highlighting and shared undo; `live-lenses.ts` renders controls without storing independent music values. The former sample-offset maps and mock editor were removed.
+
+Working interactions: type arbitrary source, Ctrl/Cmd+Enter to evaluate, toggle a flat pattern step, drag a knob, use arrow keys (Shift for larger steps), click a parameter value to type, and Undo/Redo across both typing and controls. A knob drag updates source continuously and is one undo step. Gain/room and low/high-pass numeric literals have controls; simple literal `s`/`sound` patterns support up to 16 steps. A restored rest uses the first sounding token in that pattern, or a documented default for an all-rest pattern; Undo restores the exact old token. Complex, escaped, ambiguous or incomplete patterns are left to code editing. Controls are re-derived after every source change.
+
+Play evaluates current source rather than the original sample. Valid changes update a running pattern after 180ms of inactivity. The adapter serializes and coalesces evaluations, forwards Strudel callback errors, retries failed initialization and prevents pending work from restarting audio after Stop. The demo's missing `rim` sound was replaced with `sd`. Samples still load from the existing external sample source.
+
+Validation: 73 tests across 10 files, TypeScript, ESLint on changed source/tests, and the final production build passed. Existing build plugin/chunk warnings remain. Browser checks exercised actual source typing and changing tempo, a grid toggle, keyboard and direct numeric entry, pointer dragging, one-step drag undo, and live Strudel reevaluation. The 390px viewport remained 390px wide. Audio was stopped after inspection. Evaluation and sample loading were observed in browser logs; this does not claim an independent audible-output assessment. The design detector reported only the new 11px gutter type step, which is now documented in DESIGN.md metadata.
+
+Remaining limitations: Repo, Takes, Rework and collaborator presence are still labeled examples. The source is held in the open editor; persistence and export are not implemented, so refreshing resets to the initial song. No collaboration or optional-feature wiring was added. The published Lovable URL has not been deployed from these local edits. Earlier acceptance sections are historical and their mock-editor capability tables no longer describe the editor itself.
+
 ## Local visual revision — 17 October 2026
 
 After reviewing the published shell, the user selected a roomier code-first editor. The local export now implements that direction: 16px source on 32px rows, 36px rhythm cells and 44px knobs, a 72px desktop toolbar, clearer statement spacing, quieter Takes disclosures, and a larger Rework input. Phone controls and layout remain bounded to the viewport. Strudel attribution is now persistent in the footer rather than disappearing with the first-use strip. DESIGN.md's roomier editor revision supersedes the original dense dimensions.

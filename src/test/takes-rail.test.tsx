@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TakesRail } from "@/components/jam/TakesRail";
 import { TAKE_FIXTURES, EXAMPLE_TAKES, TAKE_COMPARISONS } from "@/components/jam/take-fixtures";
@@ -7,19 +7,28 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SAMPLE_CODE } from "@/components/jam/session";
 
 afterEach(cleanup);
-const chip = (time: string) => screen.getByRole("button", { name: new RegExp(`Example Take ${time},`) });
+const rail = () => within(screen.getByRole("navigation", { name: "Takes" }));
+const chip = (time: string) =>
+  rail().getByRole("button", { name: new RegExp(`Example Take ${time},`) });
 
 describe("Presentation-only Takes", () => {
   it("keeps the current 19:44 example independent of selection and source", () => {
-    const { container } = render(<TooltipProvider><EditorSlot /><TakesRail onCompare={vi.fn()} /></TooltipProvider>);
+    const { container } = render(
+      <TooltipProvider>
+        <EditorSlot />
+        <TakesRail onCompare={vi.fn()} />
+      </TooltipProvider>,
+    );
     for (const time of ["19:42", "19:43", "19:44"]) {
       fireEvent.click(chip(time));
       expect(chip(time)).toHaveAttribute("aria-pressed", "true");
       expect(chip("19:44")).toHaveAttribute("aria-current", "true");
       expect(chip("19:42")).not.toHaveAttribute("aria-current");
       expect(chip("19:43")).not.toHaveAttribute("aria-current");
-      expect(screen.getAllByRole("button", { pressed: true }).filter((button) => button.hasAttribute("data-take-id"))).toHaveLength(1);
-      expect([...container.querySelectorAll("code")].map((line) => line.textContent).join("\n")).toBe(SAMPLE_CODE);
+      expect(rail().getAllByRole("button", { pressed: true })).toHaveLength(1);
+      expect(
+        [...container.querySelectorAll(".cm-line")].map((line) => line.textContent).join("\n"),
+      ).toBe(SAMPLE_CODE);
     }
   });
 
@@ -46,7 +55,10 @@ describe("Presentation-only Takes", () => {
     const compare = screen.getByRole("button", { name: "Compare" });
     fireEvent.click(compare);
     expect(onCompare).toHaveBeenCalledWith(TAKE_COMPARISONS["example-1943"], compare);
-    expect(onCompare.mock.calls[0]?.[0].comparison).toEqual({ selected: "19:43, hats 4 to 8", current: "19:44, bass lpf 1200 to 430" });
+    expect(onCompare.mock.calls[0]?.[0].comparison).toEqual({
+      selected: "19:43, hats 4 to 8",
+      current: "19:44, bass lpf 1200 to 430",
+    });
     expect(chip("19:43")).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(chip("19:44"));
     fireEvent.click(compare);
@@ -64,12 +76,15 @@ describe("Presentation-only Takes", () => {
     expect(chip("19:42")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it.each(["empty", "loading", "unavailable"] as const)("keeps the %s fixture free of generated history", (status) => {
-    const view = render(<TakesRail fixture={TAKE_FIXTURES[status]} onCompare={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: /Example Take/ })).toBeNull();
-    view.rerender(<TakesRail fixture={TAKE_FIXTURES[status]} onCompare={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: /Compare|Audition|Restore/ })).toBeNull();
-  });
+  it.each(["empty", "loading", "unavailable"] as const)(
+    "keeps the %s fixture free of generated history",
+    (status) => {
+      const view = render(<TakesRail fixture={TAKE_FIXTURES[status]} onCompare={vi.fn()} />);
+      expect(screen.queryByRole("button", { name: /Example Take/ })).toBeNull();
+      view.rerender(<TakesRail fixture={TAKE_FIXTURES[status]} onCompare={vi.fn()} />);
+      expect(screen.queryByRole("button", { name: /Compare|Audition|Restore/ })).toBeNull();
+    },
+  );
 
   it("exposes auditioning only through its explicit fixture prop with disconnected actions", () => {
     const onCompare = vi.fn();

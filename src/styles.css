@@ -50,9 +50,7 @@
 
   /* Code */
   --selection: oklch(0.4 0.06 278); /* #404468 */
-  --syn-comment: oklch(
-    0.68 0.02 278
-  ); /* #9597A5, 5.0:1 on rest cells and active line */
+  --syn-comment: oklch(0.68 0.02 278); /* #9597A5, 5.0:1 on rest cells and active line */
   --syn-keyword: oklch(0.78 0.12 300); /* #C3A5F9, 4.5:1 inside a selection */
   --syn-function: oklch(0.84 0.09 262); /* #ABCBFF, not cyan: cyan is the linked highlight */
   --syn-number: oklch(0.8 0.11 35); /* #FCA48D */
@@ -175,27 +173,28 @@
   }
 }
 
-
 /* JamScript editor scale, floating shadow and motion. */
 @theme inline {
   --text-badge: 0.6875rem;
   --text-badge--line-height: 1.45;
   --text-label: 0.75rem;
   --text-label--line-height: 1.35;
-  --text-ui: 0.875rem;
+  --text-ui: 0.8125rem;
   --text-ui--line-height: 1.55;
   --ease-jam: cubic-bezier(0.2, 0, 0, 1);
 }
 
 @utility shadow-floating {
-  box-shadow: 0 12px 32px oklch(0.1 0.02 278 / 55%), 0 0 0 1px var(--border);
+  box-shadow:
+    0 12px 32px oklch(0.1 0.02 278 / 55%),
+    0 0 0 1px var(--border);
 }
 
 @utility code-line {
   font-family: var(--font-mono);
-  font-size: 1rem;
-  line-height: 2;
-  font-stretch: 95%;
+  font-size: 0.875rem;
+  line-height: 1.85;
+  font-stretch: 87.5%;
   font-variant-numeric: tabular-nums;
 }
 
@@ -208,13 +207,15 @@
 }
 
 @utility jam-transition {
-  transition-property: color, background-color, border-color, outline-color, opacity, box-shadow, filter;
+  transition-property:
+    color, background-color, border-color, outline-color, opacity, box-shadow, filter;
   transition-duration: 150ms;
   transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* Sonner ships a system-font/motion default: keep floating feedback in the approved vocabulary. */
-.toaster[data-sonner-toaster], .toaster[data-sonner-toaster] [data-sonner-toast] {
+.toaster[data-sonner-toaster],
+.toaster[data-sonner-toaster] [data-sonner-toast] {
   font-family: var(--font-sans);
   transition-duration: 150ms;
   transition-timing-function: var(--ease-jam);
@@ -224,7 +225,9 @@
   color: var(--popover-foreground);
   border: 0;
   font-size: var(--text-ui);
-  box-shadow: 0 12px 32px oklch(0.1 0.02 278 / 55%), 0 0 0 1px var(--border);
+  box-shadow:
+    0 12px 32px oklch(0.1 0.02 278 / 55%),
+    0 0 0 1px var(--border);
 }
 .toaster[data-sonner-toaster] [data-sonner-toast] * {
   transition-duration: 150ms;
@@ -246,20 +249,47 @@
   display: grid;
   align-items: center;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
-  grid-template-rows: 52px 44px;
-  column-gap: 12px;
-  padding-inline: 24px;
+  grid-template-rows: 40px 36px;
+  column-gap: 8px;
+  padding-inline: 16px;
 }
-.jam-toolbar button { min-height: 36px; }
-.jam-wordmark { font-size: 16px; }
-.jam-session-name { font-size: 16px; }
-.jam-identity { grid-column: 1 / 4; grid-row: 1; }
-.jam-play { grid-column: 4; grid-row: 1; justify-self: end; }
-.jam-repo { grid-column: 1; grid-row: 2; }
-.jam-presence { grid-column: 2; grid-row: 2; }
-.jam-tempo { grid-column: 3; grid-row: 2; }
-.jam-share { grid-column: 4; grid-row: 2; }
-.jam-play { min-width: 96px; }
+.jam-toolbar button {
+  min-height: 28px;
+}
+.jam-wordmark {
+  font-size: 14px;
+}
+.jam-session-name {
+  font-size: 14px;
+}
+.jam-identity {
+  grid-column: 1 / 4;
+  grid-row: 1;
+}
+.jam-play {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+}
+.jam-repo {
+  grid-column: 1;
+  grid-row: 2;
+}
+.jam-presence {
+  grid-column: 2;
+  grid-row: 2;
+}
+.jam-tempo {
+  grid-column: 3;
+  grid-row: 2;
+}
+.jam-share {
+  grid-column: 4;
+  grid-row: 2;
+}
+.jam-play {
+  min-width: 76px;
+}
 .jam-first-use {
   padding: 10px 32px;
   font-size: 13px;
@@ -271,9 +301,16 @@
   margin-inline: auto;
   padding: 24px 32px 40px;
 }
-.jam-statement + .jam-statement { margin-top: 20px; }
-.jam-code-row { min-height: 32px; }
-.jam-line-number { width: 48px; font-size: 12px; }
+.jam-statement + .jam-statement {
+  margin-top: 20px;
+}
+.jam-code-row {
+  min-height: 32px;
+}
+.jam-line-number {
+  width: 48px;
+  font-size: 12px;
+}
 .jam-lens-strip {
   margin-top: 8px;
   margin-left: 48px;
@@ -281,10 +318,15 @@
   row-gap: 16px;
   padding: 8px 0 8px 16px;
 }
-.jam-rhythm-group { gap: 6px; }
-.jam-rhythm-cell { width: 36px; height: 36px; }
+.jam-rhythm-group {
+  gap: 6px;
+}
+.jam-rhythm-cell {
+  width: 24px;
+  height: 24px;
+}
 .jam-knob {
-  --knob-size: 44px;
+  --knob-size: 28px;
   width: var(--knob-size);
   height: var(--knob-size);
 }
@@ -293,48 +335,221 @@
   height: 12px;
   transform-origin: 50% calc(var(--knob-size) / 2 - 5px);
 }
-.jam-takes { padding: 12px 32px; }
-.jam-take-chip { height: 36px; }
+.jam-takes {
+  padding: 4px 16px;
+}
+.jam-take-chip {
+  height: 28px;
+}
 .jam-rework {
   height: auto;
-  min-height: calc(88px + env(safe-area-inset-bottom, 0px));
+  min-height: calc(60px + env(safe-area-inset-bottom, 0px));
   align-content: center;
-  padding: 12px 32px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 16px calc(6px + env(safe-area-inset-bottom, 0px));
 }
-.jam-rework-input, .jam-proposal-button { height: 40px; }
-.jam-rework-help { line-height: 18px; }
-.jam-attribution { margin-left: auto; }
+.jam-rework-input,
+.jam-proposal-button {
+  height: 30px;
+}
+.jam-rework-help {
+  line-height: 18px;
+}
+.jam-attribution {
+  margin-left: auto;
+}
 .jam-repo-popover {
   max-width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
-  max-height: min(var(--radix-popover-content-available-height), calc(100dvh - 64px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+  max-height: min(
+    var(--radix-popover-content-available-height),
+    calc(100dvh - 64px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))
+  );
 }
 @media (min-width: 900px) {
-  .jam-toolbar { display: flex; height: 72px; gap: 20px; padding-inline: 32px; }
-  .jam-presence { margin-left: auto; }
+  .jam-toolbar {
+    display: flex;
+    height: 48px;
+    gap: 12px;
+    padding-inline: 16px;
+  }
+  .jam-presence {
+    margin-left: auto;
+  }
 }
 
 @media (max-width: 599px) {
-  .jam-toolbar { padding-inline: 16px; column-gap: 8px; }
-  .jam-wordmark { font-size: 14px; }
-  .jam-session-name { font-size: 14px; }
-  .jam-identity { gap: 10px; }
-  .jam-play { min-width: 80px; }
-  .jam-tempo { font-size: 12px; }
-  .jam-first-use { padding: 10px 16px; }
-  .jam-editor-document { padding: 20px 16px 32px; }
-  .jam-line-number { width: 32px; padding-right: 12px; }
-  .jam-statement + .jam-statement { margin-top: 24px; }
-  .jam-lens-strip { margin-left: 32px; padding-left: 12px; column-gap: 16px; }
-  .jam-rhythm { gap: 12px; }
-  .jam-rhythm-group { gap: 4px; }
-  .jam-rhythm-cell { width: 32px; height: 32px; }
-  .jam-knob { --knob-size: 40px; }
-  .jam-takes { padding: 10px 16px; }
-  .jam-take-chip { height: 32px; }
-  .jam-rework { padding-inline: 16px; }
-  .jam-rework-input, .jam-proposal-button { height: 36px; font-size: 13px; }
-  .jam-proposal-button { padding-inline: 10px; }
-  .jam-attribution { margin-left: 0; }
+  .jam-toolbar {
+    padding-inline: 16px;
+    column-gap: 8px;
+  }
+  .jam-wordmark {
+    font-size: 14px;
+  }
+  .jam-session-name {
+    font-size: 14px;
+  }
+  .jam-identity {
+    gap: 10px;
+  }
+  .jam-play {
+    min-width: 80px;
+  }
+  .jam-tempo {
+    font-size: 12px;
+  }
+  .jam-first-use {
+    padding: 10px 16px;
+  }
+  .jam-editor-document {
+    padding: 20px 16px 32px;
+  }
+  .jam-line-number {
+    width: 32px;
+    padding-right: 12px;
+  }
+  .jam-statement + .jam-statement {
+    margin-top: 24px;
+  }
+  .jam-lens-strip {
+    margin-left: 32px;
+    padding-left: 12px;
+    column-gap: 16px;
+  }
+  .jam-rhythm {
+    gap: 12px;
+  }
+  .jam-rhythm-group {
+    gap: 4px;
+  }
+  .jam-rhythm-cell {
+    width: 24px;
+    height: 24px;
+  }
+  .jam-knob {
+    --knob-size: 28px;
+  }
+  .jam-takes {
+    padding: 4px 16px;
+  }
+  .jam-take-chip {
+    height: 28px;
+  }
+  .jam-rework {
+    padding-inline: 16px;
+  }
+  .jam-rework-input,
+  .jam-proposal-button {
+    height: 30px;
+    font-size: 13px;
+  }
+  .jam-proposal-button {
+    padding-inline: 10px;
+  }
+  .jam-attribution {
+    margin-left: 0;
+  }
+}
+
+/* Editable source and its source-derived controls share CodeMirror's document. */
+.jam-code-editor .cm-editor {
+  width: 100%;
+}
+.cm-linked-source {
+  background: color-mix(in oklch, var(--link) 25%, transparent);
+}
+.jam-live-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin: 0 16px 0 8px;
+  padding: 6px 0 12px 12px;
+  border-left: 2px solid var(--border);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 20px;
+  white-space: normal;
+}
+.jam-live-lens {
+  border-radius: 4px;
+}
+.jam-live-lens.is-linked {
+  outline: 2px solid var(--link);
+  outline-offset: 3px;
+}
+.jam-live-rhythm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.jam-live-rhythm button:nth-child(4n + 5) {
+  margin-left: 8px;
+}
+.jam-live-rhythm button {
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 1px solid var(--input);
+  background: var(--muted);
+  cursor: pointer;
+}
+.jam-live-rhythm button[aria-pressed="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.jam-live-rhythm button:hover {
+  filter: brightness(1.1);
+}
+.jam-live-param {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.jam-live-param .jam-knob {
+  position: relative;
+  flex-shrink: 0;
+  border: 1px solid var(--input);
+  border-radius: 50%;
+  background: var(--muted);
+  cursor: ns-resize;
+  touch-action: none;
+}
+.jam-live-param .jam-knob-indicator {
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  height: 8px;
+  top: 2px;
+  background: var(--primary);
+  transform-origin: 50% 11px;
+}
+.jam-param-name {
+  color: var(--muted-foreground);
+}
+.jam-param-value {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--foreground);
+  cursor: text;
+}
+.jam-param-input {
+  width: 88px;
+  height: 26px;
+  padding: 0 4px;
+  border: 1px solid var(--input);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--foreground);
+}
+.jam-locked-lens {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-foreground);
+}
+.jam-locked-lens svg {
+  width: 14px;
+  height: 14px;
 }
 
 @media (prefers-reduced-motion: reduce) {

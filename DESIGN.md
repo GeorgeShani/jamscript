@@ -44,7 +44,7 @@ typography:
     lineHeight: 1.65
   ui:
     fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "0.875rem"
+    fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: 1.55
   label:
@@ -54,9 +54,9 @@ typography:
     lineHeight: 1.35
   code:
     fontFamily: "Martian Mono, ui-monospace, SFMono-Regular, monospace"
-    fontSize: "1rem"
+    fontSize: "0.875rem"
     fontWeight: 400
-    lineHeight: 2
+    lineHeight: 1.85
     fontFeature: "tnum"
   code-small:
     fontFamily: "Martian Mono, ui-monospace, SFMono-Regular, monospace"
@@ -64,6 +64,11 @@ typography:
     fontWeight: 400
     lineHeight: 1.55
     fontFeature: "tnum"
+  gutter:
+    fontFamily: "Martian Mono, ui-monospace, SFMono-Regular, monospace"
+    fontSize: "0.6875rem"
+    fontWeight: 400
+    lineHeight: 2.36
 rounded:
   sm: "4px"
   md: "6px"
@@ -103,11 +108,11 @@ components:
   lens-cell-on:
     backgroundColor: "{colors.record-amber}"
     rounded: "{rounded.sm}"
-    size: "36px"
+    size: "24px"
   lens-cell-off:
     backgroundColor: "{colors.hover-row}"
     rounded: "{rounded.sm}"
-    size: "36px"
+    size: "24px"
   take-chip:
     backgroundColor: "{colors.panel}"
     textColor: "{colors.paper}"
@@ -215,6 +220,14 @@ Marketing (Persuade; two fluid steps allowed):
 **The Two Faces Rule.** Only Schibsted Grotesk (weights 400, 500, 600) and Martian Mono (400, 500). Never add or swap a font. No italics, no all-caps, no letter-spaced labels, no kicker or eyebrow above a heading.
 
 ## Layout
+
+### Current editor: compact and functional (17 October 2026)
+
+After seeing the larger revision, the user requested smaller controls and working code editing, knobs and steps. This revision supersedes the roomier dimensions below. Use a real CodeMirror document with source-derived block widgets, 14px code on 26px rows, 13px UI text, 24px steps and 28px knobs. The desktop toolbar is 48px, switching below 900px to 40px and 36px rows. Takes uses 28px chips; Rework uses 30px controls in an approximately 60px footer. Knob name and value share a single line beside the control. No static-code preview or first-use disclaimer above the actual editor.
+
+Code is directly editable, with Ctrl/Cmd+Enter to evaluate. While playing, valid source changes update playback after a short debounce. Grid cells and knobs patch their own source tokens, with one shared undo history; a drag is one undo step. Flat sound/rest patterns up to 16 steps and numeric gain/room/lpf/hpf arguments have controls. Complex patterns remain editable as code with a visible locked lens. Double-click a knob or click its value to type a number. Initial song data is a fixture, not a second document. Takes, Repo, presence and Rework remain labeled examples, and must not apply fixture changes to live source.
+
+Preserve the palette, typography families and single-column editor. Keep the editor compact at normal browser zoom; allow its own scrolling rather than expanding every source line into a large track section.
 
 ### Editor revision: roomier code-first workspace (17 October 2026)
 
