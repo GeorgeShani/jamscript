@@ -112,7 +112,16 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         {import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"] ? (
-          <ClerkProvider appearance={{ theme: { ...shadcn, cssLayerName: "clerk" } }}>
+          <ClerkProvider
+            appearance={{
+              theme: { ...shadcn, cssLayerName: "clerk" },
+              options: { logoImageUrl: "/brand/logo.svg", logoLinkUrl: "/" },
+            }}
+            localization={{
+              signIn: { start: { title: "Sign in to JamScript" } },
+              signUp: { start: { title: "Create your JamScript account" } },
+            }}
+          >
             {children}
           </ClerkProvider>
         ) : (
