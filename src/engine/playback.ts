@@ -4,6 +4,7 @@
 // at page load. Evaluation is serialized and pending source changes are coalesced.
 
 type StrudelWeb = typeof import("@strudel/web");
+import { installAudioCache, onMissingSample } from "./audio-cache";
 import { editorOffsetFromPlayback, prepareMix, type MixTrack } from "./mix-source";
 import { registerBundledSoundfonts } from "./register-soundfonts";
 import type { PlaybackRange } from "@/components/jam/playback-highlights";
@@ -25,7 +26,6 @@ let playbackCode = "";
 let miniLocations = new Set<string>();
 let highlightCallback: ((ranges: PlaybackRange[]) => void) | null = null;
 const highlightTimers = new Set<ReturnType<typeof setTimeout>>();
-let highlightDebugRemaining = 3;
 
 function clearHighlightTimers() {
   for (const timer of highlightTimers) clearTimeout(timer);
@@ -33,11 +33,9 @@ function clearHighlightTimers() {
 }
 
 function scheduleHighlight(hap: unknown, when: number, context: AudioContext) {
-  if (highlightDebugRemaining-- > 0) console.info('JamScript highlight initial', { callback: !!highlightCallback, allowed, when, now: context.currentTime, hap });
   if (!highlightCallback || !allowed || !Number.isFinite(when)) return;
-  const locations = (hap as { context?: { locations?: { start: number; end: number }[] } })
-    .context?.locations;
-  if (highlightDebugRemaining > -3) console.info('JamScript highlight probe', { locations, miniLocations: [...miniLocations].slice(0, 4), when, now: context.currentTime });
+  const locations = (hap as { context?: { locations?: { start: number; end: number }[] } }).context
+    ?.locations;
   if (!locations?.length) return;
   const ranges = locations.flatMap(({ start, end }) => {
     if (miniLocations.size && !miniLocations.has(`${start}:${end}`)) return [];
@@ -49,7 +47,8 @@ function scheduleHighlight(hap: unknown, when: number, context: AudioContext) {
       from >= to ||
       to > source.length ||
       playbackCode.slice(start, end) !== source.slice(from, to)
-    ) return [];
+    )
+      return [];
     return [{ from, to }];
   });
   if (!ranges.length) return;
@@ -100,15 +99,14 @@ export function initPlayback(): Promise<StrudelWeb> {
       // The SSR branch is dead-code-eliminated in the client build and vice versa,
       // so the server bundle never contains (or evaluates) the Strudel chunk.
       if (import.meta.env.SSR) throw new Error("playback is browser-only");
+      installAudioCache();
       const strudel = await import("@strudel/web");
       await strudel.initStrudel({
         onEvalError: (error: unknown) => {
           evaluationError = message(error);
         },
         afterEval: ({ meta }: { meta?: { miniLocations?: [number, number][] } }) => {
-          miniLocations = new Set(
-            (meta?.miniLocations ?? []).map(([from, to]) => `${from}:${to}`),
-          );
+          miniLocations = new Set((meta?.miniLocations ?? []).map(([from, to]) => `${from}:${to}`));
         },
         defaultOutput: async (
           hap: unknown,
@@ -161,7 +159,7 @@ export function play(code: string): Promise<boolean> {
       source = code;
       playbackCode = mix.code;
       miniLocations.clear();
-      mixTracks = mix.tracks;
+      mixTracks = mix.mixable === false ? [] : mix.tracks;
       await strudel.evaluate(mix.code);
       if (!allowed) {
         strudel.hush();
@@ -206,6 +204,11 @@ export async function stop(): Promise<void> {
 /** Registers the single callback that receives evaluate() error messages. */
 export function onError(callback: ((message: string) => void) | null): void {
   errorCallback = callback;
+}
+
+/** Sample downloads that failed or were served from the offline cache. */
+export function onAsset(callback: ((message: string) => void) | null): void {
+  onMissingSample(callback);
 }
 
 /** Passive analyser input from the pinned @strudel/web 1.3.0 master output. */

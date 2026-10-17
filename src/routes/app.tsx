@@ -1,5 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { SessionWorkbench } from "@/workbench/SessionWorkbench";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/app")({
   ssr: false,
@@ -13,5 +12,5 @@ export const Route = createFileRoute("/app")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: SessionWorkbench,
+  component: Outlet,
 });

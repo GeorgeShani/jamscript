@@ -14,4 +14,14 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("matches workspace, library and help pages under /app", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+    expect(router.matchRoutes("/app").at(-1)?.routeId).toBe("/app/");
+    expect(router.matchRoutes("/app/workspaces/local-123").at(-1)?.routeId).toBe(
+      "/app/workspaces/$workspaceId",
+    );
+    expect(router.matchRoutes("/app/help").at(-1)?.routeId).toBe("/app/help");
+    expect(router.matchRoutes("/app/library").at(-1)?.routeId).toBe("/app/library");
+  });
 });

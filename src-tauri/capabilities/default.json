@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "Workbench window can select folders and use the narrow native document commands.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

@@ -10,9 +10,47 @@ export interface DocumentRecord {
   workspaceId: string;
   name: string;
   source: string;
+  /** Display interpretation only. Playback continues to use the source CPS. */
+  beatsPerCycle?: number;
   mix?: { master: number; levels: Record<string, number>; colors?: Record<string, number> };
+  shared?: {
+    workspaceId: string;
+    documentId: string;
+    role: "owner" | "editor" | "viewer";
+  };
   createdAt: number;
   updatedAt: number;
+}
+
+export interface WorkspaceStorage {
+  listWorkspaces: typeof listWorkspaces;
+  listDocuments: typeof listDocuments;
+  createWorkspace: typeof createWorkspace;
+  createDocument: typeof createDocument;
+  saveDocument: typeof saveDocument;
+  renameDocument: typeof renameDocument;
+  renameWorkspace: typeof renameWorkspace;
+  deleteDocument: typeof deleteDocument;
+  deleteWorkspace: typeof deleteWorkspace;
+  /** Desktop-only capabilities. Browser storage deliberately has no native path API. */
+  openFolder?: () => Promise<WorkspaceRecord | null>;
+  saveToDisk?: (document: DocumentRecord) => Promise<void>;
+  saveAs?: (document: DocumentRecord, name: string) => Promise<DocumentRecord>;
+  refreshDocument?: (document: DocumentRecord) => Promise<DocumentRefresh>;
+  /** Replace the editor with the current disk bytes after a conflict. */
+  acceptDisk?: (document: DocumentRecord) => Promise<DocumentRecord>;
+  /** Keep the editor buffer and allow the next Save to replace the disk file. */
+  keepLocalOverDisk?: (document: DocumentRecord) => Promise<void>;
+  /** Desktop folder watcher. Returns an unsubscribe function. */
+  watchWorkspace?: (workspaceId: string, onChange: () => void) => Promise<() => void>;
+  isNativeWorkspace?: (id: string) => boolean;
+  isDirty?: (document: DocumentRecord) => boolean;
+}
+
+export interface DocumentRefresh {
+  source: string;
+  changed: boolean;
+  conflict?: { diskSource: string };
 }
 
 const DB_NAME = "jamscript-workspaces";
@@ -90,6 +128,7 @@ export function createWorkspace(name: string, templateSource?: string) {
     workspaceId: workspace.id,
     name: templateSource === undefined ? "untitled.js" : "night-bus.js",
     source: templateSource ?? "",
+    beatsPerCycle: 4,
     createdAt: now,
     updatedAt: now,
   };
@@ -112,6 +151,7 @@ export function createDocument(workspaceId: string, name: string) {
     workspaceId,
     name: name.trim(),
     source: "",
+    beatsPerCycle: 4,
     createdAt: now,
     updatedAt: now,
   };
@@ -181,3 +221,15 @@ export async function deleteWorkspace(id: string) {
     tx.onerror = () => reject(tx.error ?? new Error("Workspace deletion failed"));
   });
 }
+
+export const browserStorage: WorkspaceStorage = {
+  listWorkspaces,
+  listDocuments,
+  createWorkspace,
+  createDocument,
+  saveDocument,
+  renameDocument,
+  renameWorkspace,
+  deleteDocument,
+  deleteWorkspace,
+};

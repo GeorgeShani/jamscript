@@ -85,13 +85,18 @@ export function TrackInspector({
         colors={mixColors}
         onColor={onTrackColor}
         onRename={onRenameTrack}
+        emptyMessage={
+          tracks.length > 0
+            ? "Track faders are unavailable for this source. Original audio routing is preserved; source controls below still work."
+            : undefined
+        }
       />
       {!valid ? (
         <p className="jam-inspector-empty">Fix the code syntax to inspect tracks.</p>
       ) : tracks.length === 0 ? (
         <p className="jam-inspector-empty">
-          Select a labeled track in your code. Supported gain, room, and filter values will appear
-          here.
+          No safe visual controls found. Literal gain, room, and filter arguments in supported
+          Strudel chains appear here; computed expressions stay editable in code.
         </p>
       ) : (
         <>

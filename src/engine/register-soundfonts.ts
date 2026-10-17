@@ -23,7 +23,18 @@ export async function registerBundledSoundfonts(strudel: typeof import("@strudel
         const holdEnd = time + Number(value["duration"]);
         const gain = context.createGain();
         source.connect(gain);
-        strudel.getParamADSR(gain.gain, attack, decay, sustain, release, 0, 0.3, time, holdEnd, "linear");
+        strudel.getParamADSR(
+          gain.gain,
+          attack,
+          decay,
+          sustain,
+          release,
+          0,
+          0.3,
+          time,
+          holdEnd,
+          "linear",
+        );
         const vibrato = strudel.getVibratoOscillator(source.detune, value, time);
         strudel.getPitchEnvelope(source.detune, value, time, holdEnd);
         source.start(time);

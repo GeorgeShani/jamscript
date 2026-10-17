@@ -43,6 +43,7 @@ export function MixerPanel({
   onSolo,
   onColor,
   onRename,
+  emptyMessage,
 }: {
   tracks: MixTrack[];
   levels: Record<string, number>;
@@ -54,6 +55,7 @@ export function MixerPanel({
   onSolo: (id: string | null) => void;
   onColor: (orbit: number, color: number) => void;
   onRename: (id: string, name: string) => boolean;
+  emptyMessage?: string | undefined;
 }) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -190,7 +192,7 @@ export function MixerPanel({
         </div>
       ) : (
         <p className="jam-mix-hint">
-          Use labeled patterns or a top-level stack to mix parts separately.
+          {emptyMessage ?? "Use labeled patterns or a top-level stack to mix parts separately."}
         </p>
       )}
     </section>

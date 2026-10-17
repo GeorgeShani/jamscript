@@ -37,11 +37,17 @@ const activeHighlights = StateField.define<Map<number, PlaybackRange[]>>({
 const marks = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(current, transaction) {
-    if (!transaction.docChanged && !transaction.effects.some((effect) => effect.is(highlightChange)))
+    if (
+      !transaction.docChanged &&
+      !transaction.effects.some((effect) => effect.is(highlightChange))
+    )
       return current;
     const ranges = [...transaction.state.field(activeHighlights).values()]
       .flat()
-      .filter((range) => range.from >= 0 && range.to <= transaction.state.doc.length && range.from < range.to)
+      .filter(
+        (range) =>
+          range.from >= 0 && range.to <= transaction.state.doc.length && range.from < range.to,
+      )
       .map((range) => Decoration.mark({ class: "cm-playback-hit" }).range(range.from, range.to));
     return Decoration.set(ranges, true);
   },
@@ -58,7 +64,8 @@ export function flashPlaybackRanges(view: EditorView, ranges: PlaybackRange[], d
   timers.set(view, pending);
   const timer = setTimeout(() => {
     pending.delete(timer);
-    if (view.dom.isConnected) view.dispatch({ effects: highlightChange.of({ type: "remove", id }) });
+    if (view.dom.isConnected)
+      view.dispatch({ effects: highlightChange.of({ type: "remove", id }) });
   }, durationMs);
   pending.add(timer);
 }

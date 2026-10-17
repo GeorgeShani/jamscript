@@ -1,0 +1,10 @@
+/Users/lukavacheishvili/Desktop/JamScript/jamscript/src-tauri/target/debug/deps/cargo_toml-7cc8df80ca85c87a.d: /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/cargo_toml.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/afs.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/error.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/inheritable.rs
+
+/Users/lukavacheishvili/Desktop/JamScript/jamscript/src-tauri/target/debug/deps/libcargo_toml-7cc8df80ca85c87a.rlib: /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/cargo_toml.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/afs.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/error.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/inheritable.rs
+
+/Users/lukavacheishvili/Desktop/JamScript/jamscript/src-tauri/target/debug/deps/libcargo_toml-7cc8df80ca85c87a.rmeta: /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/cargo_toml.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/afs.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/error.rs /Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/inheritable.rs
+
+/Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/cargo_toml.rs:
+/Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/afs.rs:
+/Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/error.rs:
+/Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cargo_toml-1.0.1/src/inheritable.rs:

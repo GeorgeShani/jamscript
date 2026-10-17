@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 vi.mock("@/engine/playback", () => ({
   onError: vi.fn(),
+  onHighlight: vi.fn(),
   play: vi.fn().mockResolvedValue(true),
   stop: vi.fn().mockResolvedValue(undefined),
   setMix: vi.fn(),
@@ -100,5 +101,22 @@ describe("BPM control", () => {
     fireEvent.keyDown(editor, { key: "z", code: "KeyZ", ctrlKey: true });
     expect(document.querySelector(".cm-line")?.textContent).toBe("setcps(0.6);");
     expect(tempo).toHaveValue(144);
+  });
+
+  it("stores beats per cycle per document without changing its source or CPS", async () => {
+    await openExample();
+    const originalSource = document.querySelector(
+      ".jam-editor-pane:not([hidden]) .cm-line",
+    )?.textContent;
+    fireEvent.click(screen.getByText("Tempo settings"));
+    expect(screen.getByLabelText("Cycles per second")).toHaveTextContent("0.6 CPS");
+    fireEvent.change(screen.getByRole("combobox", { name: "Beats per cycle" }), {
+      target: { value: "3" },
+    });
+    expect(screen.getByRole("spinbutton", { name: "Tempo in BPM" })).toHaveValue(108);
+    expect(document.querySelector(".jam-editor-pane:not([hidden]) .cm-line")?.textContent).toBe(
+      originalSource,
+    );
+    expect(screen.getByLabelText("Cycles per second")).toHaveTextContent("0.6 CPS");
   });
 });

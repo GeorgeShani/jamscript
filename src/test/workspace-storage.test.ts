@@ -18,6 +18,7 @@ describe("browser workspace storage", () => {
     try {
       expect((await listWorkspaces()).some((item) => item.id === id)).toBe(true);
       expect(await listDocuments(id)).toEqual([created.document]);
+      expect(created.document.beatsPerCycle).toBe(4);
 
       const renamedWorkspace = await renameWorkspace(created.workspace, "Renamed workspace");
       expect((await listWorkspaces()).find((item) => item.id === id)?.name).toBe(
@@ -26,11 +27,12 @@ describe("browser workspace storage", () => {
       expect(renamedWorkspace.name).toBe("Renamed workspace");
 
       const second = await createDocument(id, "drums.js");
-      const edited = await saveDocument({ ...second, source: 's("bd")' });
+      const edited = await saveDocument({ ...second, source: 's("bd")', beatsPerCycle: 3 });
       await renameDocument(edited, "percussion.js");
       expect((await listDocuments(id)).find((item) => item.id === second.id)).toMatchObject({
         name: "percussion.js",
         source: 's("bd")',
+        beatsPerCycle: 3,
       });
 
       await deleteDocument(second.id);

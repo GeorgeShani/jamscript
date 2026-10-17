@@ -1,0 +1,78 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+
+import { sharedDocumentStorage } from "@/features/collaboration/shared-storage";
+import type { CollaborationRole } from "@/features/collaboration/shared-document";
+import { SessionWorkbench } from "@/workbench/SessionWorkbench";
+import type { DocumentRecord, WorkspaceRecord } from "@/workspaces/storage";
+
+export const Route = createFileRoute("/app/shared/$documentId")({
+  component: SharedDocumentPage,
+});
+
+function SharedDocumentPage() {
+  const { documentId } = Route.useParams();
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [opened, setOpened] = useState<{
+    workspace: WorkspaceRecord;
+    document: DocumentRecord;
+  } | null>(null);
+
+  useEffect(() => {
+    let current = true;
+    void fetch(`/api/shared-projects?documentId=${encodeURIComponent(documentId)}`)
+      .then(async (response) => {
+        const body = (await response.json()) as {
+          error?: string;
+          workspaceId?: string;
+          name?: string;
+          source?: string;
+          role?: CollaborationRole;
+        };
+        if (!response.ok || !body.workspaceId || !body.name || body.role === undefined)
+          throw new Error(body.error ?? "This shared document is unavailable");
+        if (!current) return;
+        const now = Date.now();
+        setOpened({
+          workspace: { id: body.workspaceId, name: body.name, createdAt: now, updatedAt: now },
+          document: {
+            id: documentId,
+            workspaceId: body.workspaceId,
+            name: body.name,
+            source: body.source ?? "",
+            beatsPerCycle: 4,
+            shared: { workspaceId: body.workspaceId, documentId, role: body.role },
+            createdAt: now,
+            updatedAt: now,
+          },
+        });
+      })
+      .catch((cause: unknown) => {
+        if (current) setError(cause instanceof Error ? cause.message : "This shared document is unavailable");
+      });
+    return () => {
+      current = false;
+    };
+  }, [documentId]);
+
+  if (error)
+    return (
+      <main className="jam-chooser">
+        <p role="alert" className="jam-error">
+          {error}
+        </p>
+      </main>
+    );
+  if (!opened) return <div className="jam-loading">Opening shared project…</div>;
+  const storage = sharedDocumentStorage(opened);
+  return (
+    <SessionWorkbench
+      collaboration
+      storage={storage}
+      workspaceId={opened.workspace.id}
+      initialDocumentId={opened.document.id}
+      onWorkspaceRoute={() => void navigate({ to: "/app" })}
+    />
+  );
+}

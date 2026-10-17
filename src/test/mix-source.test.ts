@@ -11,13 +11,20 @@ describe("playback mix preparation", () => {
     expect(source).not.toContain("orbit");
   });
 
-  it("routes a top-level stack, including comments naming its parts", () => {
+  it("preserves original routing when effects follow a named stack", () => {
     const source = 'stack( // DRUMS\n s("bd"), // BASS\n note("c2").s("sawtooth")\n).late(.01)';
     const mix = prepareMix(source);
     expect(mix.tracks.map((track) => track.name)).toEqual(["DRUMS", "BASS"]);
+    expect(mix.code).toBe(source);
+    expect(mix.mixable).toBe(false);
+  });
+
+  it("routes stack branches only when no effects follow the stack", () => {
+    const source = 'stack( // DRUMS\n s("bd"), // BASS\n note("c2").s("sawtooth")\n)';
+    const mix = prepareMix(source);
+    expect(mix.mixable).not.toBe(false);
     expect(mix.code).toContain('(s("bd")).orbit(64)');
     expect(mix.code).toContain('(note("c2").s("sawtooth")).orbit(65)');
-    expect(mix.code).toContain(").late(.01)");
   });
 
   it("leaves malformed code untouched", () => {
@@ -40,12 +47,8 @@ stack(
 ).late("[0 .01]*4").size(4)`;
     const mix = prepareMix(source);
     expect(mix.tracks.map((track) => track.name)).toEqual(["DRUMS", "CHORDS", "MELODY", "Track 4"]);
-    expect(mix.code.match(/\.orbit\(\d+\)/g)).toEqual([
-      ".orbit(64)",
-      ".orbit(65)",
-      ".orbit(66)",
-      ".orbit(67)",
-    ]);
+    expect(mix.code).toBe(source);
+    expect(mix.mixable).toBe(false);
     expect(mix.code).toContain('s("gm_epiano1:1")');
     expect(mix.code).toContain('s("gm_acoustic_bass")');
     const rename = renameTrackPatch(source, "DRUMS", "Percussion");

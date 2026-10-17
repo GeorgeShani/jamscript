@@ -6,6 +6,7 @@ import { listDocuments, listWorkspaces } from "@/workspaces/storage";
 
 vi.mock("@/engine/playback", () => ({
   onError: vi.fn(),
+  onHighlight: vi.fn(),
   play: vi.fn().mockResolvedValue(true),
   stop: vi.fn().mockResolvedValue(undefined),
   getOutputNode: vi.fn().mockReturnValue(null),

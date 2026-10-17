@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "JamScript",
+  "version": "0.1.0",
+  "identifier": "com.jamscript.desktop",
+  "build": {
+    "beforeDevCommand": "bun run dev:desktop-web",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "bun run build:desktop-web",
+    "frontendDist": "../dist/desktop"
+  },
+  "app": {
+    "windows": [{ "title": "JamScript", "width": 1440, "height": 900, "minWidth": 760, "minHeight": 540 }],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": true, "targets": "all" }
+}

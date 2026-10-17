@@ -12,6 +12,8 @@ import {
   PanelLeftOpen,
   Play,
   Plus,
+  Search,
+  Command,
   Square,
   SlidersVertical,
   Trash2,
@@ -27,24 +29,22 @@ import { changeEditorTempo } from "@/features/tempo/tempo-editor";
 import { deriveMusic, type MusicDocument } from "@/engine/music-document";
 import { prepareMix, renameTrackPatch } from "@/engine/mix-source";
 import type { EditorView } from "@codemirror/view";
+import type { FrameSource, MeterFrame, VisualFrame } from "@/lib/types";
 import { clearPlaybackRanges, flashPlaybackRanges } from "@/components/jam/playback-highlights";
 import {
-  createDocument,
-  createWorkspace,
-  deleteDocument,
-  deleteWorkspace,
-  listDocuments,
-  listWorkspaces,
-  renameDocument,
-  renameWorkspace,
-  saveDocument,
+  browserStorage,
   type DocumentRecord,
   type WorkspaceRecord,
+  type WorkspaceStorage,
 } from "@/workspaces/storage";
 import { TrackInspector } from "./TrackInspector";
 import { OutputPanel } from "./OutputPanel";
 import { AuthControls } from "@/workbench/AuthControls";
+import { ShareControls, SharedProjectList, SharedSession } from "@/features/collaboration/ShareControls";
 import { ExportControl } from "./ExportControl";
+import { CommandPalette, type WorkbenchCommand } from "./CommandPalette";
+import { syntaxProblems } from "@/features/language/syntax-problems";
+import { EditorView as CodeMirrorView } from "@codemirror/view";
 
 type SaveStatus = "saved" | "saving" | "error";
 type PaneSide = "files" | "inspector";
@@ -78,7 +78,34 @@ function storedOutputHeight() {
   }
 }
 
-export function SessionWorkbench() {
+export function SessionWorkbench({
+  workspaceId,
+  initialDocumentId,
+  onWorkspaceRoute,
+  onAppRoute,
+  onDocumentRoute,
+  storage = browserStorage,
+  collaboration = false,
+}: {
+  workspaceId?: string;
+  initialDocumentId?: string | undefined;
+  onWorkspaceRoute?: (id: string | null) => void;
+  onAppRoute?: (route: "/app/help" | "/app/library") => void;
+  onDocumentRoute?: (id: string | null) => void;
+  storage?: WorkspaceStorage;
+  collaboration?: boolean;
+} = {}) {
+  const {
+    createDocument,
+    createWorkspace,
+    deleteDocument,
+    deleteWorkspace,
+    listDocuments,
+    listWorkspaces,
+    renameDocument,
+    renameWorkspace,
+    saveDocument,
+  } = storage;
   const [loadingWorkspaces, setLoadingWorkspaces] = useState(true);
   const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
   const [workspace, setWorkspace] = useState<WorkspaceRecord | null>(null);
@@ -90,17 +117,19 @@ export function SessionWorkbench() {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(min-width: 681px)").matches,
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
   );
   const [inspectorOpen, setInspectorOpen] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(min-width: 681px)").matches,
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
   );
   const [outputOpen, setOutputOpen] = useState(true);
+  const [paletteMode, setPaletteMode] = useState<"files" | "commands" | null>(null);
   const [outputHeight, setOutputHeight] = useState(storedOutputHeight);
   const [filesWidth, setFilesWidth] = useState(() => storedPaneWidth("files", 232));
   const [inspectorWidth, setInspectorWidth] = useState(() => storedPaneWidth("inspector", 256));
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [diskConflicts, setDiskConflicts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [playError, setPlayError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -111,16 +140,26 @@ export function SessionWorkbench() {
   const [audioOutput, setAudioOutput] = useState<{ context: AudioContext; node: AudioNode } | null>(
     null,
   );
+  const [outputFrames, setOutputFrames] = useState<{
+    meter: FrameSource<MeterFrame>;
+    visual: FrameSource<VisualFrame>;
+  } | null>(null);
+  const [collabStatus, setCollabStatus] = useState("offline");
+  const [presence, setPresence] = useState<{ id: string; name: string }[]>([]);
   const [tempo, setTempo] = useState(() => readTempo(""));
   const [, setReadyVersion] = useState(0);
   const views = useRef(new Map<string, EditorView>());
+  const paletteReturnFocus = useRef<HTMLElement | null>(null);
   const mainPane = useRef<HTMLDivElement>(null);
   const editorColumn = useRef<HTMLDivElement>(null);
   const paneDrag = useRef<{ side: PaneSide; startX: number; startWidth: number } | null>(null);
   const outputDrag = useRef<{ startY: number; startHeight: number } | null>(null);
   const drafts = useRef(new Map<string, DocumentRecord>());
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const activeIdRef = useRef<string | null>(null);
+  const initialDocumentIdRef = useRef(initialDocumentId);
   const code = useRef("");
   const playingNow = useRef(false);
   const mounted = useRef(true);
@@ -130,26 +169,74 @@ export function SessionWorkbench() {
   const exportingNow = useRef(false);
 
   const activeDocument = documents.find((item) => item.id === activeId) ?? null;
+  const nativeWorkspace = !!workspace && !!storage.isNativeWorkspace?.(workspace.id);
+  const diskDirty = !!activeDocument && !!storage.isDirty?.(activeDocument);
+  const beatsPerCycle = activeDocument?.beatsPerCycle ?? 4;
   const model = useMemo(() => deriveMusic(activeDocument?.source ?? ""), [activeDocument?.source]);
-  const mixTracks = useMemo(
-    () => prepareMix(activeDocument?.source ?? "").tracks,
+  const problems = useMemo(
+    () => syntaxProblems(activeDocument?.source ?? ""),
     [activeDocument?.source],
   );
+  const mixTracks = useMemo(() => {
+    const mix = prepareMix(activeDocument?.source ?? "");
+    return mix.mixable === false ? [] : mix.tracks;
+  }, [activeDocument?.source]);
   const mixLevels = activeDocument?.mix?.levels ?? EMPTY_LEVELS;
   const mixColors = activeDocument?.mix?.colors ?? EMPTY_LEVELS;
   const masterLevel = activeDocument?.mix?.master ?? 1;
   const track = model.tracks.find((item) => item.name === selectedTrack) ?? model.tracks[0] ?? null;
+  const editableCount = model.tracks.reduce(
+    (total, item) =>
+      total + item.lenses.filter((lens) => lens.kind === "param" || !lens.locked).length,
+    0,
+  );
+
+  useEffect(() => {
+    let current = true;
+    setLoadingWorkspaces(true);
+    setWorkspace(null);
+    setDocuments([]);
+    setOpenIds([]);
+    setActiveId(null);
+    setError(null);
+    void listWorkspaces()
+      .then(async (items) => {
+        if (!current) return;
+        setWorkspaces(items);
+        if (!workspaceId) return;
+        const next = items.find((item) => item.id === workspaceId);
+        if (!next) {
+          setError("This workspace was not found in this browser.");
+          return;
+        }
+        const documents = await listDocuments(next.id);
+        if (!current) return;
+        setWorkspace(next);
+        setDocuments(documents);
+        drafts.current = new Map(documents.map((item) => [item.id, item]));
+        const initialDocument =
+          documents.find((item) => item.id === initialDocumentIdRef.current) ?? documents[0];
+        setOpenIds(initialDocument ? [initialDocument.id] : []);
+        setActiveId(initialDocument?.id ?? null);
+        setSelectedTrack(null);
+        document.title = `${next.name} | JamScript`;
+      })
+      .catch((cause: unknown) => {
+        if (current) setError(message(cause));
+      })
+      .finally(() => {
+        if (current) setLoadingWorkspaces(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [workspaceId]);
 
   useEffect(() => {
     const evaluationCounter = evaluation;
     const saveTimers = timers;
+    const editorViews = views.current;
     mounted.current = true;
-    void listWorkspaces()
-      .then(setWorkspaces)
-      .catch((cause: unknown) => {
-        setError(message(cause));
-      })
-      .finally(() => setLoadingWorkspaces(false));
     return () => {
       mounted.current = false;
       evaluationCounter.current++;
@@ -157,7 +244,7 @@ export function SessionWorkbench() {
       exportAbort.current?.abort();
       for (const timer of saveTimers.current.values()) clearTimeout(timer);
       for (const document of drafts.current.values()) void saveDocument(document);
-      for (const view of views.current.values()) clearPlaybackRanges(view);
+      for (const view of editorViews.values()) clearPlaybackRanges(view);
       void import("@/engine/playback").then((pb) => {
         pb.onError(null);
         pb.onHighlight(null);
@@ -188,6 +275,15 @@ export function SessionWorkbench() {
   useEffect(() => {
     if (soloTrack && !mixTracks.some((item) => item.id === soloTrack)) setSoloTrack(null);
   }, [mixTracks, soloTrack]);
+
+  useEffect(() => {
+    const fitDrawers = () => {
+      if (window.innerWidth < 900 && sidebarOpen && inspectorOpen) setInspectorOpen(false);
+    };
+    fitDrawers();
+    window.addEventListener("resize", fitDrawers);
+    return () => window.removeEventListener("resize", fitDrawers);
+  }, [sidebarOpen, inspectorOpen]);
 
   useEffect(() => {
     if (!sidebarOpen || !inspectorOpen) return;
@@ -255,6 +351,7 @@ export function SessionWorkbench() {
       setActiveId(items[0]?.id ?? null);
       setSelectedTrack(null);
       document.title = `${next.name} | JamScript`;
+      onWorkspaceRoute?.(next.id);
     } catch (cause) {
       setError(message(cause));
     }
@@ -270,6 +367,19 @@ export function SessionWorkbench() {
       setWorkspaceName("");
       setWorkspaces(await listWorkspaces());
       await openWorkspace(result.workspace);
+    } catch (cause) {
+      setError(message(cause));
+    }
+  };
+
+  const openNativeFolder = async () => {
+    if (!storage.openFolder) return;
+    try {
+      setError(null);
+      const next = await storage.openFolder();
+      if (!next) return;
+      setWorkspaces(await listWorkspaces());
+      await openWorkspace(next);
     } catch (cause) {
       setError(message(cause));
     }
@@ -309,6 +419,9 @@ export function SessionWorkbench() {
         reportedError = detail;
         if (mounted.current && request === evaluation.current) setPlayError(detail);
       });
+      playback.onAsset?.((detail) => {
+        if (mounted.current && request === evaluation.current) setPlayError(detail);
+      });
       const documentId = activeIdRef.current;
       const evaluatedSource = code.current;
       const view = documentId ? views.current.get(documentId) : null;
@@ -328,6 +441,15 @@ export function SessionWorkbench() {
         setPlaying(true);
         setPlayError(null);
         setAudioOutput(playback.getOutputNode());
+        const frames = (
+          playback as {
+            outputFrames?: () => {
+              meter: FrameSource<MeterFrame>;
+              visual: FrameSource<VisualFrame>;
+            };
+          }
+        ).outputFrames?.();
+        setOutputFrames(frames ?? null);
       } else setPlayError(reportedError ?? "Could not evaluate the current document.");
     } catch (cause) {
       if (mounted.current) setPlayError(message(cause));
@@ -336,17 +458,27 @@ export function SessionWorkbench() {
     }
   }, [soloTrack]);
 
-  const stopPlayback = async () => {
+  const stopPlayback = useCallback(async () => {
     playingNow.current = false;
     evaluation.current++;
     if (pendingEvaluation.current) clearTimeout(pendingEvaluation.current);
     setPlaying(false);
     setAudioOutput(null);
+    setOutputFrames(null);
     for (const view of views.current.values()) clearPlaybackRanges(view);
     const pb = await import("@/engine/playback");
     pb.onHighlight(null);
     await pb.stop();
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!initialDocumentId || !documentsRef.current.some((item) => item.id === initialDocumentId))
+      return;
+    if (activeIdRef.current !== initialDocumentId && playingNow.current) void stopPlayback();
+    setOpenIds((ids) => (ids.includes(initialDocumentId) ? ids : [...ids, initialDocumentId]));
+    setActiveId(initialDocumentId);
+    setSelectedTrack(null);
+  }, [initialDocumentId, stopPlayback]);
 
   const handleCodeChange = (id: string, source: string, nextModel: MusicDocument) => {
     const current = drafts.current.get(id);
@@ -392,9 +524,59 @@ export function SessionWorkbench() {
     if (playingNow.current) void stopPlayback();
     setOpenIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
     setActiveId(id);
+    onDocumentRoute?.(id);
     setSelectedTrack(null);
     setSoloTrack(null);
   };
+
+  const closeTab = (id: string) => {
+    const item = drafts.current.get(id);
+    if (
+      item &&
+      storage.isDirty?.(item) &&
+      !confirm(
+        `Close ${item.name} with unsaved disk changes? The recovery copy will remain available when you reopen it.`,
+      )
+    )
+      return;
+    if (activeId === id) {
+      if (playingNow.current) void stopPlayback();
+      setSelectedTrack(null);
+      setSoloTrack(null);
+      const nextId = openIds.find((open) => open !== id) ?? null;
+      setActiveId(nextId);
+      onDocumentRoute?.(nextId);
+    }
+    setOpenIds((ids) => ids.filter((open) => open !== id));
+  };
+
+  const openPalette = useCallback(
+    (mode: "files" | "commands") => {
+      if (!paletteMode) paletteReturnFocus.current = document.activeElement as HTMLElement | null;
+      setPaletteMode(mode);
+    },
+    [paletteMode],
+  );
+  const closePalette = (restoreFocus = true) => {
+    setPaletteMode(null);
+    if (restoreFocus) requestAnimationFrame(() => paletteReturnFocus.current?.focus());
+  };
+
+  useEffect(() => {
+    if (!workspace) return;
+    const onShortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        !(event.metaKey || event.ctrlKey) ||
+        event.key.toLowerCase() !== "p"
+      )
+        return;
+      event.preventDefault();
+      openPalette(event.shiftKey ? "commands" : "files");
+    };
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  }, [workspace, openPalette]);
 
   const exportMain = async (format: "wav" | "mp3", bars: number) => {
     if (!activeDocument || exportingNow.current) return;
@@ -438,6 +620,7 @@ export function SessionWorkbench() {
       setExporting(false);
       setPlaying(false);
       setAudioOutput(null);
+      setOutputFrames(null);
       const latest = drafts.current.get(activeIdRef.current ?? "");
       void import("@/engine/playback").then((pb) =>
         pb.setMix(
@@ -489,7 +672,12 @@ export function SessionWorkbench() {
   };
 
   const removeDocument = async (item: DocumentRecord) => {
-    if (!confirm(`Delete ${item.name}? This removes it from this browser.`)) return;
+    if (
+      !confirm(
+        `Delete ${item.name}? ${nativeWorkspace ? "This removes the file from disk." : "This removes it from this browser."}`,
+      )
+    )
+      return;
     try {
       const timer = timers.current.get(item.id);
       if (timer) clearTimeout(timer);
@@ -510,16 +698,120 @@ export function SessionWorkbench() {
   };
 
   const leaveWorkspace = () => {
+    if (
+      nativeWorkspace &&
+      [...drafts.current.values()].some((item) => storage.isDirty?.(item)) &&
+      !confirm(
+        "Leave this folder with unsaved disk changes? Recovery copies will remain available.",
+      )
+    )
+      return;
     if (playingNow.current) void stopPlayback();
     setWorkspace(null);
     setDocuments([]);
     setOpenIds([]);
     setActiveId(null);
     document.title = "JamScript | Workspaces";
+    onWorkspaceRoute?.(null);
     void listWorkspaces()
       .then(setWorkspaces)
       .catch((cause: unknown) => setError(message(cause)));
   };
+
+  const saveActiveToDisk = useCallback(async () => {
+    if (!storage.saveToDisk || !activeIdRef.current) return;
+    const item = drafts.current.get(activeIdRef.current);
+    if (!item || !storage.isNativeWorkspace?.(item.workspaceId)) return;
+    try {
+      setSaveStatus("saving");
+      await storage.saveToDisk(item);
+      setSaveStatus("saved");
+      setError(null);
+    } catch (cause) {
+      setSaveStatus("error");
+      setError(`Could not save ${item.name}: ${message(cause)}`);
+    }
+  }, [storage]);
+
+  useEffect(() => {
+    if (!storage.saveToDisk) return;
+    const onSave = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      void saveActiveToDisk();
+    };
+    window.addEventListener("keydown", onSave);
+    return () => window.removeEventListener("keydown", onSave);
+  }, [saveActiveToDisk, storage]);
+
+  const applyExternalSource = (item: DocumentRecord, source: string) => {
+    const view = views.current.get(item.id);
+    if (view) {
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+      return;
+    }
+    const next = { ...(drafts.current.get(item.id) ?? item), source };
+    drafts.current.set(item.id, next);
+    setDocuments((current) => current.map((doc) => (doc.id === item.id ? next : doc)));
+  };
+
+  const refreshOpenDocuments = useCallback(async () => {
+    if (!storage.refreshDocument) return;
+    for (const item of documentsRef.current) {
+      const current = drafts.current.get(item.id) ?? item;
+      try {
+        const result = await storage.refreshDocument(current);
+        if (result.conflict) {
+          setDiskConflicts((existing) =>
+            existing[item.id] === result.conflict!.diskSource
+              ? existing
+              : { ...existing, [item.id]: result.conflict!.diskSource },
+          );
+          continue;
+        }
+        setDiskConflicts((existing) => {
+          if (!existing[item.id]) return existing;
+          const next = { ...existing };
+          delete next[item.id];
+          return next;
+        });
+        if (result.changed) applyExternalSource(current, result.source);
+      } catch (cause) {
+        setError(message(cause));
+      }
+    }
+  }, [storage]);
+
+  useEffect(() => {
+    if (!nativeWorkspace || !workspace) return;
+    let stop = false;
+    let unsubscribe = () => {};
+    void storage
+      .watchWorkspace?.(workspace.id, () => {
+        if (!stop) void refreshOpenDocuments();
+      })
+      .then((remove) => {
+        if (stop) remove();
+        else unsubscribe = remove;
+      });
+    const timer = window.setInterval(() => void refreshOpenDocuments(), 8000);
+    return () => {
+      stop = true;
+      unsubscribe();
+      window.clearInterval(timer);
+    };
+  }, [nativeWorkspace, refreshOpenDocuments, storage, workspace]);
+
+  useEffect(() => {
+    if (!nativeWorkspace) return;
+    const onLeave = (event: BeforeUnloadEvent) => {
+      if (![...drafts.current.values()].some((item) => storage.isDirty?.(item))) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [nativeWorkspace, storage]);
 
   const activeView = activeId ? (views.current.get(activeId) ?? null) : null;
   const paneMaximum = (side: PaneSide) => {
@@ -645,6 +937,77 @@ export function SessionWorkbench() {
     const view = views.current.get(activeIdRef.current ?? "");
     return view !== undefined && changeEditorTempo(view, cps, expectedCps);
   };
+  const changeBeatsPerCycle = (value: number) => {
+    if (!activeId || !Number.isInteger(value) || value < 1 || value > 16) return;
+    const current = drafts.current.get(activeId);
+    if (!current) return;
+    const next = { ...current, beatsPerCycle: value };
+    setDocuments((items) => items.map((item) => (item.id === activeId ? next : item)));
+    scheduleSave(next);
+  };
+
+  const commands: WorkbenchCommand[] = [
+    ...documents.map((item) => ({
+      id: `file-${item.id}`,
+      label: item.name,
+      group: "Files" as const,
+      run: () => {
+        selectDocument(item.id);
+        requestAnimationFrame(() => views.current.get(item.id)?.focus());
+      },
+    })),
+    {
+      id: "play",
+      label: "Play current document",
+      group: "Commands",
+      keywords: "transport evaluate",
+      run: () => {
+        if (activeDocument) void evaluateCurrent();
+      },
+    },
+    {
+      id: "stop",
+      label: "Stop playback",
+      group: "Commands",
+      keywords: "transport hush",
+      run: () => void stopPlayback(),
+    },
+    {
+      id: "files",
+      label: sidebarOpen ? "Hide Files" : "Show Files",
+      group: "Commands",
+      run: () => {
+        setSidebarOpen(!sidebarOpen);
+        if (!sidebarOpen && window.innerWidth < 900) setInspectorOpen(false);
+      },
+    },
+    {
+      id: "inspector",
+      label: inspectorOpen ? "Hide Inspector" : "Show Inspector",
+      group: "Commands",
+      run: () => {
+        setInspectorOpen(!inspectorOpen);
+        if (!inspectorOpen && window.innerWidth < 900) setSidebarOpen(false);
+      },
+    },
+    {
+      id: "output",
+      label: outputOpen ? "Hide Output" : "Show Output",
+      group: "Commands",
+      run: () => setOutputOpen(!outputOpen),
+    },
+    {
+      id: "new-document",
+      label: "New document",
+      group: "Commands",
+      keywords: "file create",
+      run: () => {
+        setSidebarOpen(true);
+        if (window.innerWidth < 900) setInspectorOpen(false);
+        requestAnimationFrame(() => document.getElementById("new-document-name")?.focus());
+      },
+    },
+  ];
 
   if (loadingWorkspaces) return <div className="jam-loading">Opening workspaces…</div>;
 
@@ -661,9 +1024,33 @@ export function SessionWorkbench() {
           )}
           <div className="jam-chooser-header-actions">
             {import.meta.env.MODE !== "desktop" && (
-              <a href="/">
-                Website <ArrowUpRight size={14} />
-              </a>
+              <>
+                <a
+                  href="/app/library"
+                  onClick={(event) => {
+                    if (onAppRoute) {
+                      event.preventDefault();
+                      onAppRoute("/app/library");
+                    }
+                  }}
+                >
+                  Library
+                </a>
+                <a
+                  href="/app/help"
+                  onClick={(event) => {
+                    if (onAppRoute) {
+                      event.preventDefault();
+                      onAppRoute("/app/help");
+                    }
+                  }}
+                >
+                  Help
+                </a>
+                <a href="/">
+                  Website <ArrowUpRight size={14} />
+                </a>
+              </>
             )}
             <AuthControls />
           </div>
@@ -708,6 +1095,12 @@ export function SessionWorkbench() {
               </div>
             </form>
             <p className="jam-chooser-privacy">Saved locally · No account required</p>
+            {storage.openFolder && (
+              <Button type="button" variant="outline" onClick={() => void openNativeFolder()}>
+                <Folder size={16} /> Open folder from disk
+              </Button>
+            )}
+            {collaboration && <SharedProjectList />}
           </div>
           <div className="jam-chooser-secondary">
             <section className="jam-chooser-section" aria-labelledby="recent-heading">
@@ -759,37 +1152,41 @@ export function SessionWorkbench() {
                               })}
                             </small>
                           </button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setRenaming(item.id);
-                              setRenameValue(item.name);
-                            }}
-                          >
-                            Rename
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`Delete ${item.name}`}
-                            onClick={async () => {
-                              if (
-                                !confirm(
-                                  `Delete ${item.name} and all its documents from this browser?`,
+                          {!storage.isNativeWorkspace?.(item.id) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setRenaming(item.id);
+                                setRenameValue(item.name);
+                              }}
+                            >
+                              Rename
+                            </Button>
+                          )}
+                          {!storage.isNativeWorkspace?.(item.id) && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              aria-label={`Delete ${item.name}`}
+                              onClick={async () => {
+                                if (
+                                  !confirm(
+                                    `Delete ${item.name} and all its documents from this browser?`,
+                                  )
                                 )
-                              )
-                                return;
-                              try {
-                                await deleteWorkspace(item.id);
-                                setWorkspaces(await listWorkspaces());
-                              } catch (cause) {
-                                setError(message(cause));
-                              }
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
+                                  return;
+                                try {
+                                  await deleteWorkspace(item.id);
+                                  setWorkspaces(await listWorkspaces());
+                                } catch (cause) {
+                                  setError(message(cause));
+                                }
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          )}
                         </>
                       )}
                     </li>
@@ -818,6 +1215,14 @@ export function SessionWorkbench() {
 
   return (
     <div className="jam-app-frame jam-workbench">
+      {paletteMode && (
+        <CommandPalette
+          key={paletteMode}
+          mode={paletteMode}
+          commands={commands}
+          onClose={closePalette}
+        />
+      )}
       <header className="jam-workbench-toolbar">
         <button
           className="jam-brand-button"
@@ -834,12 +1239,40 @@ export function SessionWorkbench() {
         <span className="jam-current-file">{activeDocument?.name ?? "No document"}</span>
         <div className="jam-transport">
           <TempoControl
+            key={`${activeId}-${beatsPerCycle}`}
             cps={tempo.cps}
+            beatsPerCycle={beatsPerCycle}
             editable={!!activeDocument && tempo.editable && !exporting}
             onCpsChange={onTempoChange}
           />
+          <details className="jam-tempo-advanced">
+            <summary aria-label="Advanced tempo settings">Tempo settings</summary>
+            <label>
+              Beats per cycle
+              <select
+                aria-label="Beats per cycle"
+                value={beatsPerCycle}
+                disabled={!activeDocument}
+                onChange={(event) => changeBeatsPerCycle(Number(event.target.value))}
+              >
+                {Array.from({ length: 16 }, (_, index) => index + 1).map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <output aria-label="Cycles per second">
+              {tempo.cps === null ? "CPS from code" : `${Number(tempo.cps.toPrecision(8))} CPS`}
+            </output>
+          </details>
           <ExportControl
-            disabled={!activeDocument || tempo.cps === null || !tempo.editable}
+            disabled={
+              import.meta.env.MODE === "desktop" ||
+              !activeDocument ||
+              tempo.cps === null ||
+              !tempo.editable
+            }
             exporting={exporting}
             progress={exportProgress}
             onExport={(format, bars) => void exportMain(format, bars)}
@@ -855,9 +1288,103 @@ export function SessionWorkbench() {
             {playing ? <Square size={16} /> : <Play size={16} />}
             {playLoading ? "Loading" : playing ? "Stop" : "Play"}
           </Button>
+          {collaboration && (
+            <ShareControls
+              document={activeDocument}
+              onShared={(next) => {
+                drafts.current.set(next.id, next);
+                setDocuments((items) => items.map((item) => (item.id === next.id ? next : item)));
+                void saveDocument(next);
+              }}
+            />
+          )}
+          {nativeWorkspace && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void saveActiveToDisk()}
+              disabled={!activeDocument || !diskDirty}
+            >
+              Save
+            </Button>
+          )}
+          {nativeWorkspace && storage.saveAs && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!activeDocument}
+              onClick={async () => {
+                if (!activeDocument) return;
+                const name = prompt("Save a copy as", activeDocument.name);
+                if (!name || name === activeDocument.name) return;
+                try {
+                  const copy = await storage.saveAs!(
+                    drafts.current.get(activeDocument.id) ?? activeDocument,
+                    name,
+                  );
+                  drafts.current.set(copy.id, copy);
+                  setDocuments((items) => [...items, copy]);
+                  selectDocument(copy.id);
+                } catch (cause) {
+                  setError(message(cause));
+                }
+              }}
+            >
+              Save As
+            </Button>
+          )}
         </div>
         <AuthControls />
       </header>
+      {nativeWorkspace && activeDocument && diskConflicts[activeDocument.id] && (
+        <div className="jam-conflict" role="alert">
+          <span>{activeDocument.name} changed on disk. Your unsaved edits are still here.</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const current = drafts.current.get(activeDocument.id);
+              if (!current || !storage.acceptDisk) return;
+              void storage
+                .acceptDisk(current)
+                .then((next) => {
+                  drafts.current.set(next.id, next);
+                  applyExternalSource(next, next.source);
+                  setDiskConflicts((existing) => {
+                    const copy = { ...existing };
+                    delete copy[next.id];
+                    return copy;
+                  });
+                  setError(null);
+                })
+                .catch((cause: unknown) => setError(message(cause)));
+            }}
+          >
+            Load disk
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const current = drafts.current.get(activeDocument.id);
+              if (!current || !storage.keepLocalOverDisk) return;
+              void storage
+                .keepLocalOverDisk(current)
+                .then(() => {
+                  setDiskConflicts((existing) => {
+                    const copy = { ...existing };
+                    delete copy[current.id];
+                    return copy;
+                  });
+                  setError(null);
+                })
+                .catch((cause: unknown) => setError(message(cause)));
+            }}
+          >
+            Keep mine
+          </Button>
+        </div>
+      )}
       <div
         className="jam-workbench-main"
         ref={mainPane}
@@ -876,10 +1403,24 @@ export function SessionWorkbench() {
       >
         <nav className="jam-activity-bar" aria-label="Workbench views">
           <button
+            onClick={() => openPalette("files")}
+            aria-label="Quick Open"
+            title="Quick Open (Ctrl/Cmd+P)"
+          >
+            <Search size={20} aria-hidden="true" />
+          </button>
+          <button
+            onClick={() => openPalette("commands")}
+            aria-label="Command palette"
+            title="Command palette (Ctrl/Cmd+Shift+P)"
+          >
+            <Command size={20} aria-hidden="true" />
+          </button>
+          <button
             className={sidebarOpen ? "is-active" : ""}
             onClick={() => {
               setSidebarOpen(!sidebarOpen);
-              if (!sidebarOpen && window.innerWidth <= 680) setInspectorOpen(false);
+              if (!sidebarOpen && window.innerWidth < 900) setInspectorOpen(false);
             }}
             aria-label={sidebarOpen ? "Hide files" : "Show files"}
           >
@@ -889,7 +1430,7 @@ export function SessionWorkbench() {
             className={inspectorOpen ? "is-active" : ""}
             onClick={() => {
               setInspectorOpen(!inspectorOpen);
-              if (!inspectorOpen && window.innerWidth <= 680) setSidebarOpen(false);
+              if (!inspectorOpen && window.innerWidth < 900) setSidebarOpen(false);
             }}
             aria-label={inspectorOpen ? "Hide inspector" : "Show inspector"}
           >
@@ -959,7 +1500,10 @@ export function SessionWorkbench() {
                         onClick={() => selectDocument(item.id)}
                       >
                         <FileCode2 size={15} />
-                        <span>{item.name}</span>
+                        <span>
+                          {item.name}
+                          {storage.isDirty?.(item) ? " •" : ""}
+                        </span>
                       </button>
                       <button
                         className="jam-file-action"
@@ -1020,15 +1564,12 @@ export function SessionWorkbench() {
                     >
                       <FileCode2 size={14} />
                       {item.name}
+                      {storage.isDirty?.(item) ? " •" : ""}
                     </button>
                     <button
                       className="jam-tab-close"
                       aria-label={`Close ${item.name} tab`}
-                      onClick={() => {
-                        setOpenIds((ids) => ids.filter((open) => open !== id));
-                        if (activeId === id)
-                          setActiveId(openIds.find((open) => open !== id) ?? null);
-                      }}
+                      onClick={() => closeTab(id)}
                     >
                       <X size={13} />
                     </button>
@@ -1037,6 +1578,14 @@ export function SessionWorkbench() {
               );
             })}
           </div>
+          {collaboration && activeDocument?.shared && (
+            <SharedSession
+              view={activeView}
+              document={activeDocument}
+              onStatus={setCollabStatus}
+              onPresence={setPresence}
+            />
+          )}
           <div className="jam-editor-stage">
             {openIds.length ? (
               openIds.map((id) => {
@@ -1055,6 +1604,14 @@ export function SessionWorkbench() {
                           if (view) {
                             views.current.set(id, view);
                             setReadyVersion((value) => value + 1);
+                            if (typeof Worker !== "undefined")
+                              void import("@/features/language/client")
+                                .then(({ attachStrudelLanguage }) =>
+                                  attachStrudelLanguage(view, id),
+                                )
+                                .catch((cause: unknown) =>
+                                  setError(`IntelliSense unavailable: ${message(cause)}`),
+                                );
                             const sync = () => {
                               if (activeIdRef.current !== id) return;
                               const position = view.state.selection.main.head;
@@ -1090,7 +1647,18 @@ export function SessionWorkbench() {
           {outputOpen && (
             <OutputPanel
               error={playError ?? error}
+              problems={problems}
+              onSelectProblem={(problem) => {
+                const view = views.current.get(activeIdRef.current ?? "");
+                if (!view) return;
+                view.dispatch({
+                  selection: { anchor: problem.from, head: problem.to },
+                  effects: CodeMirrorView.scrollIntoView(problem.from, { y: "center" }),
+                });
+                view.focus();
+              }}
               output={audioOutput}
+              frames={outputFrames}
               playing={playing}
               resizeHandle={{
                 min: OUTPUT_LIMITS.min,
@@ -1151,16 +1719,62 @@ export function SessionWorkbench() {
       </div>
       <footer className="jam-statusbar">
         <span>{playing ? "● Playing" : "○ Stopped"}</span>
+        {activeDocument?.shared && (
+          <span>
+            {collabStatus === "connected" ? "● Shared" : "○ Shared offline"}
+            {presence.length ? ` · ${presence.map((person) => person.name).join(", ")}` : ""}
+          </span>
+        )}
         <span>
           {saveStatus === "error"
             ? "Save failed"
             : saveStatus === "saving"
               ? "Saving…"
-              : "Saved locally"}
+              : nativeWorkspace
+                ? diskDirty
+                  ? "Unsaved on disk · recovery stored locally"
+                  : "Saved on disk"
+                : "Saved locally"}
         </span>
+        <button
+          title="Visual controls are derived from supported source expressions"
+          onClick={() => {
+            setInspectorOpen(true);
+            if (window.innerWidth < 900) setSidebarOpen(false);
+            if (model.tracks[0]) setSelectedTrack(model.tracks[0].name);
+          }}
+        >
+          {editableCount ? `${editableCount} source controls` : "No visual controls"}
+        </button>
         <button onClick={() => setOutputOpen(!outputOpen)}>
           {outputOpen ? "Hide output" : "Show output"}
         </button>
+        {import.meta.env.MODE !== "desktop" && (
+          <>
+            <a
+              href="/app/library"
+              onClick={(event) => {
+                if (onAppRoute) {
+                  event.preventDefault();
+                  onAppRoute("/app/library");
+                }
+              }}
+            >
+              Library
+            </a>
+            <a
+              href="/app/help"
+              onClick={(event) => {
+                if (onAppRoute) {
+                  event.preventDefault();
+                  onAppRoute("/app/help");
+                }
+              }}
+            >
+              Help
+            </a>
+          </>
+        )}
         <a href="/licenses/THIRD_PARTY_NOTICES.txt">Licenses</a>
       </footer>
     </div>

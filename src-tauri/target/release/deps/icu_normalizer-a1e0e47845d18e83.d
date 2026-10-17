@@ -1,0 +1,10 @@
+/Users/lukavacheishvili/Desktop/JamScript/jamscript/src-tauri/target/release/deps/icu_normalizer-a1e0e47845d18e83.d: /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/lib.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/properties.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/provider.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/uts46.rs
+
+/Users/lukavacheishvili/Desktop/JamScript/jamscript/src-tauri/target/release/deps/libicu_normalizer-a1e0e47845d18e83.rlib: /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/lib.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/properties.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/provider.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/uts46.rs
+
+/Users/lukavacheishvili/Desktop/JamScript/jamscript/src-tauri/target/release/deps/libicu_normalizer-a1e0e47845d18e83.rmeta: /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/lib.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/properties.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/provider.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/uts46.rs
+
+/private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/lib.rs:
+/private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/properties.rs:
+/private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/provider.rs:
+/private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/icu_normalizer-2.3.0/src/uts46.rs:

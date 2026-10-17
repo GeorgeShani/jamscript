@@ -4,7 +4,7 @@
 
 ## Platform
 
-Desktop music IDE for Windows, macOS and Linux, with a collaborative browser companion. The public product site is at `/`; the working browser IDE is at `/app`. A separate static workbench-only frontend build is ready for a future desktop shell; native packaging and connected services are planned.
+Desktop music IDE for Windows, macOS and Linux, with a collaborative browser companion. The public product site is at `/`; the working browser IDE is at `/app`. The desktop shell can open a selected folder and save those files; Windows and Linux packaging, collaboration, and the workspace agent are still pending.
 
 ## Stack
 
@@ -30,22 +30,24 @@ Browser: initialize an app-managed workspace and edit its documents; add collabo
 
 Desktop: initialize a workspace or open a selected local folder. Native file access, watching and saving are desktop capabilities. Git integration is optional and desktop-only. Local work requires no account and works offline with available audio assets. Sharing explicitly publishes selected project content; it does not expose the participant's filesystem.
 
-The browser workbench has an activity bar, Files sidebar, document tabs, central music editor, selected-track Inspector, Output panel and status bar. It preserves DESIGN.md's compact editor and inline source-to-control relationships.
+The browser workbench has an activity bar, Files sidebar, document tabs, central music editor, selected-track Inspector, Output and Problems panel, Quick Open, command palette and status bar. The workspace chooser lives at `/app`; `/app/workspaces/:workspaceId` opens a local workspace, `/app/library` searches local documents, and `/app/help` documents the current controls. It preserves DESIGN.md's compact editor and inline source-to-control relationships.
 
-Musicians work primarily in BPM. The current tempo component uses four beats per cycle: 120 BPM equals 0.5 CPS. Editing BPM updates a supported source expression after typing pauses, with immediate Enter/blur application and the editor's undo history. Code edits update the display; unsupported or ambiguous tempo expressions disable visual writes. A per-document beats-per-cycle setting and advanced CPS view remain planned. A cycle is not inherently a bar or a beat; changing its interpretation must not silently change playback speed.
+Musicians work primarily in BPM. Documents default to four beats per cycle: 120 BPM equals 0.5 CPS. Editing BPM updates a supported source expression after typing pauses, with immediate Enter/blur application and the editor's undo history. Code edits update the display; unsupported or ambiguous tempo expressions disable visual writes. A per-document beats-per-cycle setting and advanced CPS view are available. A cycle is not inherently a bar or a beat; changing its interpretation does not change playback speed.
 
 ## Capabilities and Constraints
 
-| Capability                                      | Current state                                                                                                                 |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Editing, rhythm/parameter lenses and undo       | Working CodeMirror editor; simple flat sound/rest strings and numeric gain/room/lpf/hpf arguments                             |
-| Browser workspaces and documents                | IndexedDB create, rename, delete and autosave; explicit Night bus template; open document tabs keep separate CodeMirror state |
-| Clerk account controls                          | Sign-in, sign-up and signed-in user controls; browser workspaces remain usable without an account                             |
-| Playback and audio output                       | Real Strudel adapter evaluates the active editor; audiocn Level Meter and Spectrum read its output analyser                   |
-| Inspector                                       | audiocn Knob and Parameter Slider write supported source parameters through the checked patcher                               |
-| Complex programs                                | Editable as code; full example compatibility, General MIDI initialization and complex editable lenses are pending             |
-| Takes, Repo, presence, Rework and Share         | Hidden until real history, Git, collaboration, model and invitation services exist                                            |
-| Desktop files, IntelliSense and workspace agent | Planned; no native file service, language server or agent is connected                                                        |
+| Capability                                      | Current state                                                                                                                                                                                      |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Editing, rhythm/parameter lenses and undo       | Working CodeMirror editor; supported numeric parameters in nested stacks and unambiguous named pattern chains, including the coastline fixture                                                     |
+| Browser workspaces and documents                | IndexedDB create, rename, delete and autosave; explicit Night bus template; open document tabs keep separate CodeMirror state                                                                      |
+| Clerk account controls                          | Sign-in, sign-up and signed-in user controls; browser workspaces remain usable without an account                                                                                                  |
+| Playback and audio output                       | Real Strudel adapter evaluates the active editor; audiocn Level Meter and Spectrum read its output analyser                                                                                        |
+| Inspector                                       | audiocn Knob and Parameter Slider write supported source parameters through the checked patcher                                                                                                    |
+| Complex programs                                | Editable as code; supported literal parameters surface as controls in compatibility fixtures. General MIDI soundfonts are registered for playback. Full audio quality verification remains pending |
+| Takes, Repo, presence, Rework and Share         | Hidden until real history, Git, collaboration, model and invitation services exist                                                                                                                 |
+| Desktop files, IntelliSense and workspace agent | Desktop opens a selected folder, saves, recovers unsaved buffers, and compares disk conflicts. An offline Strudel language service attaches in the editor. The workspace agent is not connected    |
+
+The track mixer routes independently mixable patterns. A stack with effects applied after it keeps its original Strudel audio routing; source controls remain available, and individual track faders are omitted to avoid changing the sound.
 
 Future releases must support the complete eddyflux "coastline" program, including sample packs, variables, nested stacks, chords, voicing, mini-notation and modulation. Complex lenses edit explicit syntax without flattening patterns or replacing expressions with constants. Arbitrary modulation graph builders are outside this release.
 

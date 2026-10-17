@@ -46,6 +46,7 @@ const linkedLens = StateField.define<string | null>({
 const controlGesture = Annotation.define<boolean>();
 
 export function dispatchLensEdit(view: EditorView, edit: LensEdit, gestureTime?: number) {
+  if (!view.state.facet(EditorView.editable)) return false;
   const patch = lensPatch(view.state.doc.toString(), edit);
   if (!patch) return false;
   view.dispatch({

@@ -785,12 +785,143 @@
   color: var(--foreground);
   text-decoration: underline;
 }
+.jam-help {
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+}
+.jam-help-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-help-header a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-foreground);
+}
+.jam-help-header a:hover {
+  color: var(--foreground);
+}
+.jam-help-content {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 72px 24px 96px;
+}
+.jam-help h1 {
+  margin-top: 12px;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+.jam-help-content > p:not(.jam-eyebrow),
+.jam-help section p,
+.jam-help li {
+  color: var(--muted-foreground);
+  line-height: 1.65;
+}
+.jam-help section {
+  margin-top: 42px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+}
+.jam-help h2 {
+  margin-bottom: 12px;
+  font-size: 19px;
+  font-weight: 650;
+}
+.jam-help ul {
+  display: grid;
+  gap: 12px;
+  padding-left: 22px;
+  list-style: disc;
+}
+.jam-help kbd {
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.jam-library-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 32px;
+  padding: 0 12px;
+  height: 42px;
+  border: 1px solid var(--input);
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  background: var(--card);
+}
+.jam-library-search:focus-within {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.jam-library-search input {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+}
+.jam-library .jam-library-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 0;
+  list-style: none;
+}
+.jam-library-list a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+}
+.jam-library-list a:hover,
+.jam-library-list a:focus-visible {
+  background: var(--muted);
+}
+.jam-library-list a span {
+  display: grid;
+  gap: 2px;
+}
+.jam-library-list a strong {
+  color: var(--foreground);
+}
+.jam-library-list a small {
+  color: var(--muted-foreground);
+}
 .jam-error {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 18px;
   color: var(--destructive);
+}
+.jam-conflict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 14px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--destructive) 12%, var(--card));
+  color: var(--foreground);
+  font-size: 13px;
+}
+.jam-conflict span {
+  margin-right: auto;
 }
 
 .jam-workbench {
@@ -843,6 +974,48 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.jam-tempo-advanced {
+  position: relative;
+  flex: none;
+  font-size: 12px;
+}
+.jam-tempo-advanced summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  list-style: none;
+}
+.jam-tempo-advanced summary::-webkit-details-marker {
+  display: none;
+}
+.jam-tempo-advanced[open] {
+  z-index: 21;
+  color: var(--foreground);
+}
+.jam-tempo-advanced[open] > label,
+.jam-tempo-advanced[open] > output {
+  position: absolute;
+  right: 0;
+  display: flex;
+  width: 180px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-tempo-advanced[open] > label {
+  top: 25px;
+}
+.jam-tempo-advanced[open] > output {
+  top: 62px;
+  font-family: "Martian Mono", monospace;
+}
+.jam-tempo-advanced select {
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
 }
 .jam-export-control {
   position: relative;
@@ -1252,6 +1425,9 @@
 .jam-mix-track-heading button {
   width: 25px;
   height: 23px;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: 4px;
   font-weight: 700;
@@ -1430,10 +1606,54 @@
 .jam-output .jam-output-state {
   color: var(--success);
 }
+.jam-output-tabs {
+  display: flex;
+  flex: none;
+  height: 28px;
+  gap: 2px;
+  padding: 0 9px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-output-tabs button {
+  padding: 0 9px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.jam-output-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--primary);
+  color: var(--foreground);
+}
 .jam-output-body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+.jam-problems-body {
+  overflow-y: auto;
+}
+.jam-problems-body p {
+  padding: 13px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-problems-body li button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 13px;
+  text-align: left;
+  color: var(--foreground);
+  font-size: 12px;
+}
+.jam-problems-body li button:hover {
+  background: var(--muted);
+}
+.jam-problems-body li button span:last-child {
+  color: var(--muted-foreground);
+  font-family: "Martian Mono", monospace;
+  white-space: nowrap;
 }
 .jam-output-idle {
   padding: 16px;
@@ -1494,7 +1714,64 @@
   color: var(--foreground);
 }
 .jam-statusbar a {
+  margin-left: 0;
+}
+.jam-statusbar a:first-of-type {
   margin-left: auto;
+}
+.jam-command-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: min(16vh, 120px) 16px 16px;
+  background: oklch(0.1 0.02 278 / 70%);
+}
+.jam-command-palette {
+  width: min(100%, 500px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--popover);
+  box-shadow: 0 16px 40px #0008;
+}
+.jam-command-palette input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+}
+.jam-command-palette input:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+.jam-command-palette ul {
+  max-height: min(48vh, 340px);
+  overflow-y: auto;
+  padding: 5px;
+}
+.jam-command-palette li button {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  color: var(--foreground);
+  text-align: left;
+  font-size: 13px;
+}
+.jam-command-palette li[aria-selected="true"] button,
+.jam-command-palette li button:hover {
+  background: var(--muted);
+}
+.jam-command-empty {
+  padding: 10px;
+  color: var(--muted-foreground);
+  font-size: 13px;
 }
 @media (max-width: 899px) {
   .jam-workbench-toolbar {
@@ -1528,24 +1805,6 @@
     grid-row: 2;
     justify-self: end;
   }
-}
-@media (max-width: 680px) {
-  .jam-workbench-toolbar {
-    padding-inline: 9px;
-  }
-  .jam-transport {
-    gap: 7px;
-  }
-  .jam-export-control summary {
-    width: 32px;
-    padding: 0;
-  }
-  .jam-export-control summary span {
-    display: none;
-  }
-  .jam-current-file {
-    display: none;
-  }
   .jam-file-sidebar,
   .jam-inspector {
     position: absolute;
@@ -1563,6 +1822,24 @@
   }
   .jam-inspector {
     right: 0;
+  }
+}
+@media (max-width: 680px) {
+  .jam-workbench-toolbar {
+    padding-inline: 9px;
+  }
+  .jam-transport {
+    gap: 7px;
+  }
+  .jam-export-control summary {
+    width: 32px;
+    padding: 0;
+  }
+  .jam-export-control summary span {
+    display: none;
+  }
+  .jam-current-file {
+    display: none;
   }
   .jam-chooser-body {
     padding-top: 50px;

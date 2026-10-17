@@ -1,0 +1,1 @@
+["/Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-2.12.4/scripts/bundle.global.js","/Users/lukavacheishvili/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-plugin-dialog-2.8.3/api-iife.js"]

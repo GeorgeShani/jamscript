@@ -85,7 +85,7 @@ function stackCall(node: SyntaxNode | null, source: string): SyntaxNode | null {
 export function prepareMix(
   source: string,
   parsedTree?: Tree,
-): { code: string; tracks: MixTrack[] } {
+): { code: string; tracks: MixTrack[]; mixable?: boolean } {
   const tree = parsedTree ?? javascriptLanguage.parser.parse(source);
   let invalid = false;
   tree.iterate({
@@ -96,6 +96,7 @@ export function prepareMix(
   if (invalid) return { code: source, tracks: [] };
 
   const targets: Target[] = [];
+  let mixable = true;
   const names = new Set<string>();
   const add = (name: string, expression: SyntaxNode) => {
     const base = name.trim() || `Track ${targets.length + 1}`;
@@ -122,9 +123,14 @@ export function prepareMix(
   if (targets.length === 0) {
     for (const statement of statements) {
       if (statement.name !== "ExpressionStatement") continue;
-      const call = stackCall(statement.firstChild, source);
+      const expression = statement.firstChild;
+      const call = stackCall(expression, source);
       const args = call?.getChild("ArgList");
-      if (!args) continue;
+      if (!call || !args) continue;
+      // Moving stack branches to separate orbits changes effects applied to the
+      // resulting stack: each orbit then creates its own reverb/delay/effect bus.
+      // Keep those programs on their original audio routing.
+      if (call.to !== expression?.to) mixable = false;
       const expressions = children(args).filter(
         (node) => !["(", ")", ",", "LineComment", "BlockComment"].includes(node.name),
       );
@@ -142,13 +148,19 @@ export function prepareMix(
   }
 
   let code = source;
-  for (const target of [...targets].sort((a, b) => b.from - a.from)) {
-    code =
-      code.slice(0, target.from) +
-      `(${source.slice(target.from, target.to)}).orbit(${target.orbit})` +
-      code.slice(target.to);
+  if (mixable) {
+    for (const target of [...targets].sort((a, b) => b.from - a.from)) {
+      code =
+        code.slice(0, target.from) +
+        `(${source.slice(target.from, target.to)}).orbit(${target.orbit})` +
+        code.slice(target.to);
+    }
   }
-  return { code, tracks: targets.map(({ expression: _expression, ...track }) => track) };
+  return {
+    code,
+    tracks: targets.map(({ expression: _expression, ...track }) => track),
+    ...(mixable ? {} : { mixable: false }),
+  };
 }
 
 /** Rename one syntax-derived track, then verify that the rest of the mix is unchanged. */
