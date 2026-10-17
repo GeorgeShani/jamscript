@@ -16,7 +16,7 @@
     "lint": "eslint .",
     "licenses": "node scripts/collect-licenses.mjs",
     "format": "prettier --write .",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=4",
     "test:watch": "vitest"
   },
   "overrides": {
@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@breezystack/lamejs": "1.2.7",
     "@clerk/tanstack-react-start": "^1.7.1",
     "@clerk/ui": "^1.40.2",
     "@codemirror/commands": "6",

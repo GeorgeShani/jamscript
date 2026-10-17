@@ -4,6 +4,7 @@
 // at page load. Evaluation is serialized and pending source changes are coalesced.
 
 type StrudelWeb = typeof import("@strudel/web");
+import { prepareMix, type MixTrack } from "./mix-source";
 
 let initPromise: Promise<StrudelWeb> | null = null;
 let errorCallback: ((message: string) => void) | null = null;
@@ -12,6 +13,33 @@ let revision = 0;
 let allowed = false;
 let work: Promise<boolean> = Promise.resolve(false);
 let activeStrudel: StrudelWeb | null = null;
+let mixTracks: MixTrack[] = [];
+let mixLevels: Record<string, number> = {};
+let soloTrack: string | null = null;
+let masterLevel = 1;
+let mixTimer: ReturnType<typeof setInterval> | null = null;
+
+function applyMix() {
+  const controller = activeStrudel?.getSuperdoughAudioController?.();
+  const context = activeStrudel?.getAudioContext?.() as AudioContext | undefined;
+  if (!controller || !context) return;
+  const master = controller.output?.destinationGain?.gain as AudioParam | undefined;
+  if (master) master.setTargetAtTime(masterLevel, context.currentTime, 0.015);
+  for (const track of mixTracks) {
+    const gain = controller.nodes?.[track.orbit]?.output?.gain as AudioParam | undefined;
+    if (!gain) continue;
+    const target = soloTrack && soloTrack !== track.id ? 0 : (mixLevels[track.id] ?? 1);
+    gain.setTargetAtTime(target, context.currentTime, 0.015);
+  }
+}
+
+/** Runtime mixer settings do not modify CodeMirror or restart the scheduler. */
+export function setMix(levels: Record<string, number>, solo: string | null, master: number) {
+  mixLevels = levels;
+  soloTrack = solo;
+  masterLevel = master;
+  applyMix();
+}
 
 function message(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -52,7 +80,9 @@ export function play(code: string): Promise<boolean> {
       const strudel = await initPlayback();
       if (!allowed || request !== revision) return false;
       evaluationError = null;
-      await strudel.evaluate(code);
+      const mix = prepareMix(code);
+      mixTracks = mix.tracks;
+      await strudel.evaluate(mix.code);
       if (!allowed) {
         strudel.hush();
         return false;
@@ -62,6 +92,10 @@ export function play(code: string): Promise<boolean> {
         errorCallback?.(evaluationError);
         return false;
       }
+      if (mixTimer) clearInterval(mixTimer);
+      applyMix();
+      // Orbits are created lazily on their first note. Keep new nodes in sync.
+      mixTimer = setInterval(applyMix, 80);
       return true;
     } catch (error) {
       if (allowed && request === revision) errorCallback?.(message(error));
@@ -74,6 +108,8 @@ export function play(code: string): Promise<boolean> {
 /** Stops all playing patterns. */
 export async function stop(): Promise<void> {
   allowed = false;
+  if (mixTimer) clearInterval(mixTimer);
+  mixTimer = null;
   const stoppedAt = ++revision;
   await work;
   if (allowed || revision !== stoppedAt) return;

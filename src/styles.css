@@ -819,6 +819,67 @@
   align-items: center;
   gap: 12px;
 }
+.jam-export-control {
+  position: relative;
+  flex: none;
+}
+.jam-export-control summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  list-style: none;
+}
+.jam-export-control summary::-webkit-details-marker { display: none; }
+.jam-export-control summary:hover { border-color: var(--primary); }
+.jam-export-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 7px);
+  right: 0;
+  width: 245px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  box-shadow: 0 12px 32px #0007;
+  font-size: 12px;
+}
+.jam-export-menu strong { font-size: 13px; }
+.jam-export-menu p {
+  margin: 7px 0 13px;
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+.jam-export-menu form { display: grid; gap: 10px; }
+.jam-export-menu label { display: grid; gap: 4px; color: var(--muted-foreground); }
+.jam-export-menu select {
+  width: 100%;
+  height: 30px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--foreground);
+  background: var(--background);
+}
+.jam-export-menu form button,
+.jam-export-progress button {
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  color: var(--primary);
+}
+.jam-export-menu button:disabled { opacity: .45; cursor: not-allowed; }
+.jam-export-progress { display: grid; gap: 7px; }
+.jam-export-progress progress { width: 100%; accent-color: var(--primary); }
+.jam-export-progress button { display: flex; align-items: center; justify-content: center; gap: 5px; }
 .jam-workbench-main {
   display: flex;
   flex: 1;
@@ -1074,6 +1135,69 @@
   font-size: 12px;
   line-height: 1.5;
 }
+.jam-mixer {
+  display: grid;
+  gap: 12px;
+}
+.jam-mixer h2 {
+  margin-bottom: 0;
+}
+.jam-mix-tracks {
+  display: grid;
+  gap: 11px;
+}
+.jam-mix-track {
+  display: grid;
+  gap: 5px;
+}
+.jam-mix-track-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.jam-mix-track-heading span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-mix-track-heading button {
+  width: 25px;
+  height: 23px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-weight: 700;
+  color: var(--muted-foreground);
+}
+.jam-mix-track-heading button:hover,
+.jam-mix-track-heading button.is-solo {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--muted);
+}
+.jam-mix-level {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 33px;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.jam-mix-level input {
+  width: 100%;
+  accent-color: var(--primary);
+}
+.jam-mix-level output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.jam-mix-hint {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.45;
+}
 .jam-track-list {
   display: flex;
   flex-wrap: wrap;
@@ -1251,6 +1375,9 @@
   .jam-workbench-toolbar {
     padding-inline: 9px;
   }
+  .jam-transport { gap: 7px; }
+  .jam-export-control summary { width: 32px; padding: 0; }
+  .jam-export-control summary span { display: none; }
   .jam-current-file {
     display: none;
   }

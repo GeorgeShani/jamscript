@@ -8,6 +8,7 @@ vi.mock("@/engine/playback", () => ({
   onError: vi.fn(),
   play: vi.fn().mockResolvedValue(true),
   stop: vi.fn().mockResolvedValue(undefined),
+  setMix: vi.fn(),
 }));
 vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
 afterEach(() => {

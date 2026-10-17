@@ -19,6 +19,8 @@ import {
   ParameterSliderValue,
 } from "@/components/ui/parameter-slider";
 import { PARAMS, type MusicTrack, type ParamLens } from "@/engine/music-document";
+import type { MixTrack } from "@/engine/mix-source";
+import { MixerPanel } from "./MixerPanel";
 
 export function TrackInspector({
   track,
@@ -26,12 +28,26 @@ export function TrackInspector({
   valid,
   view,
   onSelectTrack,
+  mixTracks,
+  mixLevels,
+  masterLevel,
+  soloTrack,
+  onMixLevel,
+  onMasterLevel,
+  onSoloTrack,
 }: {
   track: MusicTrack | null;
   tracks: MusicTrack[];
   valid: boolean;
   view: EditorView | null;
   onSelectTrack: (name: string) => void;
+  mixTracks: MixTrack[];
+  mixLevels: Record<string, number>;
+  masterLevel: number;
+  soloTrack: string | null;
+  onMixLevel: (id: string, value: number) => void;
+  onMasterLevel: (value: number) => void;
+  onSoloTrack: (id: string | null) => void;
 }) {
   const gestures = useRef(new Map<string, number>());
   const edit = (lens: ParamLens, value: number, reason: string) => {
@@ -52,6 +68,15 @@ export function TrackInspector({
   return (
     <aside className="jam-inspector" aria-label="Track inspector">
       <div className="jam-panel-heading">INSPECTOR</div>
+      <MixerPanel
+        tracks={mixTracks}
+        levels={mixLevels}
+        master={masterLevel}
+        solo={soloTrack}
+        onLevel={onMixLevel}
+        onMaster={onMasterLevel}
+        onSolo={onSoloTrack}
+      />
       {!valid ? (
         <p className="jam-inspector-empty">Fix the code syntax to inspect tracks.</p>
       ) : tracks.length === 0 ? (

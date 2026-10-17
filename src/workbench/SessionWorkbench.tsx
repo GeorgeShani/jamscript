@@ -21,6 +21,7 @@ import { TempoControl } from "@/features/tempo/TempoControl";
 import { readTempo } from "@/features/tempo/tempo";
 import { changeEditorTempo } from "@/features/tempo/tempo-editor";
 import { deriveMusic, type MusicDocument } from "@/engine/music-document";
+import { prepareMix } from "@/engine/mix-source";
 import type { EditorView } from "@codemirror/view";
 import {
   createDocument,
@@ -38,8 +39,10 @@ import {
 import { TrackInspector } from "./TrackInspector";
 import { OutputPanel } from "./OutputPanel";
 import { AuthControls } from "./AuthControls";
+import { ExportControl } from "./ExportControl";
 
 type SaveStatus = "saved" | "saving" | "error";
+const EMPTY_LEVELS: Record<string, number> = {};
 
 export function SessionWorkbench() {
   const [loadingWorkspaces, setLoadingWorkspaces] = useState(true);
@@ -64,7 +67,10 @@ export function SessionWorkbench() {
   const [error, setError] = useState<string | null>(null);
   const [playError, setPlayError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [soloTrack, setSoloTrack] = useState<string | null>(null);
   const [playLoading, setPlayLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   const [audioOutput, setAudioOutput] = useState<{ context: AudioContext; node: AudioNode } | null>(
     null,
   );
@@ -79,9 +85,17 @@ export function SessionWorkbench() {
   const mounted = useRef(true);
   const evaluation = useRef(0);
   const pendingEvaluation = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const exportAbort = useRef<AbortController | null>(null);
+  const exportingNow = useRef(false);
 
   const activeDocument = documents.find((item) => item.id === activeId) ?? null;
   const model = useMemo(() => deriveMusic(activeDocument?.source ?? ""), [activeDocument?.source]);
+  const mixTracks = useMemo(
+    () => prepareMix(activeDocument?.source ?? "").tracks,
+    [activeDocument?.source],
+  );
+  const mixLevels = activeDocument?.mix?.levels ?? EMPTY_LEVELS;
+  const masterLevel = activeDocument?.mix?.master ?? 1;
   const track = model.tracks.find((item) => item.name === selectedTrack) ?? model.tracks[0] ?? null;
 
   useEffect(() => {
@@ -98,6 +112,7 @@ export function SessionWorkbench() {
       mounted.current = false;
       evaluationCounter.current++;
       if (pendingEvaluation.current) clearTimeout(pendingEvaluation.current);
+      exportAbort.current?.abort();
       for (const timer of saveTimers.current.values()) clearTimeout(timer);
       for (const document of drafts.current.values()) void saveDocument(document);
       void import("@/engine/playback").then((pb) => {
@@ -117,6 +132,27 @@ export function SessionWorkbench() {
     code.current = activeDocument?.source ?? "";
     setTempo(readTempo(code.current));
   }, [activeDocument?.source]);
+
+  useEffect(() => {
+    const activeSolo = mixTracks.some((item) => item.id === soloTrack) ? soloTrack : null;
+    if (!exportingNow.current)
+      void import("@/engine/playback").then((playback) =>
+        playback.setMix(mixLevels, activeSolo, masterLevel),
+      );
+  }, [mixLevels, masterLevel, soloTrack, mixTracks]);
+
+  useEffect(() => {
+    if (soloTrack && !mixTracks.some((item) => item.id === soloTrack)) setSoloTrack(null);
+  }, [mixTracks, soloTrack]);
+
+  const changeMix = (master: number, levels: Record<string, number>) => {
+    if (!activeId) return;
+    const current = drafts.current.get(activeId);
+    if (!current) return;
+    const next = { ...current, mix: { master, levels } };
+    setDocuments((items) => items.map((item) => (item.id === activeId ? next : item)));
+    scheduleSave(next);
+  };
 
   const openWorkspace = async (next: WorkspaceRecord) => {
     try {
@@ -183,6 +219,8 @@ export function SessionWorkbench() {
         reportedError = detail;
         if (mounted.current && request === evaluation.current) setPlayError(detail);
       });
+      const current = drafts.current.get(activeIdRef.current ?? "");
+      playback.setMix(current?.mix?.levels ?? {}, soloTrack, current?.mix?.master ?? 1);
       const ok = await playback.play(code.current);
       if (!mounted.current || request !== evaluation.current) return;
       if (ok) {
@@ -196,7 +234,7 @@ export function SessionWorkbench() {
     } finally {
       if (mounted.current && request === evaluation.current) setPlayLoading(false);
     }
-  }, []);
+  }, [soloTrack]);
 
   const stopPlayback = async () => {
     playingNow.current = false;
@@ -217,7 +255,7 @@ export function SessionWorkbench() {
     if (activeIdRef.current !== id) return;
     code.current = source;
     setTempo(readTempo(source));
-    if (playingNow.current && nextModel.valid) {
+    if (playingNow.current && nextModel.valid && !exportingNow.current) {
       if (pendingEvaluation.current) clearTimeout(pendingEvaluation.current);
       pendingEvaluation.current = setTimeout(() => void evaluateCurrent(), 180);
     }
@@ -225,10 +263,65 @@ export function SessionWorkbench() {
 
   const selectDocument = (id: string) => {
     if (id === activeId) return;
+    exportAbort.current?.abort();
     if (playingNow.current) void stopPlayback();
     setOpenIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
     setActiveId(id);
     setSelectedTrack(null);
+    setSoloTrack(null);
+  };
+
+  const exportMain = async (format: "wav" | "mp3", bars: number) => {
+    if (!activeDocument || exportingNow.current) return;
+    const abort = new AbortController();
+    exportAbort.current = abort;
+    exportingNow.current = true;
+    setExporting(true);
+    setExportProgress(0);
+    setPlayError(null);
+    try {
+      if (playingNow.current) await stopPlayback();
+      const { recordMainFlow, encodeWav, encodeMp3 } = await import("@/engine/export-audio");
+      const current = drafts.current.get(activeDocument.id) ?? activeDocument;
+      const recording = await recordMainFlow({
+        code: current.source,
+        cps: readTempo(current.source).cps ?? 0,
+        bars,
+        levels: current.mix?.levels ?? EMPTY_LEVELS,
+        master: current.mix?.master ?? 1,
+        signal: abort.signal,
+        onProgress: setExportProgress,
+      });
+      if (abort.signal.aborted) return;
+      const blob =
+        format === "wav" ? encodeWav(recording) : await encodeMp3(recording, abort.signal);
+      if (abort.signal.aborted) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${current.name.replace(/\.[^.]+$/, "")}-${bars}bars.${format}`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === "AbortError"))
+        setPlayError(message(cause));
+    } finally {
+      exportingNow.current = false;
+      exportAbort.current = null;
+      setExporting(false);
+      setPlaying(false);
+      setAudioOutput(null);
+      const latest = drafts.current.get(activeIdRef.current ?? "");
+      void import("@/engine/playback").then((pb) =>
+        pb.setMix(
+          latest?.mix?.levels ?? EMPTY_LEVELS,
+          activeIdRef.current === activeDocument.id ? soloTrack : null,
+          latest?.mix?.master ?? 1,
+        ),
+      );
+    }
   };
 
   const addDocument = async () => {
@@ -472,14 +565,21 @@ export function SessionWorkbench() {
         <div className="jam-transport">
           <TempoControl
             cps={tempo.cps}
-            editable={!!activeDocument && tempo.editable}
+            editable={!!activeDocument && tempo.editable && !exporting}
             onCpsChange={onTempoChange}
+          />
+          <ExportControl
+            disabled={!activeDocument || tempo.cps === null || !tempo.editable}
+            exporting={exporting}
+            progress={exportProgress}
+            onExport={(format, bars) => void exportMain(format, bars)}
+            onCancel={() => exportAbort.current?.abort()}
           />
           <Button
             className="jam-play"
             size="sm"
             variant={playing ? "default" : "outline"}
-            disabled={!activeDocument || playLoading}
+            disabled={!activeDocument || playLoading || exporting}
             onClick={() => void (playing ? stopPlayback() : evaluateCurrent())}
           >
             {playing ? <Square size={16} /> : <Play size={16} />}
@@ -700,6 +800,17 @@ export function SessionWorkbench() {
             valid={model.valid}
             view={activeView}
             onSelectTrack={setSelectedTrack}
+            mixTracks={mixTracks}
+            mixLevels={mixLevels}
+            masterLevel={masterLevel}
+            soloTrack={soloTrack}
+            onMixLevel={(id, value) =>
+              !exportingNow.current && changeMix(masterLevel, { ...mixLevels, [id]: value })
+            }
+            onMasterLevel={(value) => !exportingNow.current && changeMix(value, mixLevels)}
+            onSoloTrack={(id) => {
+              if (!exportingNow.current) setSoloTrack(id);
+            }}
           />
         )}
       </div>
