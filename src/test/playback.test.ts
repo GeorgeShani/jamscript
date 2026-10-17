@@ -59,8 +59,11 @@ describe("Live playback adapter", () => {
     await playback.stop();
     expect(gain.cancelScheduledValues).toHaveBeenCalledWith(3);
     expect(gain.setValueAtTime).toHaveBeenCalledWith(0, 3);
+    gain.setTargetAtTime.mockClear();
+    playback.setMix({}, null, 0.6);
+    expect(gain.setTargetAtTime).not.toHaveBeenCalled();
     expect(await playback.play('s("sd")')).toBe(true);
-    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 3, 0.015);
+    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(0.6, 3, 0.015);
     await playback.stop();
   });
 

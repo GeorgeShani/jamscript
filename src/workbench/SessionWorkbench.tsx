@@ -737,12 +737,11 @@ export function SessionWorkbench({
   };
 
   const removeDocument = async (item: DocumentRecord) => {
-    if (
-      !confirm(
-        `Delete ${item.name}? ${nativeWorkspace ? "This removes the file from disk." : "This removes it from this browser."}`,
-      )
-    )
-      return;
+    const dirty = nativeWorkspace && storage.isDirty?.(item);
+    const deletionEffect = nativeWorkspace
+      ? `This removes the file from disk.${dirty ? " Unsaved edits and the recovery copy will be lost." : ""}`
+      : "This removes it from this browser.";
+    if (!confirm(`Delete ${item.name}? ${deletionEffect}`)) return;
     try {
       const timer = timers.current.get(item.id);
       if (timer) clearTimeout(timer);

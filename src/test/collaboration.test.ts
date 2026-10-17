@@ -88,6 +88,14 @@ describe("shared project membership", () => {
         role: "viewer",
       }),
     ).rejects.toThrow(/owner/);
+    await expect(
+      createInvitation(db, {
+        workspaceId: project.workspaceId,
+        actorId: "user_owner",
+        email: "other@example.com",
+        role: "owner" as "editor",
+      }),
+    ).rejects.toThrow(/Invalid invitation role/);
   });
 });
 

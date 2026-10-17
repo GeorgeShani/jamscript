@@ -21,6 +21,7 @@ let mixLevels: Record<string, number> = {};
 let soloTrack: string | null = null;
 let masterLevel = 1;
 let mixTimer: ReturnType<typeof setInterval> | null = null;
+let mixEnabled = false;
 let source = "";
 let playbackCode = "";
 let miniLocations = new Set<string>();
@@ -67,6 +68,7 @@ export function onHighlight(callback: ((ranges: PlaybackRange[]) => void) | null
 }
 
 function applyMix() {
+  if (!mixEnabled) return;
   const controller = activeStrudel?.getSuperdoughAudioController?.();
   const context = activeStrudel?.getAudioContext?.() as AudioContext | undefined;
   if (!controller || !context) return;
@@ -168,6 +170,7 @@ export function initPlayback(): Promise<StrudelWeb> {
 export function play(code: string): Promise<boolean> {
   const request = ++revision;
   allowed = true;
+  mixEnabled = false;
   work = work
     .catch(() => false)
     .then(async () => {
@@ -185,10 +188,12 @@ export function play(code: string): Promise<boolean> {
         mixTracks = mix.mixable === false ? [] : mix.tracks;
         await strudel.evaluate(mix.code);
         if (!allowed) {
+          mixEnabled = false;
           silence(strudel);
           return false;
         }
         if (request !== revision) {
+          mixEnabled = false;
           silence(strudel);
           return false;
         }
@@ -197,11 +202,13 @@ export function play(code: string): Promise<boolean> {
           // an error through onEvalError instead of rejecting. Keep transport and
           // UI in sync by silencing it before reporting Play as failed.
           allowed = false;
+          mixEnabled = false;
           silence(strudel);
           errorCallback?.(evaluationError);
           return false;
         }
         if (mixTimer) clearInterval(mixTimer);
+        mixEnabled = true;
         applyMix();
         // Orbits are created lazily on their first note. Keep new nodes in sync.
         mixTimer = setInterval(applyMix, 80);
@@ -210,6 +217,7 @@ export function play(code: string): Promise<boolean> {
         // evaluate() may start a scheduler before rejecting. Do not let a failed
         // Play leave audio running behind an Idle transport.
         if (strudel) silence(strudel);
+        mixEnabled = false;
         if (allowed && request === revision) {
           allowed = false;
           errorCallback?.(message(error));
@@ -223,6 +231,7 @@ export function play(code: string): Promise<boolean> {
 /** Stops all playing patterns. */
 export async function stop(): Promise<void> {
   allowed = false;
+  mixEnabled = false;
   clearHighlightTimers();
   if (mixTimer) clearInterval(mixTimer);
   mixTimer = null;

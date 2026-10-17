@@ -38,6 +38,10 @@ Build complete, working slices in order. An example fixture is never evidence th
 - [x] Coastline compatibility source and playback regression coverage. Stop remains available while Play loads and hard-mutes output when evaluation fails or a pattern continues unexpectedly.
 - [x] Initial shared workspace routes, role-aware UI restrictions, private database schema and offline language-service transport.
 - [x] Local, per-document Takes snapshots with comparison, audition and source restore.
+- [x] A: native file deletion warns when it will also discard unsaved edits and their recovery copy.
+- [x] B: mixer changes after Stop cannot restore the muted master output; the next successful Play restores the chosen level.
+- [x] C: invitations reject invalid roles at the API and membership layers rather than silently granting editor access.
+- [x] D: offline hover and signature help cover the sample and chord calls used by the coastline fixture.
 - [ ] Complete A–D acceptance, including native listening on Windows, macOS and Linux and a live two-person collaboration session.
 - [ ] Complete complex lenses, optional native Git, and the Gemini agent (E–G).
 

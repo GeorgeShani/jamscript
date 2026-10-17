@@ -110,4 +110,34 @@ describe("Strudel language service", () => {
       ),
     ).toEqual([{ jsonrpc: "2.0", id: 6, result: null }]);
   });
+
+  it("explains coastline chord and sample calls from the offline service", () => {
+    const service = new StrudelLanguageService();
+    const uri = "file:///coastline.js";
+    service.handle({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri,
+          version: 1,
+          text: "samples('github:eddyflux/crate')\nlet chords = chord('<Bbm9 Fm9>/4')",
+        },
+      },
+    });
+    const hover = service.handle(
+      request(7, "textDocument/hover", {
+        textDocument: { uri, version: 1 },
+        position: { line: 1, character: 16 },
+      }),
+    );
+    expect(JSON.stringify(hover)).toContain("Create a pattern of chord symbols");
+    const signature = service.handle(
+      request(8, "textDocument/signatureHelp", {
+        textDocument: { uri, version: 1 },
+        position: { line: 0, character: 13 },
+      }),
+    );
+    expect(JSON.stringify(signature)).toContain("samples(source)");
+  });
 });

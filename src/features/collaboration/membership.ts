@@ -102,7 +102,8 @@ export async function createInvitation(
 ) {
   const role = await memberRole(db, input.workspaceId, input.actorId);
   if (role !== "owner") throw new Error("Only the owner can invite");
-  if (!canWrite(input.role) && input.role !== "viewer") throw new Error("Invalid invitation role");
+  if (input.role !== "editor" && input.role !== "viewer")
+    throw new Error("Invalid invitation role");
   const email = normalizeEmail(input.email);
   if (email.length < 4 || !email.includes("@")) throw new Error("Invitation email is invalid");
   const token = randomBytes(32).toString("hex");

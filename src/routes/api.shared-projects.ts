@@ -89,12 +89,15 @@ export const Route = createFileRoute("/api/shared-projects")({
             return Response.json(created, { headers });
           }
           if (body.action === "invite") {
+            const invitationRole = body["role"];
+            if (invitationRole !== "editor" && invitationRole !== "viewer")
+              return Response.json({ error: "Invalid invitation role" }, { status: 400, headers });
             const invitation = await withCollaborationDb((db) =>
               createInvitation(db, {
                 workspaceId: text("workspaceId"),
                 actorId: current.userId,
                 email: text("email"),
-                role: text("role") === "viewer" ? "viewer" : "editor",
+                role: invitationRole,
               }),
             );
             const origin = process.env["APP_ORIGIN"] ?? new URL(request.url).origin;
