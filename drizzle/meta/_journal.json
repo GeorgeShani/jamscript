@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792259589874,
+      "tag": "0000_workspace_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792259609837,
+      "tag": "0001_invitations_and_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792259613874,
+      "tag": "0002_private_schema_permissions",
+      "breakpoints": true
+    }
+  ]
+}

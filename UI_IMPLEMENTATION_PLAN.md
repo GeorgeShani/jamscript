@@ -10,9 +10,9 @@ Approved 17 October 2026. This plan supersedes the preview-only shell sections o
 - Replace preview Repo, Takes, presence, Share, and Rework UI with Files, document tabs, Inspector, Output/Spectrum and actual transport state. Use the approved compact typography and 900px responsive breakpoint.
 - Install only audiocn Knob, Parameter Slider, Level Meter, Spectrum and their required hook/dependencies. Feed Inspector changes into source patches and meters from actual Strudel output, without demo signals.
 
-## Milestone 2 — service-backed workspaces (Clerk account UI connected; sync and collaboration pending)
+## Milestone 2 — service-backed workspaces (Clerk account UI connected; Drizzle schema prepared; sync and collaboration pending)
 
-- Use Clerk for sign-in, session identity and account UI. Add user-scoped workspace/document metadata with Supabase and RLS only after the Clerk identity is mapped to the storage authorization model; expose sync and invitations only when operational.
+- Use Clerk for sign-in, session identity and account UI. The private Drizzle PostgreSQL schema and migrations now define workspaces, documents, memberships, invitations and revisions. Add authenticated server routes and user-scoped authorization before enabling sync or invitations; keep the schema outside Supabase's exposed API until a tested Clerk-to-RLS mapping exists.
 - Add Liveblocks private per-document rooms with server-minted identity tokens and document permissions; then show presence and collaboration.
 - Add server-side Gemini proposal endpoints and explicit review/apply flow; then show AI assistance.
 - Keep workspace identity, documents, membership, revisions and sync in JamScript's own domain model. Git may become an optional desktop integration for users who want repository workflows; it is never required to create, save or share a workspace.

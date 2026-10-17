@@ -30,6 +30,12 @@ The chooser offers a new workspace and an explicit Night bus template. The Files
 
 Browser workspaces do not request filesystem permissions. Clearing this site's browser storage deletes the local workspaces. JamScript manages workspaces independently of Git; native folder operations and optional Git integration are reserved for the desktop app. Repo, Takes, Rework, presence, Share, and AI controls return only after their backing services work.
 
+## Database foundation
+
+The future synced-workspace backend has a [Drizzle schema](src/db/schema.ts) and generated PostgreSQL migrations in `drizzle/`. They cover workspaces, owner/editor/viewer memberships, documents with source versions, hashed invitations, and saved source revisions. Clerk user IDs are external references; the database stores no passwords. The `jamscript` schema is private and must stay out of Supabase's exposed API schemas. Server routes still need to verify the Clerk session and workspace membership before querying it. Browser IndexedDB remains the active storage path until sync is implemented.
+
+Use `bun run db:generate --name=<change>` after editing the schema and `bun run db:check` to check migration history. To apply migrations to a chosen PostgreSQL database, set a server-only `DATABASE_URL` and run `bun run db:migrate`. Use a Supabase database connection string, not its publishable API key. No live database has been migrated by this repository setup.
+
 ## Project documents and notices
 
 - [PRODUCT.md](PRODUCT.md): product direction and current capabilities.
