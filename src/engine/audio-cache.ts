@@ -24,15 +24,14 @@ export function installAudioCache() {
   if (installed || typeof window === "undefined" || !("caches" in window)) return;
   installed = true;
   const nativeFetch = window.fetch.bind(window);
-  window.fetch = async (input, init) => {
+  const cachedFetch = async (input: Parameters<typeof window.fetch>[0], init?: RequestInit) => {
     const request = new Request(input, init);
     if (request.method !== "GET" || !cacheable(request.url)) return nativeFetch(input, init);
     const cache = await caches.open(AUDIO_CACHE);
     try {
       const response = await nativeFetch(input, init);
       if (response.ok) void cache.put(request, response.clone());
-      else
-        reportMissing(`Could not load ${fileName(request.url)}. Press Play to retry.`);
+      else reportMissing(`Could not load ${fileName(request.url)}. Press Play to retry.`);
       return response;
     } catch (cause) {
       const cached = await cache.match(request);
@@ -41,6 +40,7 @@ export function installAudioCache() {
       throw cause;
     }
   };
+  window.fetch = Object.assign(cachedFetch, { preconnect: window.fetch.preconnect });
 }
 
 export function onMissingSample(callback: ((detail: string) => void) | null) {

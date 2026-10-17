@@ -17,8 +17,14 @@ import { roomId, seedSharedText } from "@/features/collaboration/shared-document
 const headers = { "Cache-Control": "private, no-store" };
 
 async function actor() {
-  if (!process.env["CLERK_SECRET_KEY"] || !process.env["DATABASE_URL"] || !process.env["LIVEBLOCKS_SECRET_KEY"])
-    return { error: Response.json({ error: "Collaboration is not configured" }, { status: 503, headers }) };
+  if (
+    !process.env["CLERK_SECRET_KEY"] ||
+    !process.env["DATABASE_URL"] ||
+    !process.env["LIVEBLOCKS_SECRET_KEY"]
+  )
+    return {
+      error: Response.json({ error: "Collaboration is not configured" }, { status: 503, headers }),
+    };
   const { auth } = await import("@clerk/tanstack-react-start/server");
   const { userId, isAuthenticated } = await auth();
   if (!isAuthenticated || !userId)
@@ -38,11 +44,13 @@ export const Route = createFileRoute("/api/shared-projects")({
           const access = await withCollaborationDb((db) =>
             roleForDocument(db, documentId, current.userId),
           );
-          if (!access) return Response.json({ error: "No access to this document" }, { status: 403, headers });
+          if (!access)
+            return Response.json({ error: "No access to this document" }, { status: 403, headers });
           return Response.json(
             {
               documentId,
               workspaceId: access.workspaceId,
+              workspaceName: access.workspaceName,
               name: access.name,
               source: access.source,
               role: access.role,
@@ -50,7 +58,9 @@ export const Route = createFileRoute("/api/shared-projects")({
             { headers },
           );
         }
-        const documents = await withCollaborationDb((db) => listVisibleDocuments(db, current.userId));
+        const documents = await withCollaborationDb((db) =>
+          listVisibleDocuments(db, current.userId),
+        );
         return Response.json(documents, { headers });
       },
       POST: async ({ request }) => {
@@ -72,16 +82,22 @@ export const Route = createFileRoute("/api/shared-projects")({
             const doc = new Y.Doc();
             seedSharedText(doc, source);
             const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"]! });
-            await liveblocks.sendYjsBinaryUpdate(roomId(created.documentId), Y.encodeStateAsUpdate(doc));
+            await liveblocks.sendYjsBinaryUpdate(
+              roomId(created.documentId),
+              Y.encodeStateAsUpdate(doc),
+            );
             return Response.json(created, { headers });
           }
           if (body.action === "invite") {
+            const invitationRole = body["role"];
+            if (invitationRole !== "editor" && invitationRole !== "viewer")
+              return Response.json({ error: "Invalid invitation role" }, { status: 400, headers });
             const invitation = await withCollaborationDb((db) =>
               createInvitation(db, {
                 workspaceId: text("workspaceId"),
                 actorId: current.userId,
                 email: text("email"),
-                role: text("role") === "viewer" ? "viewer" : "editor",
+                role: invitationRole,
               }),
             );
             const origin = process.env["APP_ORIGIN"] ?? new URL(request.url).origin;
@@ -116,7 +132,8 @@ export const Route = createFileRoute("/api/shared-projects")({
             const { clerkClient } = await import("@clerk/tanstack-react-start/server");
             const user = await clerkClient().users.getUser(current.userId);
             const email =
-              user.emailAddresses.find((item) => item.id === user.primaryEmailAddressId)?.emailAddress ?? "";
+              user.emailAddresses.find((item) => item.id === user.primaryEmailAddressId)
+                ?.emailAddress ?? "";
             const accepted = await withCollaborationDb((db) =>
               acceptInvitation(db, { token: text("token"), userId: current.userId, email }),
             );
@@ -125,7 +142,11 @@ export const Route = createFileRoute("/api/shared-projects")({
           return Response.json({ error: "Unknown collaboration action" }, { status: 400, headers });
         } catch (cause) {
           const message = cause instanceof Error ? cause.message : "Collaboration request failed";
-          const status = /not active|expired|different account|Only the owner|invalid/i.test(message) ? 403 : 400;
+          const status = /not active|expired|different account|Only the owner|invalid/i.test(
+            message,
+          )
+            ? 403
+            : 400;
           return Response.json({ error: message }, { status, headers });
         }
       },

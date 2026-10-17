@@ -6,6 +6,7 @@ import { GripHorizontal } from "lucide-react";
 import type { KeyboardEventHandler, PointerEventHandler } from "react";
 import { useState } from "react";
 import type { SyntaxProblem } from "@/features/language/syntax-problems";
+import type { TakeRecord } from "@/features/takes/take-store";
 import type { FrameSource, MeterFrame, VisualFrame } from "@/lib/types";
 
 interface ResizeHandle {
@@ -60,6 +61,13 @@ export function OutputPanel({
   onDismiss,
   problems,
   onSelectProblem,
+  takes,
+  liveSource,
+  auditionTakeId,
+  onAuditionTake,
+  onRestoreTake,
+  onReturnToLive,
+  canRestoreTake,
 }: {
   error: string | null;
   output: { context: AudioContext; node: AudioNode } | null;
@@ -69,8 +77,17 @@ export function OutputPanel({
   onDismiss: () => void;
   problems: SyntaxProblem[];
   onSelectProblem: (problem: SyntaxProblem) => void;
+  takes: TakeRecord[];
+  liveSource: string;
+  auditionTakeId: string | null;
+  onAuditionTake: (take: TakeRecord) => void;
+  onRestoreTake: (take: TakeRecord) => void;
+  onReturnToLive: () => void;
+  canRestoreTake: boolean;
 }) {
-  const [tab, setTab] = useState<"output" | "problems">("output");
+  const [tab, setTab] = useState<"output" | "problems" | "takes">("output");
+  const [selectedTakeId, setSelectedTakeId] = useState<string | null>(null);
+  const selectedTake = takes.find((take) => take.id === selectedTakeId);
   return (
     <section id="jam-output-panel" className="jam-output" aria-label="Output panel">
       <div
@@ -108,6 +125,14 @@ export function OutputPanel({
         </button>
         <button
           role="tab"
+          aria-selected={tab === "takes"}
+          aria-controls="jam-takes-content"
+          onClick={() => setTab("takes")}
+        >
+          Takes{takes.length ? ` (${takes.length})` : ""}
+        </button>
+        <button
+          role="tab"
           aria-selected={tab === "problems"}
           aria-controls="jam-problems-content"
           onClick={() => setTab("problems")}
@@ -131,6 +156,67 @@ export function OutputPanel({
             <TelemetryOutput frames={frames} />
           ) : (
             <p className="jam-output-idle">Press Play to hear and inspect the active document.</p>
+          )}
+        </div>
+      ) : tab === "takes" ? (
+        <div id="jam-takes-content" role="tabpanel" className="jam-output-body jam-takes-body">
+          {takes.length ? (
+            <>
+              <div className="jam-takes-list" aria-label="Saved Takes">
+                {takes.map((take) => (
+                  <button
+                    key={take.id}
+                    type="button"
+                    aria-pressed={selectedTakeId === take.id}
+                    onClick={() => setSelectedTakeId(take.id)}
+                  >
+                    {new Date(take.createdAt).toLocaleString()}
+                    {auditionTakeId === take.id ? " · Auditioning" : ""}
+                  </button>
+                ))}
+              </div>
+              {selectedTake && (
+                <div className="jam-take-details">
+                  <p>
+                    {selectedTake.source === liveSource
+                      ? "Matches the current document."
+                      : `${selectedTake.source.split("\n").length} saved lines · ${liveSource.split("\n").length} live lines`}
+                  </p>
+                  <div className="jam-take-actions">
+                    <button type="button" onClick={() => onAuditionTake(selectedTake)}>
+                      Audition
+                    </button>
+                    {auditionTakeId && (
+                      <button type="button" onClick={onReturnToLive}>
+                        Back to live
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={!canRestoreTake || selectedTake.source === liveSource}
+                      onClick={() => onRestoreTake(selectedTake)}
+                    >
+                      Restore to editor
+                    </button>
+                  </div>
+                  <details>
+                    <summary>Compare source</summary>
+                    <div className="jam-take-compare">
+                      <div>
+                        <strong>Saved Take</strong>
+                        <pre>{selectedTake.source}</pre>
+                      </div>
+                      <div>
+                        <strong>Live editor</strong>
+                        <pre>{liveSource}</pre>
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              )}
+            </>
+          ) : (
+            <p>No Takes yet. A successful Play saves the first one on this device.</p>
           )}
         </div>
       ) : (

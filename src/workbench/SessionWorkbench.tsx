@@ -40,10 +40,20 @@ import {
 import { TrackInspector } from "./TrackInspector";
 import { OutputPanel } from "./OutputPanel";
 import { AuthControls } from "@/workbench/AuthControls";
-import { ShareControls, SharedProjectList, SharedSession } from "@/features/collaboration/ShareControls";
+import {
+  ShareControls,
+  SharedProjectList,
+  SharedSession,
+} from "@/features/collaboration/ShareControls";
 import { ExportControl } from "./ExportControl";
 import { CommandPalette, type WorkbenchCommand } from "./CommandPalette";
 import { syntaxProblems } from "@/features/language/syntax-problems";
+import {
+  captureTake,
+  deleteDocumentTakes,
+  listTakes,
+  type TakeRecord,
+} from "@/features/takes/take-store";
 import { EditorView as CodeMirrorView } from "@codemirror/view";
 
 type SaveStatus = "saved" | "saving" | "error";
@@ -86,6 +96,7 @@ export function SessionWorkbench({
   onDocumentRoute,
   storage = browserStorage,
   collaboration = false,
+  sharedOnly = false,
 }: {
   workspaceId?: string;
   initialDocumentId?: string | undefined;
@@ -94,6 +105,7 @@ export function SessionWorkbench({
   onDocumentRoute?: (id: string | null) => void;
   storage?: WorkspaceStorage;
   collaboration?: boolean;
+  sharedOnly?: boolean;
 } = {}) {
   const {
     createDocument,
@@ -147,6 +159,8 @@ export function SessionWorkbench({
   } | null>(null);
   const [collabStatus, setCollabStatus] = useState("offline");
   const [presence, setPresence] = useState<{ id: string; name: string }[]>([]);
+  const [takes, setTakes] = useState<TakeRecord[]>([]);
+  const [auditionTakeId, setAuditionTakeId] = useState<string | null>(null);
   const [tempo, setTempo] = useState(() => readTempo(""));
   const [, setReadyVersion] = useState(0);
   const views = useRef(new Map<string, EditorView>());
@@ -163,6 +177,7 @@ export function SessionWorkbench({
   const initialDocumentIdRef = useRef(initialDocumentId);
   const code = useRef("");
   const playingNow = useRef(false);
+  const loadingNow = useRef(false);
   const mounted = useRef(true);
   const evaluation = useRef(0);
   const pendingEvaluation = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -257,7 +272,23 @@ export function SessionWorkbench({
   useEffect(() => {
     activeIdRef.current = activeId;
     setSaveStatus("saved");
-    if (activeId) requestAnimationFrame(() => views.current.get(activeId)?.requestMeasure());
+    setTakes([]);
+    setAuditionTakeId(null);
+    if (activeId) {
+      requestAnimationFrame(() => views.current.get(activeId)?.requestMeasure());
+      let current = true;
+      void listTakes(activeId)
+        .then((items) => {
+          if (current) setTakes(items);
+        })
+        .catch((cause: unknown) => {
+          if (current) setError(`Could not load Takes: ${message(cause)}`);
+        });
+      return () => {
+        current = false;
+      };
+    }
+    return undefined;
   }, [activeId]);
 
   useEffect(() => {
@@ -336,7 +367,7 @@ export function SessionWorkbench({
   const renameTrack = (id: string, name: string) => {
     if (!activeId || exportingNow.current) return false;
     const view = views.current.get(activeId);
-    if (!view) return false;
+    if (!view || !view.state.facet(CodeMirrorView.editable)) return false;
     const patch = renameTrackPatch(view.state.doc.toString(), id, name);
     if (!patch) return false;
     view.dispatch({
@@ -414,66 +445,94 @@ export function SessionWorkbench({
     );
   };
 
-  const evaluateCurrent = useCallback(async () => {
-    const request = ++evaluation.current;
-    setPlayLoading(true);
-    try {
-      const playback = await import("@/engine/playback");
-      if (!mounted.current || request !== evaluation.current) return;
-      let reportedError: string | null = null;
-      playback.onError((detail) => {
-        reportedError = detail;
-        if (mounted.current && request === evaluation.current) setPlayError(detail);
-      });
-      playback.onAsset?.((detail) => {
-        if (mounted.current && request === evaluation.current) setPlayError(detail);
-      });
-      const documentId = activeIdRef.current;
-      const evaluatedSource = code.current;
-      const view = documentId ? views.current.get(documentId) : null;
-      if (view) clearPlaybackRanges(view);
-      playback.onHighlight((ranges) => {
-        if (exportingNow.current || activeIdRef.current !== documentId) return;
-        const currentView = documentId ? views.current.get(documentId) : null;
-        if (currentView?.state.doc.toString() === evaluatedSource)
-          flashPlaybackRanges(currentView, ranges);
-      });
-      const current = drafts.current.get(activeIdRef.current ?? "");
-      playback.setMix(
-        current?.mix?.levels ?? {},
-        soloTrack,
-        current?.mix?.master ?? 1,
-        [...mutedTracks],
-      );
-      const ok = await playback.play(code.current);
-      if (!mounted.current || request !== evaluation.current) return;
-      if (ok) {
-        playingNow.current = true;
-        setPlaying(true);
-        setPlayError(null);
-        setAudioOutput(playback.getOutputNode());
-        const frames = (
-          playback as {
-            outputFrames?: () => {
-              meter: FrameSource<MeterFrame>;
-              visual: FrameSource<VisualFrame>;
-            };
+  const evaluateCurrent = useCallback(
+    async (take?: TakeRecord) => {
+      const request = ++evaluation.current;
+      loadingNow.current = true;
+      setPlayLoading(true);
+      try {
+        const playback = await import("@/engine/playback");
+        if (!mounted.current || request !== evaluation.current) return;
+        let reportedError: string | null = null;
+        playback.onError((detail) => {
+          reportedError = detail;
+          if (mounted.current && request === evaluation.current) setPlayError(detail);
+        });
+        playback.onAsset?.((detail) => {
+          if (mounted.current && request === evaluation.current) setPlayError(detail);
+        });
+        const documentId = activeIdRef.current;
+        const evaluatedSource = take?.source ?? code.current;
+        const view = documentId ? views.current.get(documentId) : null;
+        if (view) clearPlaybackRanges(view);
+        playback.onHighlight((ranges) => {
+          if (exportingNow.current || activeIdRef.current !== documentId) return;
+          const currentView = documentId ? views.current.get(documentId) : null;
+          if (currentView?.state.doc.toString() === evaluatedSource)
+            flashPlaybackRanges(currentView, ranges);
+        });
+        const current = drafts.current.get(activeIdRef.current ?? "");
+        playback.setMix(current?.mix?.levels ?? {}, soloTrack, current?.mix?.master ?? 1);
+        const ok = await playback.play(evaluatedSource);
+        if (!mounted.current || request !== evaluation.current) return;
+        if (ok) {
+          playingNow.current = true;
+          setPlaying(true);
+          setAuditionTakeId(take?.id ?? null);
+          setPlayError(null);
+          if (!take && documentId && evaluatedSource.trim()) {
+            void captureTake(documentId, evaluatedSource)
+              .then((items) => {
+                if (mounted.current && activeIdRef.current === documentId) setTakes(items);
+              })
+              .catch((cause: unknown) => {
+                if (mounted.current) setError(`Could not save Take: ${message(cause)}`);
+              });
           }
-        ).outputFrames?.();
-        setOutputFrames(frames ?? null);
-      } else setPlayError(reportedError ?? "Could not evaluate the current document.");
-    } catch (cause) {
-      if (mounted.current) setPlayError(message(cause));
-    } finally {
-      if (mounted.current && request === evaluation.current) setPlayLoading(false);
-    }
-  }, [soloTrack, mutedTracks]);
+          setAudioOutput(playback.getOutputNode());
+          const frames = (
+            playback as {
+              outputFrames?: () => {
+                meter: FrameSource<MeterFrame>;
+                visual: FrameSource<VisualFrame>;
+              };
+            }
+          ).outputFrames?.();
+          setOutputFrames(frames ?? null);
+        } else {
+          playingNow.current = false;
+          setPlaying(false);
+          setAudioOutput(null);
+          setOutputFrames(null);
+          setPlayError(reportedError ?? "Could not evaluate the current document.");
+        }
+      } catch (cause) {
+        if (mounted.current && request === evaluation.current) {
+          playingNow.current = false;
+          setPlaying(false);
+          setAudioOutput(null);
+          setOutputFrames(null);
+          setPlayError(message(cause));
+          void import("@/engine/playback").then((playback) => playback.stop());
+        }
+      } finally {
+        if (mounted.current && request === evaluation.current) {
+          loadingNow.current = false;
+          setPlayLoading(false);
+        }
+      }
+    },
+    [soloTrack],
+  );
 
   const stopPlayback = useCallback(async () => {
     playingNow.current = false;
+    loadingNow.current = false;
     evaluation.current++;
     if (pendingEvaluation.current) clearTimeout(pendingEvaluation.current);
     setPlaying(false);
+    setPlayLoading(false);
+    setAuditionTakeId(null);
     setAudioOutput(null);
     setOutputFrames(null);
     for (const view of views.current.values()) clearPlaybackRanges(view);
@@ -485,7 +544,8 @@ export function SessionWorkbench({
   useEffect(() => {
     if (!initialDocumentId || !documentsRef.current.some((item) => item.id === initialDocumentId))
       return;
-    if (activeIdRef.current !== initialDocumentId && playingNow.current) void stopPlayback();
+    if (activeIdRef.current !== initialDocumentId && (playingNow.current || loadingNow.current))
+      void stopPlayback();
     setOpenIds((ids) => (ids.includes(initialDocumentId) ? ids : [...ids, initialDocumentId]));
     setActiveId(initialDocumentId);
     setSelectedTrack(null);
@@ -537,7 +597,7 @@ export function SessionWorkbench({
   const selectDocument = (id: string) => {
     if (id === activeId) return;
     exportAbort.current?.abort();
-    if (playingNow.current) void stopPlayback();
+    if (playingNow.current || loadingNow.current) void stopPlayback();
     setOpenIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
     setActiveId(id);
     onDocumentRoute?.(id);
@@ -557,7 +617,7 @@ export function SessionWorkbench({
     )
       return;
     if (activeId === id) {
-      if (playingNow.current) void stopPlayback();
+      if (playingNow.current || loadingNow.current) void stopPlayback();
       setSelectedTrack(null);
       setSoloTrack(null);
       setMutedTracks(new Set());
@@ -605,7 +665,7 @@ export function SessionWorkbench({
     setExportProgress(0);
     setPlayError(null);
     try {
-      if (playingNow.current) await stopPlayback();
+      if (playingNow.current || loadingNow.current) await stopPlayback();
       const { recordMainFlow, encodeWav, encodeMp3 } = await import("@/engine/export-audio");
       const current = drafts.current.get(activeDocument.id) ?? activeDocument;
       const recording = await recordMainFlow({
@@ -691,12 +751,11 @@ export function SessionWorkbench({
   };
 
   const removeDocument = async (item: DocumentRecord) => {
-    if (
-      !confirm(
-        `Delete ${item.name}? ${nativeWorkspace ? "This removes the file from disk." : "This removes it from this browser."}`,
-      )
-    )
-      return;
+    const dirty = nativeWorkspace && storage.isDirty?.(item);
+    const deletionEffect = nativeWorkspace
+      ? `This removes the file from disk.${dirty ? " Unsaved edits and the recovery copy will be lost." : ""}`
+      : "This removes it from this browser.";
+    if (!confirm(`Delete ${item.name}? ${deletionEffect}`)) return;
     try {
       const timer = timers.current.get(item.id);
       if (timer) clearTimeout(timer);
@@ -706,11 +765,14 @@ export function SessionWorkbench({
       setDocuments((items) => items.filter((doc) => doc.id !== item.id));
       setOpenIds((ids) => ids.filter((id) => id !== item.id));
       if (activeId === item.id) {
-        if (playingNow.current) void stopPlayback();
+        if (playingNow.current || loadingNow.current) void stopPlayback();
         const next = documents.find((doc) => doc.id !== item.id);
         setActiveId(next?.id ?? null);
         if (next) setOpenIds((ids) => (ids.includes(next.id) ? ids : [...ids, next.id]));
       }
+      void deleteDocumentTakes(item.id).catch((cause: unknown) =>
+        setError(`Could not clear Takes for ${item.name}: ${message(cause)}`),
+      );
     } catch (cause) {
       setError(message(cause));
     }
@@ -725,7 +787,7 @@ export function SessionWorkbench({
       )
     )
       return;
-    if (playingNow.current) void stopPlayback();
+    if (playingNow.current || loadingNow.current) void stopPlayback();
     setWorkspace(null);
     setDocuments([]);
     setOpenIds([]);
@@ -956,6 +1018,15 @@ export function SessionWorkbench({
     const view = views.current.get(activeIdRef.current ?? "");
     return view !== undefined && changeEditorTempo(view, cps, expectedCps);
   };
+  const changeBeatsPerCycle = (value: number) => {
+    if (activeDocument?.shared?.role === "viewer") return;
+    if (!activeId || !Number.isInteger(value) || value < 1 || value > 16) return;
+    const current = drafts.current.get(activeId);
+    if (!current) return;
+    const next = { ...current, beatsPerCycle: value };
+    setDocuments((items) => items.map((item) => (item.id === activeId ? next : item)));
+    scheduleSave(next);
+  };
 
   const commands: WorkbenchCommand[] = [
     ...documents.map((item) => ({
@@ -983,6 +1054,17 @@ export function SessionWorkbench({
       keywords: "transport hush",
       run: () => void stopPlayback(),
     },
+    ...(nativeWorkspace
+      ? [
+          {
+            id: "save",
+            label: "Save current document to disk",
+            group: "Commands" as const,
+            keywords: "file save",
+            run: () => void saveActiveToDisk(),
+          },
+        ]
+      : []),
     {
       id: "files",
       label: sidebarOpen ? "Hide Files" : "Show Files",
@@ -1007,17 +1089,21 @@ export function SessionWorkbench({
       group: "Commands",
       run: () => setOutputOpen(!outputOpen),
     },
-    {
-      id: "new-document",
-      label: "New document",
-      group: "Commands",
-      keywords: "file create",
-      run: () => {
-        setSidebarOpen(true);
-        if (window.innerWidth < 900) setInspectorOpen(false);
-        requestAnimationFrame(() => document.getElementById("new-document-name")?.focus());
-      },
-    },
+    ...(!sharedOnly
+      ? [
+          {
+            id: "new-document",
+            label: "New document",
+            group: "Commands" as const,
+            keywords: "file create",
+            run: () => {
+              setSidebarOpen(true);
+              if (window.innerWidth < 900) setInspectorOpen(false);
+              requestAnimationFrame(() => document.getElementById("new-document-name")?.focus());
+            },
+          },
+        ]
+      : []),
   ];
 
   if (loadingWorkspaces) return <div className="jam-loading">Opening workspaces…</div>;
@@ -1190,8 +1276,14 @@ export function SessionWorkbench({
                                 )
                                   return;
                                 try {
+                                  const removedDocuments = await listDocuments(item.id);
                                   await deleteWorkspace(item.id);
                                   setWorkspaces(await listWorkspaces());
+                                  void Promise.all(
+                                    removedDocuments.map((doc) => deleteDocumentTakes(doc.id)),
+                                  ).catch((cause: unknown) =>
+                                    setError(`Could not clear old Takes: ${message(cause)}`),
+                                  );
                                 } catch (cause) {
                                   setError(message(cause));
                                 }
@@ -1255,9 +1347,35 @@ export function SessionWorkbench({
             key={`${activeId}-${beatsPerCycle}`}
             cps={tempo.cps}
             beatsPerCycle={beatsPerCycle}
-            editable={!!activeDocument && tempo.editable && !exporting}
+            editable={
+              !!activeDocument &&
+              activeDocument.shared?.role !== "viewer" &&
+              tempo.editable &&
+              !exporting
+            }
             onCpsChange={onTempoChange}
           />
+          <details className="jam-tempo-advanced">
+            <summary aria-label="Advanced tempo settings">Tempo settings</summary>
+            <label>
+              Beats per cycle
+              <select
+                aria-label="Beats per cycle"
+                value={beatsPerCycle}
+                disabled={!activeDocument || activeDocument.shared?.role === "viewer"}
+                onChange={(event) => changeBeatsPerCycle(Number(event.target.value))}
+              >
+                {Array.from({ length: 16 }, (_, index) => index + 1).map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <output aria-label="Cycles per second">
+              {tempo.cps === null ? "CPS from code" : `${Number(tempo.cps.toPrecision(8))} CPS`}
+            </output>
+          </details>
           <ExportControl
             disabled={
               import.meta.env.MODE === "desktop" ||
@@ -1273,12 +1391,21 @@ export function SessionWorkbench({
           <Button
             className="jam-play"
             size="sm"
-            variant={playing ? "default" : "outline"}
-            disabled={!activeDocument || playLoading || exporting}
-            onClick={() => void (playing ? stopPlayback() : evaluateCurrent())}
+            variant={playing || playLoading ? "default" : "outline"}
+            disabled={(!activeDocument && !playing && !playLoading) || exporting}
+            onClick={() => void (playing || playLoading ? stopPlayback() : evaluateCurrent())}
           >
-            {playing ? <Square size={16} /> : <Play size={16} />}
-            {playLoading ? "Loading" : playing ? "Stop" : "Play"}
+            {playing || playLoading ? <Square size={16} /> : <Play size={16} />}
+            {playing || playLoading ? "Stop" : "Play"}
+          </Button>
+          <Button
+            size="icon"
+            variant="outline"
+            aria-label="Stop all audio"
+            title="Stop all audio"
+            onClick={() => void stopPlayback()}
+          >
+            <Square size={14} />
           </Button>
           {collaboration && (
             <ShareControls
@@ -1433,36 +1560,40 @@ export function SessionWorkbench({
           <aside className="jam-file-sidebar">
             <div className="jam-panel-heading">
               <span>FILES</span>
-              <button
-                onClick={() => document.getElementById("new-document-name")?.focus()}
-                aria-label="New document"
-              >
-                <Plus size={17} />
-              </button>
+              {!sharedOnly && (
+                <button
+                  onClick={() => document.getElementById("new-document-name")?.focus()}
+                  aria-label="New document"
+                >
+                  <Plus size={17} />
+                </button>
+              )}
             </div>
             <div className="jam-sidebar-workspace">
               <Folder size={15} />
               {workspace.name}
             </div>
-            <form
-              className="jam-new-file"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void addDocument();
-              }}
-            >
-              <input
-                id="new-document-name"
-                aria-label="New document name"
-                placeholder="new-file.js"
-                value={newDocumentName}
-                onChange={(event) => setNewDocumentName(event.target.value)}
-                required
-              />
-              <button type="submit" aria-label="Create document">
-                <Plus size={16} />
-              </button>
-            </form>
+            {!sharedOnly && (
+              <form
+                className="jam-new-file"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void addDocument();
+                }}
+              >
+                <input
+                  id="new-document-name"
+                  aria-label="New document name"
+                  placeholder="new-file.js"
+                  value={newDocumentName}
+                  onChange={(event) => setNewDocumentName(event.target.value)}
+                  required
+                />
+                <button type="submit" aria-label="Create document">
+                  <Plus size={16} />
+                </button>
+              </form>
+            )}
             <ul className="jam-file-list">
               {documents.map((item) => (
                 <li key={item.id}>
@@ -1499,23 +1630,27 @@ export function SessionWorkbench({
                           {storage.isDirty?.(item) ? " •" : ""}
                         </span>
                       </button>
-                      <button
-                        className="jam-file-action"
-                        aria-label={`Rename ${item.name}`}
-                        onClick={() => {
-                          setRenaming(item.id);
-                          setRenameValue(item.name);
-                        }}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        className="jam-file-action"
-                        aria-label={`Delete ${item.name}`}
-                        onClick={() => void removeDocument(item)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {!sharedOnly && (
+                        <button
+                          className="jam-file-action"
+                          aria-label={`Rename ${item.name}`}
+                          onClick={() => {
+                            setRenaming(item.id);
+                            setRenameValue(item.name);
+                          }}
+                        >
+                          ✎
+                        </button>
+                      )}
+                      {!sharedOnly && (
+                        <button
+                          className="jam-file-action"
+                          aria-label={`Delete ${item.name}`}
+                          onClick={() => void removeDocument(item)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </>
                   )}
                 </li>
@@ -1651,6 +1786,25 @@ export function SessionWorkbench({
                 });
                 view.focus();
               }}
+              takes={takes}
+              liveSource={activeDocument?.source ?? ""}
+              auditionTakeId={auditionTakeId}
+              onAuditionTake={(take) => void evaluateCurrent(take)}
+              onReturnToLive={() => void evaluateCurrent()}
+              canRestoreTake={activeDocument?.shared?.role !== "viewer"}
+              onRestoreTake={(take) => {
+                const view = views.current.get(activeIdRef.current ?? "");
+                if (!view || !view.state.facet(CodeMirrorView.editable)) return;
+                void stopPlayback();
+                view.dispatch({
+                  changes: { from: 0, to: view.state.doc.length, insert: take.source },
+                  annotations: [
+                    Transaction.userEvent.of("input.take-restore"),
+                    isolateHistory.of("full"),
+                  ],
+                });
+                view.focus();
+              }}
               output={audioOutput}
               frames={outputFrames}
               playing={playing}
@@ -1734,11 +1888,15 @@ export function SessionWorkbench({
             ? "Save failed"
             : saveStatus === "saving"
               ? "Saving…"
-              : nativeWorkspace
-                ? diskDirty
-                  ? "Unsaved on disk · recovery stored locally"
-                  : "Saved on disk"
-                : "Saved locally"}
+              : sharedOnly
+                ? collabStatus === "connected"
+                  ? "Connected to shared document"
+                  : "Waiting to reconnect"
+                : nativeWorkspace
+                  ? diskDirty
+                    ? "Unsaved on disk · recovery stored locally"
+                    : "Saved on disk"
+                  : "Saved locally"}
         </span>
         <button
           title="Visual controls are derived from supported source expressions"

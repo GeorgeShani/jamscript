@@ -22,6 +22,7 @@ let soloTrack: string | null = null;
 let mutedTracks = new Set<string>();
 let masterLevel = 1;
 let mixTimer: ReturnType<typeof setInterval> | null = null;
+let mixEnabled = false;
 let source = "";
 let playbackCode = "";
 let miniLocations = new Set<string>();
@@ -68,6 +69,7 @@ export function onHighlight(callback: ((ranges: PlaybackRange[]) => void) | null
 }
 
 function applyMix() {
+  if (!mixEnabled) return;
   const controller = activeStrudel?.getSuperdoughAudioController?.();
   const context = activeStrudel?.getAudioContext?.() as AudioContext | undefined;
   if (!controller || !context) return;
@@ -105,6 +107,26 @@ export function setMix(
 
 function message(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Stop the scheduler and hard-mute its output so long effect tails cannot leak. */
+function silence(strudel: StrudelWeb) {
+  try {
+    const context = strudel.getAudioContext?.() as AudioContext | undefined;
+    const gain = strudel.getSuperdoughAudioController?.()?.output?.destinationGain?.gain as
+      AudioParam | undefined;
+    if (context && gain) {
+      gain.cancelScheduledValues?.(context.currentTime);
+      gain.setValueAtTime?.(0, context.currentTime);
+    }
+  } catch {
+    // A broken audio graph must not prevent the scheduler from stopping.
+  }
+  try {
+    strudel.hush();
+  } catch {
+    // The master mute above still prevents output if the scheduler fails.
+  }
 }
 
 /** Loads @strudel/web and prebakes the drum samples once. Later calls return the same promise. */
@@ -163,57 +185,83 @@ export function initPlayback(): Promise<StrudelWeb> {
 export function play(code: string): Promise<boolean> {
   const request = ++revision;
   allowed = true;
-  work = work.then(async () => {
-    if (!allowed || request !== revision) return false;
-    try {
-      const strudel = await initPlayback();
+  mixEnabled = false;
+  work = work
+    .catch(() => false)
+    .then(async () => {
       if (!allowed || request !== revision) return false;
-      evaluationError = null;
-      const mix = prepareMix(code);
-      clearHighlightTimers();
-      source = code;
-      playbackCode = mix.code;
-      miniLocations.clear();
-      mixTracks = mix.mixable === false ? [] : mix.tracks;
-      await strudel.evaluate(mix.code);
-      if (!allowed) {
-        strudel.hush();
+      let strudel: StrudelWeb | null = null;
+      try {
+        strudel = await initPlayback();
+        if (!allowed || request !== revision) return false;
+        evaluationError = null;
+        const mix = prepareMix(code);
+        clearHighlightTimers();
+        source = code;
+        playbackCode = mix.code;
+        miniLocations.clear();
+        mixTracks = mix.mixable === false ? [] : mix.tracks;
+        await strudel.evaluate(mix.code);
+        if (!allowed) {
+          mixEnabled = false;
+          silence(strudel);
+          return false;
+        }
+        if (request !== revision) {
+          mixEnabled = false;
+          silence(strudel);
+          return false;
+        }
+        if (evaluationError) {
+          // Strudel can leave its previous pattern running when evaluate reports
+          // an error through onEvalError instead of rejecting. Keep transport and
+          // UI in sync by silencing it before reporting Play as failed.
+          allowed = false;
+          mixEnabled = false;
+          silence(strudel);
+          errorCallback?.(evaluationError);
+          return false;
+        }
+        if (mixTimer) clearInterval(mixTimer);
+        mixEnabled = true;
+        applyMix();
+        // Orbits are created lazily on their first note. Keep new nodes in sync.
+        mixTimer = setInterval(applyMix, 80);
+        return true;
+      } catch (error) {
+        // evaluate() may start a scheduler before rejecting. Do not let a failed
+        // Play leave audio running behind an Idle transport.
+        if (strudel) silence(strudel);
+        mixEnabled = false;
+        if (allowed && request === revision) {
+          allowed = false;
+          errorCallback?.(message(error));
+        }
         return false;
       }
-      if (request !== revision) return false;
-      if (evaluationError) {
-        errorCallback?.(evaluationError);
-        return false;
-      }
-      if (mixTimer) clearInterval(mixTimer);
-      applyMix();
-      // Orbits are created lazily on their first note. Keep new nodes in sync.
-      mixTimer = setInterval(applyMix, 80);
-      return true;
-    } catch (error) {
-      if (allowed && request === revision) errorCallback?.(message(error));
-      return false;
-    }
-  });
+    });
   return work;
 }
 
 /** Stops all playing patterns. */
 export async function stop(): Promise<void> {
   allowed = false;
+  mixEnabled = false;
   clearHighlightTimers();
   if (mixTimer) clearInterval(mixTimer);
   mixTimer = null;
   const stoppedAt = ++revision;
-  await work;
-  if (allowed || revision !== stoppedAt) return;
-  if (initPromise) {
-    try {
-      (await initPromise).hush();
-    } catch {
-      /* A failed initialization has no sound to stop. */
-    }
-  }
+  // Release the transport immediately even if a sample manifest or worklet is
+  // still loading. A stale initialization hushes only if no newer Play won.
+  if (activeStrudel) silence(activeStrudel);
+  else if (initPromise)
+    void initPromise
+      .then((strudel) => {
+        if (!allowed && revision === stoppedAt) silence(strudel);
+      })
+      .catch(() => {
+        /* A failed initialization has no sound to stop. */
+      });
 }
 
 /** Registers the single callback that receives evaluate() error messages. */

@@ -7,7 +7,7 @@ Approved 17 October 2026. This plan supersedes the preview-only shell sections o
 - Detach local Lovable build and reporting code, use the official TanStack Start Cloudflare Workers Vite integration, and keep existing Git history. Disconnect the Lovable project repository link in its Git settings before the first push of this work.
 - Open a workspace chooser. Create app-managed browser workspaces and documents in IndexedDB; provide an explicit Night bus example, document CRUD, tabs, recent workspaces, autosave, and visible persistence errors. Native filesystem and Git stay desktop-only.
 - Preserve each document's CodeMirror source, selection, scroll and undo state across tab changes. Playback and BPM always read the active editor; source controls use the checked lens patcher.
-- Replace preview Repo, Takes, presence, Share, and Rework UI with Files, document tabs, Inspector, Output/Spectrum and actual transport state. Use the approved compact typography and 900px responsive breakpoint.
+- Replace preview Repo, Takes, presence, Share, and Rework UI with Files, document tabs, Inspector, Output/Spectrum and actual transport state. Use the approved compact typography and 900px responsive breakpoint. A later real local Takes panel now appears in Output after successful playback; the example Takes rail remains unmounted.
 - Install only audiocn Knob, Parameter Slider, Level Meter, Spectrum and their required hook/dependencies. Feed Inspector changes into source patches and meters from actual Strudel output, without demo signals.
 
 ## Milestone 2 — service-backed workspaces (Clerk account UI connected; Drizzle schema and authenticated membership listing prepared; sync and collaboration pending)

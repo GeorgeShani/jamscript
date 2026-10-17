@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TempoControl } from "@/features/tempo/TempoControl";
 import { SessionWorkbench } from "@/workbench/SessionWorkbench";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { changeEditorTempo } from "@/features/tempo/tempo-editor";
 
 vi.mock("@/engine/playback", () => ({
   onError: vi.fn(),
@@ -107,5 +110,18 @@ describe("BPM control", () => {
     await openExample();
     expect(screen.queryByText("Tempo settings")).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Beats per cycle" })).not.toBeInTheDocument();
+  });
+
+  it("refuses a programmatic BPM write in a viewer editor", () => {
+    const view = new EditorView({
+      parent: document.createElement("div"),
+      state: EditorState.create({
+        doc: 'setcps(0.5); s("bd")',
+        extensions: [EditorView.editable.of(false)],
+      }),
+    });
+    expect(changeEditorTempo(view, 0.75, 0.5)).toBe(false);
+    expect(view.state.doc.toString()).toBe('setcps(0.5); s("bd")');
+    view.destroy();
   });
 });

@@ -31,6 +31,59 @@ describe("Live playback adapter", () => {
     });
     expect(await playback.play("bad()")).toBe(false);
     expect(errors).toHaveBeenCalledWith("bad pattern");
+    expect(web.hush).toHaveBeenCalled();
+  });
+
+  it("silences a scheduler started by an evaluation that later rejects", async () => {
+    const playback = await import("@/engine/playback");
+    web.evaluate.mockRejectedValueOnce(new Error("late evaluation failure"));
+    expect(await playback.play('s("bd")')).toBe(false);
+    expect(web.hush).toHaveBeenCalled();
+    expect(await playback.play('s("sd")')).toBe(true);
+    await playback.stop();
+  });
+
+  it("hard-mutes the output on Stop and restores its level on the next Play", async () => {
+    const gain = {
+      cancelScheduledValues: vi.fn(),
+      setValueAtTime: vi.fn(),
+      setTargetAtTime: vi.fn(),
+    };
+    web.getAudioContext.mockReturnValue({ currentTime: 3 });
+    web.getSuperdoughAudioController.mockReturnValue({
+      output: { destinationGain: { gain } },
+      nodes: {},
+    });
+    const playback = await import("@/engine/playback");
+    expect(await playback.play('s("bd")')).toBe(true);
+    await playback.stop();
+    expect(gain.cancelScheduledValues).toHaveBeenCalledWith(3);
+    expect(gain.setValueAtTime).toHaveBeenCalledWith(0, 3);
+    gain.setTargetAtTime.mockClear();
+    playback.setMix({}, null, 0.6);
+    expect(gain.setTargetAtTime).not.toHaveBeenCalled();
+    expect(await playback.play('s("sd")')).toBe(true);
+    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(0.6, 3, 0.015);
+    await playback.stop();
+  });
+
+  it("mutes the master even if Strudel's scheduler stop throws", async () => {
+    const gain = {
+      cancelScheduledValues: vi.fn(),
+      setValueAtTime: vi.fn(),
+      setTargetAtTime: vi.fn(),
+    };
+    web.getAudioContext.mockReturnValue({ currentTime: 8 });
+    web.getSuperdoughAudioController.mockReturnValue({
+      output: { destinationGain: { gain } },
+    });
+    const playback = await import("@/engine/playback");
+    expect(await playback.play('s("bd")')).toBe(true);
+    web.hush.mockImplementationOnce(() => {
+      throw new Error("scheduler failed");
+    });
+    await playback.stop();
+    expect(gain.setValueAtTime).toHaveBeenCalledWith(0, 8);
   });
 
   it("does not restart audio after Stop interrupts initialization", async () => {
@@ -49,7 +102,25 @@ describe("Live playback adapter", () => {
     await stopped;
     expect(await request).toBe(false);
     expect(web.evaluate).not.toHaveBeenCalled();
-    expect(web.hush).toHaveBeenCalled();
+    await vi.waitFor(() => expect(web.hush).toHaveBeenCalled());
+  });
+
+  it("returns from Stop before a stalled initialization finishes", async () => {
+    let finish!: () => void;
+    web.initStrudel.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const playback = await import("@/engine/playback");
+    const playing = playback.play('s("bd")');
+    await vi.waitFor(() => expect(web.initStrudel).toHaveBeenCalled());
+    await playback.stop();
+    expect(web.evaluate).not.toHaveBeenCalled();
+    finish();
+    expect(await playing).toBe(false);
+    await vi.waitFor(() => expect(web.hush).toHaveBeenCalled());
   });
 
   it("allows a later click to retry failed initialization", async () => {
@@ -67,6 +138,26 @@ describe("Live playback adapter", () => {
     await Promise.all([first, last]);
     expect(web.evaluate).toHaveBeenCalledTimes(1);
     expect(web.evaluate).toHaveBeenCalledWith('s("sd")');
+  });
+
+  it("hushes a stale evaluation before a newer Play begins", async () => {
+    let finish!: () => void;
+    web.evaluate.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const playback = await import("@/engine/playback");
+    const first = playback.play('s("bd")');
+    await vi.waitFor(() => expect(web.evaluate).toHaveBeenCalledTimes(1));
+    await playback.stop();
+    const second = playback.play('s("sd")');
+    finish();
+    expect(await first).toBe(false);
+    expect(await second).toBe(true);
+    expect(web.hush).toHaveBeenCalled();
+    expect(web.evaluate).toHaveBeenLastCalledWith('s("sd")');
   });
 
   it("does not let an earlier Stop silence a newer Play request", async () => {

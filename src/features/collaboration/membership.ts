@@ -11,10 +11,7 @@ import {
 } from "@/db/schema";
 import { canWrite, type CollaborationRole } from "./shared-document";
 
-export type CollaborationDb = Pick<
-  PostgresJsDatabase,
-  "insert" | "select" | "update" | "delete"
->;
+export type CollaborationDb = Pick<PostgresJsDatabase, "insert" | "select" | "update" | "delete">;
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -84,8 +81,14 @@ export async function listVisibleDocuments(db: CollaborationDb, userId: string) 
 
 export async function roleForDocument(db: CollaborationDb, documentId: string, userId: string) {
   const [document] = await db
-    .select({ workspaceId: documents.workspaceId, source: documents.source, name: documents.name })
+    .select({
+      workspaceId: documents.workspaceId,
+      workspaceName: workspaces.name,
+      source: documents.source,
+      name: documents.name,
+    })
     .from(documents)
+    .innerJoin(workspaces, eq(workspaces.id, documents.workspaceId))
     .where(eq(documents.id, documentId));
   if (!document) return null;
   const role = await memberRole(db, document.workspaceId, userId);
@@ -99,7 +102,8 @@ export async function createInvitation(
 ) {
   const role = await memberRole(db, input.workspaceId, input.actorId);
   if (role !== "owner") throw new Error("Only the owner can invite");
-  if (!canWrite(input.role) && input.role !== "viewer") throw new Error("Invalid invitation role");
+  if (input.role !== "editor" && input.role !== "viewer")
+    throw new Error("Invalid invitation role");
   const email = normalizeEmail(input.email);
   if (email.length < 4 || !email.includes("@")) throw new Error("Invitation email is invalid");
   const token = randomBytes(32).toString("hex");
@@ -136,7 +140,9 @@ export async function revokeInvitation(
   await db
     .update(workspaceInvitations)
     .set({ revokedAt: new Date() })
-    .where(and(eq(workspaceInvitations.id, input.invitationId), isNull(workspaceInvitations.revokedAt)));
+    .where(
+      and(eq(workspaceInvitations.id, input.invitationId), isNull(workspaceInvitations.revokedAt)),
+    );
 }
 
 export async function acceptInvitation(
@@ -148,9 +154,11 @@ export async function acceptInvitation(
     .select()
     .from(workspaceInvitations)
     .where(eq(workspaceInvitations.tokenHash, hashInviteToken(input.token)));
-  if (!invitation || invitation.revokedAt || invitation.acceptedAt) throw new Error("Invitation is not active");
+  if (!invitation || invitation.revokedAt || invitation.acceptedAt)
+    throw new Error("Invitation is not active");
   if (invitation.expiresAt.getTime() <= Date.now()) throw new Error("Invitation has expired");
-  if (invitation.invitedEmail !== email) throw new Error("This invitation is for a different account");
+  if (invitation.invitedEmail !== email)
+    throw new Error("This invitation is for a different account");
   const existing = await memberRole(db, invitation.workspaceId, input.userId);
   if (!existing) {
     await db.insert(workspaceMembers).values({

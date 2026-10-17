@@ -1704,6 +1704,63 @@
   font-family: "Martian Mono", monospace;
   white-space: nowrap;
 }
+.jam-takes-body {
+  overflow-y: auto;
+  padding: 10px 13px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-takes-list,
+.jam-take-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.jam-takes-list button,
+.jam-take-actions button {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--foreground);
+}
+.jam-takes-list button[aria-pressed="true"] {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.jam-takes-list button:hover,
+.jam-take-actions button:hover:not(:disabled) {
+  background: var(--muted);
+}
+.jam-take-actions button:disabled {
+  opacity: 0.45;
+}
+.jam-take-details {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+}
+.jam-take-details pre {
+  max-height: 180px;
+  overflow: auto;
+  margin-top: 5px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: 11px;
+}
+.jam-take-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 5px;
+}
+.jam-take-compare > div {
+  min-width: 0;
+}
+.jam-take-compare strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
 .jam-output-idle {
   padding: 16px;
   color: var(--muted-foreground);

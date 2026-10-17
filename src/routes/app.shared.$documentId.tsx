@@ -26,6 +26,7 @@ function SharedDocumentPage() {
         const body = (await response.json()) as {
           error?: string;
           workspaceId?: string;
+          workspaceName?: string;
           name?: string;
           source?: string;
           role?: CollaborationRole;
@@ -35,7 +36,12 @@ function SharedDocumentPage() {
         if (!current) return;
         const now = Date.now();
         setOpened({
-          workspace: { id: body.workspaceId, name: body.name, createdAt: now, updatedAt: now },
+          workspace: {
+            id: body.workspaceId,
+            name: body.workspaceName ?? body.name,
+            createdAt: now,
+            updatedAt: now,
+          },
           document: {
             id: documentId,
             workspaceId: body.workspaceId,
@@ -49,7 +55,8 @@ function SharedDocumentPage() {
         });
       })
       .catch((cause: unknown) => {
-        if (current) setError(cause instanceof Error ? cause.message : "This shared document is unavailable");
+        if (current)
+          setError(cause instanceof Error ? cause.message : "This shared document is unavailable");
       });
     return () => {
       current = false;
@@ -69,6 +76,7 @@ function SharedDocumentPage() {
   return (
     <SessionWorkbench
       collaboration
+      sharedOnly
       storage={storage}
       workspaceId={opened.workspace.id}
       initialDocumentId={opened.document.id}

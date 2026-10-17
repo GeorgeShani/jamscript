@@ -20,10 +20,13 @@ export function SharedProjectList() {
     void fetch("/api/shared-projects")
       .then(async (response) => {
         const body = (await response.json()) as { error?: string } | typeof items;
-        if (!response.ok || !Array.isArray(body)) throw new Error(!Array.isArray(body) ? body.error : "Shared projects are unavailable");
+        if (!response.ok || !Array.isArray(body))
+          throw new Error(!Array.isArray(body) ? body.error : "Shared projects are unavailable");
         setItems(body);
       })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Shared projects are unavailable"));
+      .catch((cause: unknown) =>
+        setError(cause instanceof Error ? cause.message : "Shared projects are unavailable"),
+      );
   }, [isSignedIn]);
   if (!import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"] || !isSignedIn) return null;
   return (
@@ -68,7 +71,8 @@ export function ShareControls({
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   if (!import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"]) return null;
-  if (!isSignedIn || !document) return null;
+  if (!isSignedIn || !document || (document.shared && document.shared.role !== "owner"))
+    return null;
 
   const share = async () => {
     setPending(true);

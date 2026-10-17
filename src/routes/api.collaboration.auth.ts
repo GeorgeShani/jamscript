@@ -12,7 +12,10 @@ export const Route = createFileRoute("/api/collaboration/auth")({
     handlers: {
       POST: async ({ request }) => {
         if (!process.env["LIVEBLOCKS_SECRET_KEY"] || !process.env["CLERK_SECRET_KEY"])
-          return Response.json({ error: "Collaboration is not configured" }, { status: 503, headers });
+          return Response.json(
+            { error: "Collaboration is not configured" },
+            { status: 503, headers },
+          );
         const { auth } = await import("@clerk/tanstack-react-start/server");
         const { userId, isAuthenticated } = await auth();
         if (!isAuthenticated || !userId)
@@ -22,7 +25,8 @@ export const Route = createFileRoute("/api/collaboration/auth")({
         const documentId = documentIdFromRoom(room);
         if (!documentId) return Response.json({ error: "Unknown room" }, { status: 403, headers });
         const access = await withCollaborationDb((db) => roleForDocument(db, documentId, userId));
-        if (!access) return Response.json({ error: "No access to this document" }, { status: 403, headers });
+        if (!access)
+          return Response.json({ error: "No access to this document" }, { status: 403, headers });
         const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"] });
         const session = liveblocks.prepareSession(userId, { userInfo: { name: access.role } });
         session.allow(room, liveblocksAccess(access.role));
