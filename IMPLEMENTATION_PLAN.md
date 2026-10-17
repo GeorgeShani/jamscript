@@ -57,7 +57,7 @@ Acceptance: play the complete program, including crate drums and General MIDI pi
 
 ### C. Collaborative workspaces
 
-- [ ] Use Supabase email-code authentication, workspace metadata, memberships and invitations; use Liveblocks with Yjs for shared project text and presence.
+- [ ] Use Clerk authentication and session identity; add Supabase workspace metadata, memberships and invitations with authorization tied to that identity; use Liveblocks with Yjs for shared project text and presence.
 - [ ] Keep anonymous offline local work. Explicit sharing selects project files and excludes credentials, Git internals and dependency directories. External sample references stay source text.
 - [ ] Implement owner/editor/viewer roles, revocable invitations, real presence, connectivity status and persistent workspaces available while the owner is offline.
 - [ ] Give files stable IDs across rename. Synchronize source and metadata; derive lenses from the synchronized source on each client.

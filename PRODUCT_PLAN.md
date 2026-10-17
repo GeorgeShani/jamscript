@@ -7,7 +7,7 @@ The approved direction is a local-first music IDE with a VS Code style workbench
 - Source remains authoritative. Keep the existing CodeMirror editor, checked patcher, inline lenses and gesture undo; extend them deliberately rather than replacing them.
 - Browser: initialize an app-managed workspace and work with its documents. Native folder access, disk reads/writes, watchers and Git are desktop-only. There is no browser File System Access API fallback.
 - Desktop: anonymous local projects work without GitHub or Git knowledge. JamScript manages workspaces and revisions itself; Git is an optional desktop integration. Accounts are needed for shared workspaces, not for local music.
-- Managed collaboration: Supabase email sign-in, workspace roles and revocable invitations; Liveblocks/Yjs for shared source and presence.
+- Managed collaboration: Clerk sign-in and session identity, Supabase workspace data with roles and revocable invitations, and Liveblocks/Yjs for shared source and presence.
 - IntelliSense: an owned, offline-capable Strudel language service with worker and stdio transports.
 - Assistance: a Gemini workspace agent, using a private server key, reviewed multi-file edits and explicit Git tools. No general shell.
 - Strudel compatibility: support the complete eddyflux "coastline" program, including nested stacks, chord/voicing chains, sample packs and General MIDI sounds. Complex lenses edit explicit syntax without flattening structure or replacing modulation.

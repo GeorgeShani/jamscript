@@ -131,7 +131,7 @@ const sections = [
   "Strudel: https://strudel.cc/ | source: https://codeberg.org/uzu/strudel",
   "Strudel dependency source files retain their original contributor copyright and licence headers.",
   "Copied audiocn Knob, Parameter Slider, Level Meter, Spectrum and supporting utilities: https://github.com/audiocn/ui | MIT; full text: public/licenses/audiocn-MIT.txt.",
-  "Available top-level dependency licence/notice texts are reproduced unchanged below.",
+  "Available top-level dependency licence/notice texts are reproduced below; trailing spaces are normalized.",
   "A package without a top-level text is listed as such; that is not a claim that it has no licence.",
   "Font notice: public/brand/Schibsted-Grotesk-OFL.txt (the wordmark is outlined).",
   "External sample recordings and soundfonts are not vendored by this cleanup; their asset licences are separate.",
@@ -150,7 +150,7 @@ for (const [id, record] of texts) {
     `Licence/notice ${id}`,
     record.packages.join("\n"),
     "-".repeat(72),
-    record.content,
+    record.content.replace(/[ \t]+$/gm, ""),
   );
 }
 

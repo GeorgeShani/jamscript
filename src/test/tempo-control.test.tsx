@@ -9,6 +9,7 @@ vi.mock("@/engine/playback", () => ({
   play: vi.fn().mockResolvedValue(true),
   stop: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
 afterEach(() => {
   cleanup();
   vi.useRealTimers();

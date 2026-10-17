@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import "@clerk/ui/themes/shadcn.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -593,6 +594,13 @@
   align-items: center;
   padding: 0 28px;
   border-bottom: 1px solid var(--border);
+  justify-content: space-between;
+}
+.jam-auth-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
 }
 .jam-chooser-body {
   width: min(100%, 780px);
@@ -1203,6 +1211,9 @@
     grid-row: 1;
   }
   .jam-current-file {
+    display: none;
+  }
+  .jam-workbench-toolbar > .jam-auth-controls {
     grid-column: 4;
     grid-row: 1;
   }

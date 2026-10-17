@@ -10,6 +10,7 @@ vi.mock("@/engine/playback", () => ({
   stop: vi.fn().mockResolvedValue(undefined),
   getOutputNode: vi.fn().mockReturnValue(null),
 }));
+vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
 
 afterEach(cleanup);
 

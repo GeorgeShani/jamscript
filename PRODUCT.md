@@ -8,9 +8,9 @@ Desktop music IDE for Windows, macOS and Linux, with a collaborative browser com
 
 ## Stack
 
-Current: TanStack Start in SPA mode on Cloudflare Workers, React 19, TypeScript, Tailwind v4, shadcn/ui, CodeMirror 6, Strudel, and selected audiocn controls. Local Lovable build and reporting code has been removed; disconnect the external Lovable GitHub link before pushing this change.
+Current: TanStack Start in SPA mode on Cloudflare Workers, React 19, TypeScript, Tailwind v4, shadcn/ui, CodeMirror 6, Strudel, selected audiocn controls, and Clerk account controls. Local Lovable build and reporting code has been removed; disconnect the external Lovable GitHub link before pushing this change.
 
-Chosen additions: Tauri v2 for desktop; Supabase for email authentication, workspace metadata and invitations; Liveblocks/Yjs for shared documents; an owned Strudel language service; Gemini behind a private backend endpoint. These are product decisions, not installed capabilities. See IMPLEMENTATION_PLAN.md for delivery order.
+Chosen additions: Tauri v2 for desktop; Supabase for workspace metadata and invitations; Liveblocks/Yjs for shared documents; an owned Strudel language service; Gemini behind a private backend endpoint. Clerk sign-in is connected, while account-backed workspace sync remains planned. See IMPLEMENTATION_PLAN.md for delivery order.
 
 ## Users
 
@@ -40,6 +40,7 @@ Musicians work primarily in BPM. The current tempo component uses four beats per
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Editing, rhythm/parameter lenses and undo       | Working CodeMirror editor; simple flat sound/rest strings and numeric gain/room/lpf/hpf arguments                             |
 | Browser workspaces and documents                | IndexedDB create, rename, delete and autosave; explicit Night bus template; open document tabs keep separate CodeMirror state |
+| Clerk account controls                          | Sign-in, sign-up and signed-in user controls; browser workspaces remain usable without an account                             |
 | Playback and audio output                       | Real Strudel adapter evaluates the active editor; audiocn Level Meter and Spectrum read its output analyser                   |
 | Inspector                                       | audiocn Knob and Parameter Slider write supported source parameters through the checked patcher                               |
 | Complex programs                                | Editable as code; full example compatibility, General MIDI initialization and complex editable lenses are pending             |

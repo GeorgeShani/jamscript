@@ -37,6 +37,7 @@ import {
 } from "@/workspaces/storage";
 import { TrackInspector } from "./TrackInspector";
 import { OutputPanel } from "./OutputPanel";
+import { AuthControls } from "./AuthControls";
 
 type SaveStatus = "saved" | "saving" | "error";
 
@@ -315,6 +316,7 @@ export function SessionWorkbench() {
       <main className="jam-chooser">
         <header>
           <img src="/brand/logo.svg" alt="JamScript" width={156} height={30} />
+          <AuthControls />
         </header>
         <div className="jam-chooser-body">
           <p className="jam-eyebrow">YOUR MUSIC WORKSPACE</p>
@@ -484,6 +486,7 @@ export function SessionWorkbench() {
             {playLoading ? "Loading" : playing ? "Stop" : "Play"}
           </Button>
         </div>
+        <AuthControls />
       </header>
       <div className="jam-workbench-main">
         <nav className="jam-activity-bar" aria-label="Workbench views">

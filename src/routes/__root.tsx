@@ -9,6 +9,8 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { ClerkProvider } from "@clerk/tanstack-react-start";
+import { shadcn } from "@clerk/ui/themes";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
@@ -109,7 +111,13 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        {import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"] ? (
+          <ClerkProvider appearance={{ theme: { ...shadcn, cssLayerName: "clerk" } }}>
+            {children}
+          </ClerkProvider>
+        ) : (
+          children
+        )}
         <Scripts />
       </body>
     </html>
