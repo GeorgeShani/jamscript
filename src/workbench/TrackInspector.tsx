@@ -32,9 +32,11 @@ export function TrackInspector({
   mixLevels,
   masterLevel,
   soloTrack,
+  mutedTracks,
   onMixLevel,
   onMasterLevel,
   onSoloTrack,
+  onMuteTrack,
   mixColors,
   onTrackColor,
   onRenameTrack,
@@ -48,9 +50,11 @@ export function TrackInspector({
   mixLevels: Record<string, number>;
   masterLevel: number;
   soloTrack: string | null;
+  mutedTracks: ReadonlySet<string>;
   onMixLevel: (id: string, value: number) => void;
   onMasterLevel: (value: number) => void;
   onSoloTrack: (id: string | null) => void;
+  onMuteTrack: (id: string) => void;
   mixColors: Record<string, number>;
   onTrackColor: (orbit: number, color: number) => void;
   onRenameTrack: (id: string, name: string) => boolean;
@@ -79,9 +83,11 @@ export function TrackInspector({
         levels={mixLevels}
         master={masterLevel}
         solo={soloTrack}
+        muted={mutedTracks}
         onLevel={onMixLevel}
         onMaster={onMasterLevel}
         onSolo={onSoloTrack}
+        onMute={onMuteTrack}
         colors={mixColors}
         onColor={onTrackColor}
         onRename={onRenameTrack}

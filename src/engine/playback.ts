@@ -19,6 +19,7 @@ let activeStrudel: StrudelWeb | null = null;
 let mixTracks: MixTrack[] = [];
 let mixLevels: Record<string, number> = {};
 let soloTrack: string | null = null;
+let mutedTracks = new Set<string>();
 let masterLevel = 1;
 let mixTimer: ReturnType<typeof setInterval> | null = null;
 let source = "";
@@ -75,15 +76,29 @@ function applyMix() {
   for (const track of mixTracks) {
     const gain = controller.nodes?.[track.orbit]?.output?.gain as AudioParam | undefined;
     if (!gain) continue;
-    const target = soloTrack && soloTrack !== track.id ? 0 : (mixLevels[track.id] ?? 1);
+    const level = mixLevels[track.id] ?? 1;
+    // Solo wins: only the soloed track plays. Otherwise mute silences a track.
+    const target = soloTrack
+      ? soloTrack === track.id
+        ? level
+        : 0
+      : mutedTracks.has(track.id)
+        ? 0
+        : level;
     gain.setTargetAtTime(target, context.currentTime, 0.015);
   }
 }
 
 /** Runtime mixer settings do not modify CodeMirror or restart the scheduler. */
-export function setMix(levels: Record<string, number>, solo: string | null, master: number) {
+export function setMix(
+  levels: Record<string, number>,
+  solo: string | null,
+  master: number,
+  muted: readonly string[] = [],
+) {
   mixLevels = levels;
   soloTrack = solo;
+  mutedTracks = new Set(muted);
   masterLevel = master;
   applyMix();
 }

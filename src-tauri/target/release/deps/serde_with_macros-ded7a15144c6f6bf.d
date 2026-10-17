@@ -1,8 +1,0 @@
-/Users/lukavacheishvili/Desktop/JamScript/jamscript/src-tauri/target/release/deps/serde_with_macros-ded7a15144c6f6bf.d: /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/lib.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/apply.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/lazy_bool.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/utils.rs
-
-/Users/lukavacheishvili/Desktop/JamScript/jamscript/src-tauri/target/release/deps/libserde_with_macros-ded7a15144c6f6bf.dylib: /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/lib.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/apply.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/lazy_bool.rs /private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/utils.rs
-
-/private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/lib.rs:
-/private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/apply.rs:
-/private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/lazy_bool.rs:
-/private/tmp/jamscript-cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_with_macros-3.24.0/src/utils.rs:

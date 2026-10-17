@@ -15,6 +15,10 @@ export default defineConfig({
         replacement: fileURLToPath(new URL("./desktop/AuthControls.tsx", import.meta.url)),
       },
       {
+        find: "@/features/collaboration/ShareControls",
+        replacement: fileURLToPath(new URL("./desktop/ShareControls.tsx", import.meta.url)),
+      },
+      {
         find: "@/engine/playback",
         replacement: fileURLToPath(new URL("./desktop/sandboxed-playback.ts", import.meta.url)),
       },

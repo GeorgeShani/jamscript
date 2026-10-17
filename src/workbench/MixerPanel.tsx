@@ -37,10 +37,12 @@ export function MixerPanel({
   levels,
   master,
   solo,
+  muted,
   colors,
   onLevel,
   onMaster,
   onSolo,
+  onMute,
   onColor,
   onRename,
   emptyMessage,
@@ -49,10 +51,12 @@ export function MixerPanel({
   levels: Record<string, number>;
   master: number;
   solo: string | null;
+  muted: ReadonlySet<string>;
   colors: Record<string, number>;
   onLevel: (id: string, value: number) => void;
   onMaster: (value: number) => void;
   onSolo: (id: string | null) => void;
+  onMute: (id: string) => void;
   onColor: (orbit: number, color: number) => void;
   onRename: (id: string, name: string) => boolean;
   emptyMessage?: string | undefined;
@@ -155,6 +159,15 @@ export function MixerPanel({
                         onClick={() => onSolo(solo === track.id ? null : track.id)}
                       >
                         S
+                      </button>
+                      <button
+                        type="button"
+                        className={muted.has(track.id) ? "is-mute" : ""}
+                        aria-label={`${muted.has(track.id) ? "Unmute" : "Mute"} ${track.name}`}
+                        aria-pressed={muted.has(track.id)}
+                        onClick={() => onMute(track.id)}
+                      >
+                        M
                       </button>
                     </div>
                   </div>

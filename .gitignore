@@ -23,6 +23,13 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Tauri / Rust build output (never commit — can be hundreds of MB)
+src-tauri/target/
+**/target/
+
+# Generated Tauri schema cache
+src-tauri/gen/schemas/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -33,3 +40,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test / coverage artifacts
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo

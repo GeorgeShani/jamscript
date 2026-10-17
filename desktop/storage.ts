@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import {
   browserStorage,
   type DocumentRecord,
@@ -9,6 +9,12 @@ import {
 
 type Folder = { id: string; name: string; path: string };
 type File = { name: string; source: string; revision: string };
+
+function invoke<T>(command: string, args?: Record<string, unknown>) {
+  if (typeof tauriInvoke !== "function")
+    throw new Error("Native file access is only available inside the JamScript desktop app");
+  return tauriInvoke<T>(command, args);
+}
 const locations = new Map<string, { folderId: string; name: string }>();
 type Baseline = { source: string; revision: string; writeRevision?: string };
 const baselines = new Map<string, Baseline>();

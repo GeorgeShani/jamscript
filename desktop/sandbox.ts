@@ -51,6 +51,7 @@ type Request = {
   levels?: Record<string, number>;
   solo?: string | null;
   master?: number;
+  muted?: string[];
 };
 const send = (data: object) =>
   window.parent.postMessage({ channel: "jamscript-audio", ...data }, "*");
@@ -82,9 +83,11 @@ window.addEventListener("message", async (event: MessageEvent<unknown>) => {
       typeof data.master === "number" &&
       Number.isFinite(data.master) &&
       data.master >= 0 &&
-      data.master <= 2
+      data.master <= 2 &&
+      (data.muted === undefined ||
+        (Array.isArray(data.muted) && data.muted.every((item) => typeof item === "string")))
     ) {
-      playback.setMix(data.levels, data.solo, data.master);
+      playback.setMix(data.levels, data.solo, data.master, data.muted ?? []);
       send({ type: "result", id, ok: true });
     }
   } catch (cause) {
