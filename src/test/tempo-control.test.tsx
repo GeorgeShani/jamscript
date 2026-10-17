@@ -106,21 +106,10 @@ describe("BPM control", () => {
     expect(tempo).toHaveValue(144);
   });
 
-  it("stores beats per cycle per document without changing its source or CPS", async () => {
+  it("keeps the advanced tempo settings panel out of the toolbar", async () => {
     await openExample();
-    const originalSource = document.querySelector(
-      ".jam-editor-pane:not([hidden]) .cm-line",
-    )?.textContent;
-    fireEvent.click(screen.getByText("Tempo settings"));
-    expect(screen.getByLabelText("Cycles per second")).toHaveTextContent("0.6 CPS");
-    fireEvent.change(screen.getByRole("combobox", { name: "Beats per cycle" }), {
-      target: { value: "3" },
-    });
-    expect(screen.getByRole("spinbutton", { name: "Tempo in BPM" })).toHaveValue(108);
-    expect(document.querySelector(".jam-editor-pane:not([hidden]) .cm-line")?.textContent).toBe(
-      originalSource,
-    );
-    expect(screen.getByLabelText("Cycles per second")).toHaveTextContent("0.6 CPS");
+    expect(screen.queryByText("Tempo settings")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Beats per cycle" })).not.toBeInTheDocument();
   });
 
   it("refuses a programmatic BPM write in a viewer editor", () => {

@@ -146,6 +146,7 @@ export function SessionWorkbench({
   const [playError, setPlayError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [soloTrack, setSoloTrack] = useState<string | null>(null);
+  const [mutedTracks, setMutedTracks] = useState(() => new Set<string>());
   const [playLoading, setPlayLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -297,14 +298,19 @@ export function SessionWorkbench({
 
   useEffect(() => {
     const activeSolo = mixTracks.some((item) => item.id === soloTrack) ? soloTrack : null;
+    const activeMuted = [...mutedTracks].filter((id) => mixTracks.some((item) => item.id === id));
     if (!exportingNow.current)
       void import("@/engine/playback").then((playback) =>
-        playback.setMix(mixLevels, activeSolo, masterLevel),
+        playback.setMix(mixLevels, activeSolo, masterLevel, activeMuted),
       );
-  }, [mixLevels, masterLevel, soloTrack, mixTracks]);
+  }, [mixLevels, masterLevel, soloTrack, mutedTracks, mixTracks]);
 
   useEffect(() => {
     if (soloTrack && !mixTracks.some((item) => item.id === soloTrack)) setSoloTrack(null);
+    setMutedTracks((current) => {
+      const next = new Set([...current].filter((id) => mixTracks.some((item) => item.id === id)));
+      return next.size === current.size && [...next].every((id) => current.has(id)) ? current : next;
+    });
   }, [mixTracks, soloTrack]);
 
   useEffect(() => {
@@ -574,6 +580,11 @@ export function SessionWorkbench({
     if (renamed.size) {
       setSelectedTrack((selected) => renamed.get(selected ?? "") ?? selected);
       setSoloTrack((solo) => renamed.get(solo ?? "") ?? solo);
+      setMutedTracks((current) => {
+        const next = new Set<string>();
+        for (const id of current) next.add(renamed.get(id) ?? id);
+        return next;
+      });
     }
     code.current = source;
     setTempo(readTempo(source));
@@ -592,6 +603,7 @@ export function SessionWorkbench({
     onDocumentRoute?.(id);
     setSelectedTrack(null);
     setSoloTrack(null);
+    setMutedTracks(new Set());
   };
 
   const closeTab = (id: string) => {
@@ -608,6 +620,7 @@ export function SessionWorkbench({
       if (playingNow.current || loadingNow.current) void stopPlayback();
       setSelectedTrack(null);
       setSoloTrack(null);
+      setMutedTracks(new Set());
       const nextId = openIds.find((open) => open !== id) ?? null;
       setActiveId(nextId);
       onDocumentRoute?.(nextId);
@@ -692,6 +705,7 @@ export function SessionWorkbench({
           latest?.mix?.levels ?? EMPTY_LEVELS,
           activeIdRef.current === activeDocument.id ? soloTrack : null,
           latest?.mix?.master ?? 1,
+          activeIdRef.current === activeDocument.id ? [...mutedTracks] : [],
         ),
       );
     }
@@ -1208,17 +1222,19 @@ export function SessionWorkbench({
                             onChange={(event) => setRenameValue(event.target.value)}
                             autoFocus
                           />
-                          <Button size="sm" type="submit">
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            type="button"
-                            onClick={() => setRenaming(null)}
-                          >
-                            Cancel
-                          </Button>
+                          <div className="jam-inline-form-actions">
+                            <Button size="sm" type="submit">
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              type="button"
+                              onClick={() => setRenaming(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
                         </form>
                       ) : (
                         <>
@@ -1595,10 +1611,12 @@ export function SessionWorkbench({
                         onChange={(event) => setRenameValue(event.target.value)}
                         autoFocus
                       />
-                      <button type="submit">Save</button>
-                      <button type="button" onClick={() => setRenaming(null)}>
-                        Cancel
-                      </button>
+                      <div className="jam-inline-form-actions">
+                        <button type="submit">Save</button>
+                        <button type="button" onClick={() => setRenaming(null)}>
+                          Cancel
+                        </button>
+                      </div>
                     </form>
                   ) : (
                     <>
@@ -1834,12 +1852,22 @@ export function SessionWorkbench({
             mixLevels={mixLevels}
             masterLevel={masterLevel}
             soloTrack={soloTrack}
+            mutedTracks={mutedTracks}
             onMixLevel={(id, value) =>
               !exportingNow.current && changeMix(masterLevel, { ...mixLevels, [id]: value })
             }
             onMasterLevel={(value) => !exportingNow.current && changeMix(value, mixLevels)}
             onSoloTrack={(id) => {
               if (!exportingNow.current) setSoloTrack(id);
+            }}
+            onMuteTrack={(id) => {
+              if (exportingNow.current) return;
+              setMutedTracks((current) => {
+                const next = new Set(current);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+              });
             }}
             mixColors={mixColors}
             onTrackColor={changeTrackColor}

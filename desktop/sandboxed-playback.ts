@@ -45,17 +45,20 @@ function ensureFrame() {
   if (ready) return ready;
   ready = new Promise<void>((resolve, reject) => {
     const iframe = document.createElement("iframe");
-    iframe.src = "/sandbox.html";
-    iframe.sandbox.add("allow-scripts");
+    // allow-same-origin is required for Vite ES modules; the frame still has no Tauri bridge.
+    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
     iframe.allow = "autoplay";
     iframe.title = "JamScript isolated audio runtime";
     iframe.hidden = true;
+    iframe.src = new URL("/sandbox.html", window.location.href).href;
     frame = iframe;
-    const timeout = window.setTimeout(
-      () => reject(new Error("Audio sandbox did not start")),
-      15_000,
-    );
-    window.addEventListener("message", (event: MessageEvent<unknown>) => {
+    const timeout = window.setTimeout(() => {
+      iframe.remove();
+      frame = null;
+      ready = null;
+      reject(new Error("Audio sandbox did not start"));
+    }, 15_000);
+    const onMessage = (event: MessageEvent<unknown>) => {
       if (event.source !== iframe.contentWindow || !event.data || typeof event.data !== "object")
         return;
       const data = event.data as {
@@ -105,6 +108,15 @@ function ensureFrame() {
         pending.get(data.id)?.(data.ok === true);
         pending.delete(data.id);
       }
+    };
+    window.addEventListener("message", onMessage);
+    iframe.addEventListener("error", () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", onMessage);
+      iframe.remove();
+      frame = null;
+      ready = null;
+      reject(new Error("Audio sandbox did not start"));
     });
     document.body.append(iframe);
   });
@@ -131,9 +143,14 @@ export function onError(callback: ((message: string) => void) | null) {
 export function onHighlight(callback: ((ranges: PlaybackRange[]) => void) | null) {
   highlightCallback = callback;
 }
-export function setMix(levels: Record<string, number>, solo: string | null, master: number) {
+export function setMix(
+  levels: Record<string, number>,
+  solo: string | null,
+  master: number,
+  muted: readonly string[] = [],
+) {
   if (frame)
-    void request("mix", { levels, solo, master }).catch((error: unknown) =>
+    void request("mix", { levels, solo, master, muted: [...muted] }).catch((error: unknown) =>
       errorCallback?.(String(error)),
     );
 }

@@ -1197,6 +1197,8 @@
   display: flex;
   align-items: center;
   padding-right: 4px;
+  container-type: inline-size;
+  container-name: jam-file-row;
 }
 .jam-file-button {
   flex: 1;
@@ -1235,15 +1237,53 @@
 .jam-inline-form {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   width: 100%;
+  min-width: 0;
+  padding: 2px 4px 2px 10px;
+  box-sizing: border-box;
 }
 .jam-inline-form input {
-  height: 27px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
   font-size: 12px;
+  line-height: 28px;
 }
-.jam-inline-form button {
+.jam-inline-form-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 8px;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+.jam-file-list .jam-inline-form-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
   font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.jam-file-list .jam-inline-form-actions button:hover {
+  color: var(--primary);
+}
+@container jam-file-row (max-width: 220px) {
+  .jam-inline-form-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1px;
+  }
 }
 .jam-editor-column {
   flex: 1;
@@ -1480,6 +1520,15 @@
   border-color: var(--primary);
   color: var(--primary);
   background: var(--muted);
+}
+.jam-mix-track-heading button.is-mute {
+  border-color: var(--channel-mute);
+  color: var(--channel-mute-foreground);
+  background: var(--muted);
+}
+.jam-mix-track-heading button.is-mute:hover {
+  border-color: var(--destructive);
+  color: var(--destructive);
 }
 .jam-mix-level {
   display: grid;

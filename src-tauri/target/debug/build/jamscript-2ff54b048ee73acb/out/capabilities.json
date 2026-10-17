@@ -1,1 +1,0 @@
-{"main-window":{"identifier":"main-window","description":"Workbench window can select folders and use the narrow native document commands.","local":true,"windows":["main"],"permissions":["core:default"]}}
