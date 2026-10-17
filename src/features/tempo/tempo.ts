@@ -35,6 +35,27 @@ interface TempoTarget extends TempoState {
   insertAt: number;
 }
 
+/** Accept a numeric tempo or a numerator divided by fixed numeric constants. */
+function numericRatio(
+  node: SyntaxNode,
+  source: string,
+): { numerator: SyntaxNode; divisor: number } | null {
+  if (node.name === "Number") return { numerator: node, divisor: 1 };
+  if (node.name !== "BinaryExpression") return null;
+  const parts = children(node);
+  if (
+    parts.length !== 3 ||
+    source.slice(parts[1]!.from, parts[1]!.to) !== "/" ||
+    parts[2]?.name !== "Number"
+  )
+    return null;
+  const left = numericRatio(parts[0]!, source);
+  const right = Number(source.slice(parts[2].from, parts[2].to).replaceAll("_", ""));
+  if (!left || !positive(right)) return null;
+  const divisor = left.divisor * right;
+  return positive(divisor) ? { numerator: left.numerator, divisor } : null;
+}
+
 function inspectTempo(source: string): TempoTarget {
   const unavailable: TempoTarget = {
     cps: null,
@@ -77,21 +98,9 @@ function inspectTempo(source: string): TempoTarget {
   if (!args) return unavailable;
   const expressions = children(args).filter((node) => !["(", ")", ","].includes(node.name));
   if (expressions.length !== 1) return unavailable;
-  let literal = expressions[0]!;
-  let divisor = 1;
-  if (literal.name === "BinaryExpression") {
-    const parts = children(literal);
-    if (
-      parts.length !== 3 ||
-      parts[0]?.name !== "Number" ||
-      parts[2]?.name !== "Number" ||
-      source.slice(parts[1]!.from, parts[1]!.to) !== "/"
-    )
-      return unavailable;
-    divisor = Number(source.slice(parts[2].from, parts[2].to).replaceAll("_", ""));
-    literal = parts[0];
-  }
-  if (literal.name !== "Number" || !positive(divisor)) return unavailable;
+  const ratio = numericRatio(expressions[0]!, source);
+  if (!ratio) return unavailable;
+  const { numerator: literal, divisor } = ratio;
   const value = Number(source.slice(literal.from, literal.to).replaceAll("_", ""));
   const cpsPerUnit =
     (source.slice(identifier.from, identifier.to) === "setcpm" ? 1 / 60 : 1) / divisor;

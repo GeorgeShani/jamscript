@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const web = vi.hoisted(() => ({
   initStrudel: vi.fn(),
+  initAudio: vi.fn(),
   evaluate: vi.fn(),
   hush: vi.fn(),
   samples: vi.fn(),
@@ -14,6 +15,7 @@ beforeEach(() => {
   vi.stubEnv("SSR", false);
   Object.values(web).forEach((fn) => fn.mockReset());
   web.initStrudel.mockResolvedValue(undefined);
+  web.initAudio.mockResolvedValue(undefined);
   web.evaluate.mockResolvedValue({ pattern: true });
 });
 

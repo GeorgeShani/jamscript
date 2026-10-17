@@ -15,6 +15,25 @@ export interface MixSourcePatch {
   insert: string;
 }
 
+/** Convert a source location in orbit-augmented playback code to the editor document. */
+export function editorOffsetFromPlayback(offset: number, tracks: MixTrack[]): number | null {
+  if (!Number.isInteger(offset) || offset < 0) return null;
+  const insertions = tracks
+    .flatMap((track) => [
+      { at: track.from, length: 1 },
+      { at: track.to, length: `).orbit(${track.orbit})`.length },
+    ])
+    .sort((a, b) => a.at - b.at);
+  let added = 0;
+  for (const insertion of insertions) {
+    const at = insertion.at + added;
+    if (offset < at) break;
+    if (offset < at + insertion.length) return null;
+    added += insertion.length;
+  }
+  return offset - added;
+}
+
 interface Target extends MixTrack {
   expression: SyntaxNode;
 }

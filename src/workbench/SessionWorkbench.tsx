@@ -27,6 +27,7 @@ import { changeEditorTempo } from "@/features/tempo/tempo-editor";
 import { deriveMusic, type MusicDocument } from "@/engine/music-document";
 import { prepareMix, renameTrackPatch } from "@/engine/mix-source";
 import type { EditorView } from "@codemirror/view";
+import { clearPlaybackRanges, flashPlaybackRanges } from "@/components/jam/playback-highlights";
 import {
   createDocument,
   createWorkspace,
@@ -156,8 +157,10 @@ export function SessionWorkbench() {
       exportAbort.current?.abort();
       for (const timer of saveTimers.current.values()) clearTimeout(timer);
       for (const document of drafts.current.values()) void saveDocument(document);
+      for (const view of views.current.values()) clearPlaybackRanges(view);
       void import("@/engine/playback").then((pb) => {
         pb.onError(null);
+        pb.onHighlight(null);
         void pb.stop();
       });
     };
@@ -306,6 +309,16 @@ export function SessionWorkbench() {
         reportedError = detail;
         if (mounted.current && request === evaluation.current) setPlayError(detail);
       });
+      const documentId = activeIdRef.current;
+      const evaluatedSource = code.current;
+      const view = documentId ? views.current.get(documentId) : null;
+      if (view) clearPlaybackRanges(view);
+      playback.onHighlight((ranges) => {
+        if (exportingNow.current || activeIdRef.current !== documentId) return;
+        const currentView = documentId ? views.current.get(documentId) : null;
+        if (currentView?.state.doc.toString() === evaluatedSource)
+          flashPlaybackRanges(currentView, ranges);
+      });
       const current = drafts.current.get(activeIdRef.current ?? "");
       playback.setMix(current?.mix?.levels ?? {}, soloTrack, current?.mix?.master ?? 1);
       const ok = await playback.play(code.current);
@@ -329,7 +342,9 @@ export function SessionWorkbench() {
     if (pendingEvaluation.current) clearTimeout(pendingEvaluation.current);
     setPlaying(false);
     setAudioOutput(null);
+    for (const view of views.current.values()) clearPlaybackRanges(view);
     const pb = await import("@/engine/playback");
+    pb.onHighlight(null);
     await pb.stop();
   };
 

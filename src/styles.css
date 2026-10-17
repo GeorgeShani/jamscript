@@ -469,6 +469,12 @@
 .cm-linked-source {
   background: color-mix(in oklch, var(--link) 25%, transparent);
 }
+.jam-code-editor .cm-playback-hit {
+  background: color-mix(in oklch, var(--foreground) 13%, transparent);
+  outline: 1px solid var(--foreground);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
 .jam-live-strip {
   display: flex;
   flex-wrap: wrap;

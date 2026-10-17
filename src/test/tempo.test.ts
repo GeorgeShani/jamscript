@@ -41,6 +41,11 @@ describe("Checked source tempo edits", () => {
     expect(readTempo('setcps(.75); s("bd")')).toMatchObject({ cps: 0.75, editable: true });
     expect(readTempo('setcpm(120 / 4); s("bd")')).toMatchObject({ cps: 0.5, editable: true });
     expect(readTempo("setcpm(30)")).toMatchObject({ cps: 0.5, editable: true });
+    expect(readTempo("setcps(96 / 60 / 4)")).toMatchObject({ cps: 0.4, editable: true });
+  });
+
+  it("edits BPM-form tempo without changing its fixed divisors", () => {
+    expect(patched("setcps(96 / 60 / 4)", 0.5)).toBe("setcps(120 / 60 / 4)");
   });
 
   it("changes just the CPS literal and preserves comments and nearby numbers", () => {
@@ -72,6 +77,8 @@ describe("Checked source tempo edits", () => {
     "setcps(0.5, 1)",
     "setcps(0)",
     "setcpm(120 / 0)",
+    "setcps(96 / 60 / tempoBeats)",
+    "setcps(96 / 60 * 4)",
     "setcps(",
   ])("refuses unsupported or ambiguous source: %s", (source) => {
     expect(readTempo(source).editable).toBe(false);

@@ -4,7 +4,9 @@
 // at page load. Evaluation is serialized and pending source changes are coalesced.
 
 type StrudelWeb = typeof import("@strudel/web");
-import { prepareMix, type MixTrack } from "./mix-source";
+import { editorOffsetFromPlayback, prepareMix, type MixTrack } from "./mix-source";
+import { registerBundledSoundfonts } from "./register-soundfonts";
+import type { PlaybackRange } from "@/components/jam/playback-highlights";
 
 let initPromise: Promise<StrudelWeb> | null = null;
 let errorCallback: ((message: string) => void) | null = null;
@@ -18,6 +20,52 @@ let mixLevels: Record<string, number> = {};
 let soloTrack: string | null = null;
 let masterLevel = 1;
 let mixTimer: ReturnType<typeof setInterval> | null = null;
+let source = "";
+let playbackCode = "";
+let miniLocations = new Set<string>();
+let highlightCallback: ((ranges: PlaybackRange[]) => void) | null = null;
+const highlightTimers = new Set<ReturnType<typeof setTimeout>>();
+let highlightDebugRemaining = 3;
+
+function clearHighlightTimers() {
+  for (const timer of highlightTimers) clearTimeout(timer);
+  highlightTimers.clear();
+}
+
+function scheduleHighlight(hap: unknown, when: number, context: AudioContext) {
+  if (highlightDebugRemaining-- > 0) console.info('JamScript highlight initial', { callback: !!highlightCallback, allowed, when, now: context.currentTime, hap });
+  if (!highlightCallback || !allowed || !Number.isFinite(when)) return;
+  const locations = (hap as { context?: { locations?: { start: number; end: number }[] } })
+    .context?.locations;
+  if (highlightDebugRemaining > -3) console.info('JamScript highlight probe', { locations, miniLocations: [...miniLocations].slice(0, 4), when, now: context.currentTime });
+  if (!locations?.length) return;
+  const ranges = locations.flatMap(({ start, end }) => {
+    if (miniLocations.size && !miniLocations.has(`${start}:${end}`)) return [];
+    const from = editorOffsetFromPlayback(start, mixTracks);
+    const to = editorOffsetFromPlayback(end, mixTracks);
+    if (
+      from === null ||
+      to === null ||
+      from >= to ||
+      to > source.length ||
+      playbackCode.slice(start, end) !== source.slice(from, to)
+    ) return [];
+    return [{ from, to }];
+  });
+  if (!ranges.length) return;
+  const scheduledRevision = revision;
+  const delay = Math.max(0, (when - context.currentTime) * 1000);
+  const timer = setTimeout(() => {
+    highlightTimers.delete(timer);
+    if (allowed && revision === scheduledRevision) highlightCallback?.(ranges);
+  }, delay);
+  highlightTimers.add(timer);
+}
+
+export function onHighlight(callback: ((ranges: PlaybackRange[]) => void) | null) {
+  highlightCallback = callback;
+  if (!callback) clearHighlightTimers();
+}
 
 function applyMix() {
   const controller = activeStrudel?.getSuperdoughAudioController?.();
@@ -57,15 +105,37 @@ export function initPlayback(): Promise<StrudelWeb> {
         onEvalError: (error: unknown) => {
           evaluationError = message(error);
         },
+        afterEval: ({ meta }: { meta?: { miniLocations?: [number, number][] } }) => {
+          miniLocations = new Set(
+            (meta?.miniLocations ?? []).map(([from, to]) => `${from}:${to}`),
+          );
+        },
+        defaultOutput: async (
+          hap: unknown,
+          deadline: number,
+          duration: number,
+          cps: number,
+          when: number,
+        ) => {
+          await strudel.webaudioOutput(hap, deadline, duration, cps, when);
+          const context = strudel.getAudioContext() as AudioContext;
+          if (context) scheduleHighlight(hap, when, context);
+        },
         prebake: async () => {
-          // @strudel/web omits the soundfont extension. Register GM instruments so
-          // imported Strudel songs using gm_* sounds play every part of the mix.
-          const { registerSoundfonts } = await import("@strudel/soundfonts");
-          registerSoundfonts();
-          // Temporary: loads drum sounds from GitHub. Replaced by self-hosted samples before submission.
-          await strudel.samples("github:tidalcycles/dirt-samples");
+          await registerBundledSoundfonts(strudel);
+          // Match the REPL's default banks, including rim and other named drums.
+          // These recording assets remain remote until self-hosted with their licences.
+          const base = "https://raw.githubusercontent.com/felixroos/dough-samples/main";
+          await Promise.all(
+            ["tidal-drum-machines", "piano", "Dirt-Samples", "EmuSP12", "vcsl", "mridangam"].map(
+              (bank) => strudel.samples(`${base}/${bank}.json`),
+            ),
+          );
         },
       });
+      // initStrudel installs a first-mousedown listener, but the first Play
+      // click may happen before that listener exists. Load worklets explicitly.
+      await strudel.initAudio();
       activeStrudel = strudel;
       return strudel;
     })().catch((error: unknown) => {
@@ -87,6 +157,10 @@ export function play(code: string): Promise<boolean> {
       if (!allowed || request !== revision) return false;
       evaluationError = null;
       const mix = prepareMix(code);
+      clearHighlightTimers();
+      source = code;
+      playbackCode = mix.code;
+      miniLocations.clear();
       mixTracks = mix.tracks;
       await strudel.evaluate(mix.code);
       if (!allowed) {
@@ -114,6 +188,7 @@ export function play(code: string): Promise<boolean> {
 /** Stops all playing patterns. */
 export async function stop(): Promise<void> {
   allowed = false;
+  clearHighlightTimers();
   if (mixTimer) clearInterval(mixTimer);
   mixTimer = null;
   const stoppedAt = ++revision;
