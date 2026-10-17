@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TempoControl } from "@/features/tempo/TempoControl";
 import { SessionWorkbench } from "@/workbench/SessionWorkbench";
@@ -15,6 +15,17 @@ afterEach(() => {
 });
 
 describe("BPM control", () => {
+  async function openExample() {
+    render(
+      <TooltipProvider>
+        <SessionWorkbench />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+    const tempo = await screen.findByRole("spinbutton", { name: "Tempo in BPM" });
+    await waitFor(() => expect(tempo).toHaveValue(144));
+    return tempo;
+  }
   it("shows BPM and commits converted CPS immediately on Enter", () => {
     const onCpsChange = vi.fn(() => true);
     render(<TempoControl cps={0.5} onCpsChange={onCpsChange} />);
@@ -26,14 +37,9 @@ describe("BPM control", () => {
     expect(onCpsChange).toHaveBeenCalledExactlyOnceWith(0.75, 0.5);
   });
 
-  it("updates source after typing pauses without Enter or blur", () => {
+  it("updates source after typing pauses without Enter or blur", async () => {
+    const tempo = await openExample();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    render(
-      <TooltipProvider>
-        <SessionWorkbench />
-      </TooltipProvider>,
-    );
-    const tempo = screen.getByRole("spinbutton", { name: "Tempo in BPM" });
     fireEvent.change(tempo, { target: { value: "180" } });
     act(() => vi.advanceTimersByTime(150));
     fireEvent.change(tempo, { target: { value: "120" } });
@@ -81,13 +87,8 @@ describe("BPM control", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("changed in code");
   });
 
-  it("patches the actual workbench source and follows its undo history", () => {
-    render(
-      <TooltipProvider>
-        <SessionWorkbench />
-      </TooltipProvider>,
-    );
-    const tempo = screen.getByRole("spinbutton", { name: "Tempo in BPM" });
+  it("patches the actual workbench source and follows its undo history", async () => {
+    const tempo = await openExample();
     const editor = screen.getByRole("textbox", { name: "Music code" });
     expect(tempo).toHaveValue(144);
     fireEvent.change(tempo, { target: { value: "120" } });

@@ -177,24 +177,24 @@ Reset typography inside lens widgets and floating layers explicitly. Editor inhe
 - The viewport frame uses dynamic viewport height and shrinkable children. Source lines scroll inside CodeMirror, while inline lenses wrap locally. The page itself must not overflow horizontally.
 - The desktop toolbar is 48px. The shared CSS/transport breakpoint is 900px; below it the toolbar becomes 40px and 36px rows, with Play in the first row.
 - Rhythm cells are 24px and knobs 28px. Knob name and value sit on one line beside the dial. Filters retain logarithmic scaling.
-- Takes use 28px chips. Rework uses 30px controls in an approximately 60px footer.
+- Keep fixture-only Takes and Rework styling dormant until those features have real backing services.
 - Source is directly editable. Ctrl/Cmd+Enter evaluates current source. Valid changes while playing use the existing debounce and playback queue.
 - Keep source-derived lenses immediately under their owning statement with the track-colored left rule. No static preview or first-use disclaimer above the real editor.
 - Keep compact controls at normal browser zoom; allow internal scrolling rather than enlarging every track section.
 
-This cleanup changes the surrounding module structure and branding, not the editor, lens widget DOM, parser, patcher or playback implementation.
+The browser workbench changes the surrounding shell. It keeps the editor and lens widget DOM intact; the playback adapter exposes its actual audio output to the analyser.
 
-## Target workbench, pending
+## Current browser workbench and later desktop target
 
 Adopt VS Code's organization with JamScript's visual system:
 
-1. Compact top bar with branding, workspace identity, transport and sharing.
-2. Activity bar with Files, Search, Source Control and Collaboration.
-3. Collapsible, keyboard-resizable primary sidebar.
-4. File tabs above the central music editor.
-5. Bottom Takes, Problems and playback-output panels.
-6. Right assistant pane and compact status bar.
-7. Quick Open and a command palette using one command registry.
+1. Compact top bar with branding, workspace identity, BPM and transport.
+2. Activity bar with Files and Inspector controls.
+3. Collapsible Files sidebar and document tabs above the central music editor.
+4. Bottom Output panel with real Level Meter and Spectrum.
+5. Right selected-track Inspector and compact status bar.
+
+Search, Source Control, Collaboration, Takes, assistant pane, Quick Open and a command palette follow when their behavior is implemented. Git is an optional desktop integration; JamScript manages workspaces independently.
 
 Docked panels sit flush with hairline separators; reserve shadows for floating layers. Keep the central editor dominant. Below 900px, panels become mutually exclusive drawers rather than compressing the editor into a narrow column. Keyboard order follows the visible arrangement.
 
@@ -208,16 +208,16 @@ Source and lenses share exact range highlights. Keep pointer capture and focused
 
 Use one active review and retain its launcher's focus target. Covered editor content is inert. Repo and Share share one popover state; close outgoing layers without stealing focus from the incoming layer. Escape closes the topmost layer first.
 
-Takes, Repo, avatars and Rework stay labeled examples until their real capability is implemented. Presentation transitions never change source, playback, persistent history or Git. Check fixtures never enable apply. Await clipboard writes before reporting success.
+Takes, Repo, avatars, Share and Rework are hidden in the working browser UI until their real capability is implemented. Static fixtures remain separate from document and playback state.
 
 Real assistant changes use a versioned diff with review before apply. A stale proposal cannot apply. A check is shown as passed only after the corresponding real check succeeds.
 
 ## Audio UI and audiocn
 
-Use audiocn selectively, as locally owned components with an actual data source. The current project matches its documented React 19.2+, Tailwind v4 and shadcn requirements, but audiocn uses Base UI and existing primitives use Radix. Inspect dependencies before integration; no blanket primitive migration.
+Use audiocn selectively, as locally owned components with an actual data source. Its Base UI dependencies coexist with existing Radix primitives; no blanket primitive migration is needed.
 
-- Level Meter and Spectrum are candidates for real playback telemetry in slice B. Feed actual analyser values; never use demo signals to imply audio output.
-- Knob and Parameter Slider are candidates in slice E. Preserve source patching, 28px geometry, logarithmic filters, keyboard behavior, focus and gesture undo before changing visuals.
+- Level Meter and Spectrum read the analyser tapped from actual Strudel output; never use demo signals to imply audio output.
+- Knob and Parameter Slider in the Inspector edit supported source syntax through the checked patcher and the same undo history.
 - Reuse Strudel's audio graph. A new display component does not own the song or start a second engine.
 - Map library tokens to this palette, retain readable labels, honor reduced motion and stop hidden visualizers. Avoid the electric/glowing variants.
 - Retain the MIT notice when importing code. No audiocn code is installed by Steps 1–2.

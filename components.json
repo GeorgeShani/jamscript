@@ -18,5 +18,7 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "registries": {}
+  "registries": {
+    "@audiocn": "https://audiocn.dev/r/{name}.json"
+  }
 }

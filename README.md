@@ -2,11 +2,11 @@
 
 Code is the source. Lenses are how you play it.
 
-A Strudel music editor growing into a local-first desktop IDE with a collaborative browser companion. CodeMirror editing, source-derived rhythm/parameter controls, one undo history and playback from current editor text work today. Takes, Repo, presence and Rework are labeled examples. Native files, real collaboration, IntelliSense and Gemini assistance are pending.
+JamScript is a browser music workbench built around a live Strudel editor. Create an app-managed workspace, edit multiple documents, set BPM, play the active source, and inspect supported track parameters and actual output. Workspaces autosave in this browser's IndexedDB. Native folders, collaboration, AI proposals, and Strudel IntelliSense are later milestones.
 
 ## Development
 
-Use Node.js 24 and Bun with the committed bun.lock. This cleanup was verified using Node 24.19.0 and Bun 1.4.0. Browser audio requires a user gesture and access to the referenced sample hosts.
+Use Node.js 24 and Bun with the committed `bun.lock`.
 
 ```sh
 bun install --frozen-lockfile
@@ -15,33 +15,28 @@ bun run test
 bunx tsc --noEmit
 bun run lint
 bun run build
+bun run preview
 ```
 
-Open the development URL printed by Vite. The existing build uses TanStack Start and Nitro's Cloudflare target; do not assume its client directory alone is a deployable static desktop frontend. Tauri gets its own frontend build in a later slice.
+Open the URL printed by Vite. Browser audio starts after a user gesture and may need access to external sample hosts. The production build uses TanStack Start's Cloudflare Workers integration. `bun run cf-typegen` generates Worker types; `bun run deploy` deploys after Cloudflare credentials are configured. Tauri will receive a separate desktop build.
 
-Set tempo in the toolbar's BPM field. With four beats per cycle, 120 BPM writes `setcps(0.5)`. Valid edits apply after a short typing pause; Enter or leaving the field applies immediately, and Escape cancels a pending edit. Changes share the editor's undo history, and editing tempo in code updates the BPM display. Dynamic or ambiguous tempo expressions must be edited in code.
+The initial browser release needs no environment variables. Future authenticated workspaces use `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the browser. Private collaboration uses Worker-only `LIVEBLOCKS_SECRET_KEY` to mint per-document identity tokens; `VITE_LIVEBLOCKS_PUBLIC_KEY` is optional for intentionally public rooms. Gemini proposals use Worker-only `GEMINI_API_KEY`. Set `APP_ORIGIN` for invitation and auth redirects; `SUPABASE_SECRET_KEY` is optional for privileged server operations. See `.env.example` and `UI_IMPLEMENTATION_PLAN.md`. Store secrets in Cloudflare Worker secrets, never in `VITE_` variables or Git. Configure Supabase redirect URLs in its dashboard as well.
 
-## Repository map
+## Workbench
 
-- src/routes: route metadata and entry points.
-- src/workbench: the current session shell and branding.
-- src/features: tempo controls plus review, Takes, repository, collaboration and assistant presentation modules.
-- src/components/jam: the existing editor, live lenses and initial song; these stay protected during cleanup.
-- src/engine: source analysis, checked patches and Strudel playback.
-- src/components/ui: shared UI primitives used by the application.
-- src/test: behavioral regression tests.
-- public/brand: production logo, wordmark and icon assets.
+The chooser offers a new workspace and an explicit Night bus template. The Files sidebar creates, renames and deletes documents; tabs retain each open CodeMirror instance, including cursor and undo history. Play evaluates the active document. BPM uses four beats per cycle by default, so 120 BPM writes `setcps(0.5)` when that call has a supported, unambiguous syntax. The Inspector writes supported parameters through the checked patcher. The Output panel's audiocn meter and spectrum read actual Strudel output.
 
-Browser workspaces will be initialized and managed inside the application. Native folder access, disk reads/writes, watching and Git belong exclusively to desktop. No filesystem or cloud service is connected by the cleanup.
+Browser workspaces do not request filesystem permissions. Clearing this site's browser storage deletes the local workspaces. JamScript manages workspaces independently of Git; native folder operations and optional Git integration are reserved for the desktop app. Repo, Takes, Rework, presence, Share, and AI controls return only after their backing services work.
 
-## Project documents
+## Project documents and notices
 
-- [PRODUCT.md](PRODUCT.md): current product direction and capability status.
-- [DESIGN.md](DESIGN.md): visual rules, current editor and target workbench.
-- [PRODUCT_PLAN.md](PRODUCT_PLAN.md): current decisions and preserved historical rationale.
-- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md): ordered tasks and verification status.
+- [PRODUCT.md](PRODUCT.md): product direction and current capabilities.
+- [DESIGN.md](DESIGN.md): visual system and compact editor rules.
+- [UI_IMPLEMENTATION_PLAN.md](UI_IMPLEMENTATION_PLAN.md): current workbench and backend rollout.
+- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md): longer product roadmap.
+- [PRODUCT_PLAN.md](PRODUCT_PLAN.md): product rationale and preserved history.
 - [AGENTS.md](AGENTS.md): development boundaries.
 
-Built on [Strudel](https://strudel.cc/), with source at [uzu/strudel](https://codeberg.org/uzu/strudel). JamScript's licence is [AGPL-3.0-or-later](LICENSE). Available runtime dependency texts and attribution are in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt); the wordmark font notice is shipped with the brand assets. The application links to the public copy of the notices. Regenerate both source and public copies after a lockfile change with `bun run licenses`, which fetches and checks the pinned Strudel licence before writing. Sample packs retain their own licences. Deployment must provide the corresponding application source.
+Built on [Strudel](https://strudel.cc/) with locally copied [audiocn](https://www.audiocn.dev/) controls. JamScript is [AGPL-3.0-or-later](LICENSE). Runtime attributions and copied-component attribution are in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt); the full audiocn text is in [public/licenses/audiocn-MIT.txt](public/licenses/audiocn-MIT.txt). After lockfile changes, run `bun run licenses` to refresh the source and public notices. Sample packs retain their own licenses.
 
-This repository remains connected to Lovable. Preserve published history and keep the connected branch working.
+Before pushing this detached build to the formerly connected repository, disconnect GitHub in Lovable's Project settings → Git → GitHub. Preserve published Git history.

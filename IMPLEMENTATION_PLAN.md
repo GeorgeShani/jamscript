@@ -1,6 +1,6 @@
 # JamScript implementation plan
 
-Approved direction: 17 October 2026. Steps 1 and 2 are complete, together with the separately requested BPM component. Feature slices A–G below remain pending.
+Approved direction: 17 October 2026. Steps 1 and 2 and the separately requested BPM component are complete. `UI_IMPLEMENTATION_PLAN.md` records the new browser workbench milestone; slices A–G below remain the broader desktop and service roadmap.
 
 ## Step 1: Direction and boundaries
 
@@ -12,7 +12,7 @@ JamScript is a music IDE with local folders, Tauri applications for Windows, mac
 
 ## Step 2: Documentation, structure and branding
 
-- [x] Keep DESIGN.md, PRODUCT.md, PRODUCT_PLAN.md, AGENTS.md, README.md and this implementation plan as the project Markdown set.
+- [x] Keep DESIGN.md, PRODUCT.md, PRODUCT_PLAN.md, AGENTS.md, README.md and this implementation plan as the original project Markdown set; the approved UI workbench receives its own `UI_IMPLEMENTATION_PLAN.md`.
 - [x] Consolidate useful current guidance; remove the nine root verification reports, roadmap.md, docs/ui-handoff.md and src/routes/README.md. Repair references to retired files.
 - [x] Retain the original, initially untracked PRODUCT_PLAN.md text as explicitly historical context inside that file.
 - [x] Keep the route thin and organize existing presentation components into review, takes, repository, collaboration and assistant features. Keep shared UI primitives in components/ui and protected editor modules in place.
@@ -25,11 +25,11 @@ JamScript is a music IDE with local folders, Tauri applications for Windows, mac
 
 Additional authorized delivery: a separate BPM component patches one supported, unambiguous tempo expression using Lezer syntax ranges and the existing editor undo history. Valid typing applies after 250ms; Enter/blur applies immediately. Invalid, stale, dynamic or ambiguous targets are refused. Code changes and undo refresh the displayed BPM. Configurable workspace beats-per-cycle and an advanced CPS view remain in slice A.
 
-Document ownership: PRODUCT.md defines the product; DESIGN.md defines appearance; PRODUCT_PLAN.md records product rationale and historical context; this file owns implementation order, tasks and status; README.md owns setup; AGENTS.md owns development guardrails.
+Document ownership: PRODUCT.md defines the product; DESIGN.md defines appearance; PRODUCT_PLAN.md records product rationale and historical context; `UI_IMPLEMENTATION_PLAN.md` owns the current browser workbench; this file owns the longer roadmap; README.md owns setup; AGENTS.md owns development guardrails.
 
 ## Step 3: Feature delivery, pending
 
-Build complete, working slices in order. An example fixture is never evidence that a service works. Keep unfinished production capabilities hidden or explicitly unavailable. Do not add another collection of Markdown handoffs.
+Build complete, working slices in order. An example fixture is never evidence that a service works. Keep unfinished production capabilities hidden or explicitly unavailable. The browser milestone in `UI_IMPLEMENTATION_PLAN.md` provides app-managed workspace CRUD, tabs, autosave, selected-track controls and actual-output monitoring; remaining tasks below include desktop and service capabilities.
 
 ### A. Workbench and local folders
 

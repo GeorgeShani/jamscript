@@ -4,12 +4,30 @@ The project licence is AGPL-3.0-or-later; the full text is in LICENSE.
 Root LICENSE source: https://cdn.jsdelivr.net/npm/@strudel/web@1.3.0/LICENSE, matched against the installed package.
 Strudel: https://strudel.cc/ | source: https://codeberg.org/uzu/strudel
 Strudel dependency source files retain their original contributor copyright and licence headers.
+Copied audiocn Knob, Parameter Slider, Level Meter, Spectrum and supporting utilities: https://github.com/audiocn/ui | MIT; full text: public/licenses/audiocn-MIT.txt.
 Available top-level dependency licence/notice texts are reproduced unchanged below.
 A package without a top-level text is listed as such; that is not a claim that it has no licence.
 Font notice: public/brand/Schibsted-Grotesk-OFL.txt (the wordmark is outlined).
 External sample recordings and soundfonts are not vendored by this cleanup; their asset licences are separate.
 
 Runtime dependency inventory
+
+Copied component licence: audiocn
+------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2026 OrcDev
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+`public/sounds/peon-work-work.wav`, the "Work, work" line used by a sound pad on the audiocn.dev home page, is from Warcraft III. Warcraft is a trademark of Blizzard Entertainment, Inc., which owns the recording. It is not covered by the MIT licence above, is not part of the registry, and is not installed by the shadcn CLI.
+
 @babel/code-frame@7.29.7 | MIT | https://github.com/babel/babel.git | texts 117da2af0d4c
 @babel/compat-data@7.29.7 | MIT | https://github.com/babel/babel.git | texts 117da2af0d4c
 @babel/core@7.29.7 | MIT | https://github.com/babel/babel.git | texts 117da2af0d4c
@@ -30,6 +48,8 @@ Runtime dependency inventory
 @babel/traverse@7.29.7 | MIT | https://github.com/babel/babel.git | texts 117da2af0d4c
 @babel/types@7.29.7 | MIT | https://github.com/babel/babel.git | texts 117da2af0d4c
 @babel/types@7.29.8 | MIT | https://github.com/babel/babel.git | texts 117da2af0d4c
+@base-ui/react@1.9.0 | MIT | git+https://github.com/mui/base-ui.git | texts 07fc1b39d69d
+@base-ui/utils@0.5.0 | MIT | git+https://github.com/mui/base-ui.git | texts 07fc1b39d69d
 @codemirror/autocomplete@6.20.3 | MIT | git+https://code.haverbeke.berlin/codemirror/autocomplete.git | texts 05c6130cda97
 @codemirror/commands@6.11.1 | MIT | git+https://code.haverbeke.berlin/codemirror/commands.git | texts 05c6130cda97
 @codemirror/lang-javascript@6.2.5 | MIT | git+https://github.com/codemirror/lang-javascript.git | texts 05c6130cda97
@@ -200,6 +220,7 @@ react-remove-scroll@2.7.2 | MIT | https://github.com/theKashey/react-remove-scro
 react-style-singleton@2.2.3 | MIT | https://github.com/theKashey/react-style-singleton | texts 30f0cfddf483
 react@19.2.8 | MIT | https://github.com/react/react.git | texts da6d3703ed11
 readdirp@5.0.0 | MIT | https://github.com/paulmillr/readdirp.git | texts dffec71d93f2
+reselect@5.3.0 | MIT | https://github.com/reduxjs/reselect.git | texts e98047a5dee0
 rou3@0.8.1 | MIT | h3js/rou3 | texts 46231df5a773
 scheduler@0.27.0 | MIT | https://github.com/facebook/react.git | texts da6d3703ed11
 semver@6.3.1 | ISC | https://github.com/npm/node-semver.git | texts 4ec3d4c66cd8
@@ -220,6 +241,7 @@ update-browserslist-db@1.2.3 | MIT | browserslist/update-db | texts c414dde36704
 use-callback-ref@1.3.3 | MIT | https://github.com/theKashey/use-callback-ref/ | texts 30f0cfddf483
 use-sidecar@1.1.3 | MIT | https://github.com/theKashey/use-sidecar | texts 30f0cfddf483
 use-sync-external-store@1.6.0 | MIT | https://github.com/facebook/react.git | texts da6d3703ed11
+use-sync-external-store@1.7.0 | MIT | https://github.com/react/react.git | texts da6d3703ed11
 vitefu@1.1.3 | MIT | git+https://github.com/svitejs/vitefu.git | texts ed0b4f44d335
 w3c-keyname@2.2.8 | MIT | git+https://github.com/marijnh/w3c-keyname.git | texts 869c30f368eb
 webmidi@3.3.1 | Apache-2.0 | https://github.com/djipco/webmidi.git | texts cc4d4de0920b
@@ -227,6 +249,165 @@ webpack-virtual-modules@0.6.2 | MIT | git+https://github.com/sysgears/webpack-vi
 xmlbuilder2@4.0.3 | MIT | https://github.com/oozcitak/xmlbuilder2.git | texts 05affe7628de
 yallist@3.1.1 | ISC | git+https://github.com/isaacs/yallist.git | texts 4ec3d4c66cd8
 zod@4.6.5 | MIT | git+https://github.com/colinhacks/zod.git | texts 3f1189b28e38
+
+========================================================================
+Licence/notice 07fc1b39d69d
+@base-ui/react@1.9.0 (LICENSE)
+@base-ui/utils@0.5.0 (LICENSE)
+------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2019 Material-UI SAS
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+========================================================================
+Licence/notice 117da2af0d4c
+@babel/runtime@7.29.7 (LICENSE)
+@babel/generator@7.29.8 (LICENSE)
+@babel/types@7.29.8 (LICENSE)
+@babel/helper-string-parser@7.29.7 (LICENSE)
+@babel/helper-validator-identifier@7.29.7 (LICENSE)
+@babel/core@7.29.7 (LICENSE)
+@babel/code-frame@7.29.7 (LICENSE)
+@babel/generator@7.29.7 (LICENSE)
+@babel/types@7.29.7 (LICENSE)
+@babel/helper-compilation-targets@7.29.7 (LICENSE)
+@babel/compat-data@7.29.7 (LICENSE)
+@babel/helper-validator-option@7.29.7 (LICENSE)
+@babel/helper-module-transforms@7.29.7 (LICENSE)
+@babel/helper-module-imports@7.29.7 (LICENSE)
+@babel/traverse@7.29.7 (LICENSE)
+@babel/helper-globals@7.29.7 (LICENSE)
+@babel/template@7.29.7 (LICENSE)
+------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2014-present Sebastian McKenzie and other contributors
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+========================================================================
+Licence/notice 0e4c9a9b6c71
+@floating-ui/utils@0.2.12 (LICENSE)
+@floating-ui/react-dom@2.1.9 (LICENSE)
+@floating-ui/dom@1.8.0 (LICENSE)
+@floating-ui/core@1.8.0 (LICENSE)
+------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2021-present Floating UI contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+========================================================================
+Licence/notice e98047a5dee0
+reselect@5.3.0 (LICENSE)
+------------------------------------------------------------------------
+The MIT License (MIT)
+
+Copyright (c) 2015-2018 Reselect Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+========================================================================
+Licence/notice da6d3703ed11
+use-sync-external-store@1.7.0 (LICENSE)
+use-sync-external-store@1.6.0 (LICENSE)
+react@19.2.8 (LICENSE)
+react-dom@19.2.8 (LICENSE)
+scheduler@0.27.0 (LICENSE)
+------------------------------------------------------------------------
+MIT License
+
+Copyright (c) Meta Platforms, Inc. and affiliates.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 
 ========================================================================
 Licence/notice 05c6130cda97
@@ -543,35 +724,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-========================================================================
-Licence/notice 0e4c9a9b6c71
-@floating-ui/react-dom@2.1.9 (LICENSE)
-@floating-ui/dom@1.8.0 (LICENSE)
-@floating-ui/core@1.8.0 (LICENSE)
-@floating-ui/utils@0.2.12 (LICENSE)
-------------------------------------------------------------------------
-MIT License
-
-Copyright (c) 2021-present Floating UI contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ========================================================================
@@ -2184,50 +2336,6 @@ djipevents@2.0.7 (LICENSE.txt)
 
 
 ========================================================================
-Licence/notice 117da2af0d4c
-@babel/runtime@7.29.7 (LICENSE)
-@babel/generator@7.29.8 (LICENSE)
-@babel/types@7.29.8 (LICENSE)
-@babel/helper-string-parser@7.29.7 (LICENSE)
-@babel/helper-validator-identifier@7.29.7 (LICENSE)
-@babel/core@7.29.7 (LICENSE)
-@babel/code-frame@7.29.7 (LICENSE)
-@babel/generator@7.29.7 (LICENSE)
-@babel/types@7.29.7 (LICENSE)
-@babel/helper-compilation-targets@7.29.7 (LICENSE)
-@babel/compat-data@7.29.7 (LICENSE)
-@babel/helper-validator-option@7.29.7 (LICENSE)
-@babel/helper-module-transforms@7.29.7 (LICENSE)
-@babel/helper-module-imports@7.29.7 (LICENSE)
-@babel/traverse@7.29.7 (LICENSE)
-@babel/helper-globals@7.29.7 (LICENSE)
-@babel/template@7.29.7 (LICENSE)
-------------------------------------------------------------------------
-MIT License
-
-Copyright (c) 2014-present Sebastian McKenzie and other contributors
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-========================================================================
 Licence/notice 76a876cf886f
 acorn@8.18.0 (LICENSE)
 ------------------------------------------------------------------------
@@ -2451,36 +2559,6 @@ Licence/notice cb4a7917af22
 MIT License
 
 Copyright (c) 2021 Tanner Linsley
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-========================================================================
-Licence/notice da6d3703ed11
-use-sync-external-store@1.6.0 (LICENSE)
-react@19.2.8 (LICENSE)
-react-dom@19.2.8 (LICENSE)
-scheduler@0.27.0 (LICENSE)
-------------------------------------------------------------------------
-MIT License
-
-Copyright (c) Meta Platforms, Inc. and affiliates.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

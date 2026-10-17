@@ -105,6 +105,16 @@ if (!response.ok) throw new Error(`Strudel licence download failed: ${response.s
 const agpl = await response.text();
 const normalize = (value) => value.replace(/\r\n/g, "\n").trim();
 const installed = fs.readFileSync(path.join(strudelDirectory, "LICENSE"), "utf8");
+const audiocnLicense = fs.readFileSync(
+  path.join(root, "public", "licenses", "audiocn-MIT.txt"),
+  "utf8",
+);
+if (
+  !audiocnLicense.includes("Copyright (c) 2026 OrcDev") ||
+  !audiocnLicense.includes("MIT License")
+) {
+  throw new Error("audiocn licence text is missing or incomplete");
+}
 if (
   !agpl.includes("GNU AFFERO GENERAL PUBLIC LICENSE") ||
   !agpl.includes("END OF TERMS AND CONDITIONS") ||
@@ -120,6 +130,7 @@ const sections = [
   `Root LICENSE source: ${licenseUrl}, matched against the installed package.`,
   "Strudel: https://strudel.cc/ | source: https://codeberg.org/uzu/strudel",
   "Strudel dependency source files retain their original contributor copyright and licence headers.",
+  "Copied audiocn Knob, Parameter Slider, Level Meter, Spectrum and supporting utilities: https://github.com/audiocn/ui | MIT; full text: public/licenses/audiocn-MIT.txt.",
   "Available top-level dependency licence/notice texts are reproduced unchanged below.",
   "A package without a top-level text is listed as such; that is not a claim that it has no licence.",
   "Font notice: public/brand/Schibsted-Grotesk-OFL.txt (the wordmark is outlined).",
@@ -127,6 +138,7 @@ const sections = [
   "",
   "Runtime dependency inventory",
 ];
+sections.push("", "Copied component licence: audiocn", "-".repeat(72), audiocnLicense);
 for (const [key, record] of [...packages].sort(([a], [b]) => a.localeCompare(b))) {
   sections.push(
     `${key} | ${record.license} | ${record.source} | ${record.texts.length ? `texts ${record.texts.join(", ")}` : "no top-level licence text in installed package; see source"}`,

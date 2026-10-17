@@ -11,6 +11,7 @@ let evaluationError: string | null = null;
 let revision = 0;
 let allowed = false;
 let work: Promise<boolean> = Promise.resolve(false);
+let activeStrudel: StrudelWeb | null = null;
 
 function message(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -31,6 +32,7 @@ export function initPlayback(): Promise<StrudelWeb> {
         // Temporary: loads drum sounds from GitHub. Replaced by self-hosted samples before submission.
         prebake: () => strudel.samples("github:tidalcycles/dirt-samples"),
       });
+      activeStrudel = strudel;
       return strudel;
     })().catch((error: unknown) => {
       initPromise = null;
@@ -87,4 +89,13 @@ export async function stop(): Promise<void> {
 /** Registers the single callback that receives evaluate() error messages. */
 export function onError(callback: ((message: string) => void) | null): void {
   errorCallback = callback;
+}
+
+/** Passive analyser input from the pinned @strudel/web 1.3.0 master output. */
+export function getOutputNode(): { context: AudioContext; node: AudioNode } | null {
+  if (!activeStrudel) return null;
+  const context = activeStrudel.getAudioContext() as AudioContext;
+  const node = activeStrudel.getSuperdoughAudioController()?.output
+    ?.destinationGain as AudioNode | null;
+  return context && node && typeof node.connect === "function" ? { context, node } : null;
 }
