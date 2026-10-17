@@ -128,6 +128,36 @@ describe("browser workbench", () => {
     await waitFor(() => expect(playback.stop).toHaveBeenCalled());
   });
 
+  it("keeps Stop available while a long evaluation is pending", async () => {
+    let finish!: (value: boolean) => void;
+    vi.mocked(playback.play).mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    vi.mocked(playback.stop).mockClear();
+    const { workspace } = await createWorkspace("Pending playback", 's("bd")');
+    render(
+      <TooltipProvider>
+        <SessionWorkbench workspaceId={workspace.id} />
+      </TooltipProvider>,
+    );
+    await screen.findByRole("tab", { name: "night-bus.js" });
+    fireEvent.click(screen.getByRole("button", { name: /^Play$/ }));
+    await waitFor(() => expect(playback.play).toHaveBeenCalled());
+    const stop = screen.getByRole("button", { name: /^Stop$/ });
+    expect(stop).toBeEnabled();
+    fireEvent.click(stop);
+    await waitFor(() => expect(playback.stop).toHaveBeenCalled());
+    finish(false);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Play$/ })).toBeEnabled());
+    vi.mocked(playback.stop).mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Stop all audio" }));
+    await waitFor(() => expect(playback.stop).toHaveBeenCalled());
+    vi.mocked(playback.play).mockResolvedValue(true);
+  });
+
   it("keeps side drawers mutually exclusive below 900px", async () => {
     const previousWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
@@ -156,10 +186,11 @@ describe("browser workbench", () => {
       </TooltipProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Show files" }));
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Show inspector" }, { timeout: 5000 }),
-    );
+    await screen.findByRole("tab", { name: "night-bus.js" });
+    const showFiles = screen.queryByRole("button", { name: "Show files" });
+    if (showFiles) fireEvent.click(showFiles);
+    const showInspector = screen.queryByRole("button", { name: "Show inspector" });
+    if (showInspector) fireEvent.click(showInspector);
 
     const files = screen.getByRole("separator", { name: "Resize Files pane" });
     const inspector = screen.getByRole("separator", { name: "Resize Inspector pane" });

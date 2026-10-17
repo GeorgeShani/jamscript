@@ -10,7 +10,7 @@ export function sharedDocumentStorage(input: {
   workspace: WorkspaceRecord;
   document: DocumentRecord;
 }): WorkspaceStorage {
-  let workspace = input.workspace;
+  const workspace = input.workspace;
   let document = input.document;
   return {
     ...browserStorage,
@@ -24,13 +24,11 @@ export function sharedDocumentStorage(input: {
       document = { ...next, updatedAt: Date.now() };
       return document;
     },
-    async renameDocument(next, name) {
-      document = { ...next, name, updatedAt: Date.now() };
-      return document;
+    async renameDocument() {
+      throw new Error("Shared document renaming is not available yet");
     },
-    async renameWorkspace(next, name) {
-      workspace = { ...next, name, updatedAt: Date.now() };
-      return workspace;
+    async renameWorkspace() {
+      throw new Error("Shared workspace renaming is not available yet");
     },
     async createDocument() {
       throw new Error("Shared files are added by the project owner");

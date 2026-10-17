@@ -25,7 +25,8 @@ function InvitationPage() {
         body: JSON.stringify({ action: "accept", token }),
       });
       const body = (await response.json()) as { error?: string; documentId?: string | null };
-      if (!response.ok || !body.documentId) throw new Error(body.error ?? "Invitation was not accepted");
+      if (!response.ok || !body.documentId)
+        throw new Error(body.error ?? "Invitation was not accepted");
       await navigate({ to: "/app/shared/$documentId", params: { documentId: body.documentId } });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Invitation was not accepted");

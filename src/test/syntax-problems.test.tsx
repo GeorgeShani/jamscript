@@ -27,6 +27,13 @@ describe("syntax problems", () => {
         problems={[problem]}
         onSelectProblem={onSelectProblem}
         onDismiss={vi.fn()}
+        takes={[]}
+        liveSource=""
+        auditionTakeId={null}
+        onAuditionTake={vi.fn()}
+        onRestoreTake={vi.fn()}
+        onReturnToLive={vi.fn()}
+        canRestoreTake={false}
         resizeHandle={{
           min: 110,
           max: 500,

@@ -12,6 +12,7 @@ import {
   hashInviteToken,
   listVisibleDocuments,
   memberRole,
+  roleForDocument,
   revokeInvitation,
   type CollaborationDb,
 } from "@/features/collaboration/membership";
@@ -23,6 +24,7 @@ import {
   seedSharedText,
   sharedSource,
 } from "@/features/collaboration/shared-document";
+import { sharedDocumentStorage } from "@/features/collaboration/shared-storage";
 
 async function database() {
   const client = new PGlite();
@@ -41,6 +43,11 @@ describe("shared project membership", () => {
       source: "setcps(0.75)",
     });
     expect(await memberRole(db, project.workspaceId, "user_owner")).toBe("owner");
+    expect(await roleForDocument(db, project.documentId, "user_owner")).toMatchObject({
+      workspaceName: "Coastline",
+      name: "coastline.strudel",
+      role: "owner",
+    });
     const invitation = await createInvitation(db, {
       workspaceId: project.workspaceId,
       actorId: "user_owner",
@@ -94,12 +101,30 @@ describe("shared source", () => {
     expect(sharedSource(copy)).toBe("setcps(0.75)");
 
     const undo = createLocalUndo(copy);
-    copy.transact(() => copy.getText("source").insert(sharedSource(copy).length, "\nlocal"), localEditOrigin);
+    copy.transact(
+      () => copy.getText("source").insert(sharedSource(copy).length, "\nlocal"),
+      localEditOrigin,
+    );
     copy.transact(() => copy.getText("source").insert(0, "remote "), "remote-user");
     undo.undo();
     expect(sharedSource(copy)).toBe("remote setcps(0.75)");
     const id = "11111111-1111-4111-8111-111111111111";
     expect(documentIdFromRoom(roomId(id))).toBe(id);
     expect(documentIdFromRoom("jamscript:../secret")).toBeNull();
+  });
+
+  it("does not claim an in-memory rename is a persisted shared metadata change", async () => {
+    const workspace = { id: "shared", name: "Coastline", createdAt: 0, updatedAt: 0 };
+    const document = {
+      id: "song",
+      workspaceId: workspace.id,
+      name: "coastline.strudel",
+      source: 's("bd")',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    const storage = sharedDocumentStorage({ workspace, document });
+    await expect(storage.renameDocument(document, "renamed.js")).rejects.toThrow(/not available/);
+    expect((await storage.listDocuments(workspace.id))[0]?.name).toBe(document.name);
   });
 });

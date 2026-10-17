@@ -9,7 +9,7 @@ const apocalypse = readFileSync("src/fixtures/apocalypse.strudel", "utf8");
 
 describe("coastline compatibility fixture", () => {
   it("keeps the supplied source and its required audio layers intact", () => {
-    expect(coastline).toMatch(/^\/\/ "coastline" @by eddyflux\n\/\/ @version 1\.0\n/);
+    expect(coastline).toMatch(/^\/\/ "coastline" @by eddyflux\r?\n\/\/ @version 1\.0\r?\n/);
     expect(coastline).toContain("samples('github:eddyflux/crate')");
     expect(coastline).toContain("gm_epiano1:1");
     expect(coastline).toContain("gm_acoustic_bass");

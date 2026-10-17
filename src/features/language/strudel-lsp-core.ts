@@ -1,8 +1,21 @@
 import api from "./strudel-api.generated.json";
 import { syntaxProblems } from "./syntax-problems";
+import { javascriptLanguage } from "@codemirror/lang-javascript";
+import type { SyntaxNode } from "@lezer/common";
 
 type Position = { line: number; character: number };
-type Message = { jsonrpc: "2.0"; id?: number | string; method?: string; params?: any };
+type Message = {
+  jsonrpc: "2.0";
+  id?: number | string;
+  method?: string;
+  params?: {
+    id?: number | string;
+    textDocument?: { uri?: string; text?: string; version?: number };
+    contentChanges?: { text?: string }[];
+    position?: Position;
+    query?: string;
+  };
+};
 type Entry = { source: string; version: number };
 const docs: Record<string, { signature: string; detail: string }> = {
   stack: { signature: "stack(...patterns)", detail: "Play patterns together in one cycle." },
@@ -50,6 +63,27 @@ const wordAt = (source: string, at: number) => {
 };
 const response = (id: number | string, result: unknown) => ({ jsonrpc: "2.0", id, result });
 
+function enclosingCall(source: string, at: number) {
+  const tree = javascriptLanguage.parser.parse(source);
+  let node: SyntaxNode | null = tree.resolveInner(Math.max(0, at - 1), -1);
+  for (; node; node = node.parent) {
+    if (node.name !== "ArgList" || node.from >= at || node.to < at) continue;
+    const call = node.parent;
+    if (call?.name !== "CallExpression") continue;
+    let name = "";
+    for (let child = call.firstChild; child && child.from < node.from; child = child.nextSibling) {
+      if (child.name === "VariableName" || child.name === "PropertyName")
+        name = source.slice(child.from, child.to);
+      if (child.name === "MemberExpression") {
+        const property = child.getChild("PropertyName");
+        if (property) name = source.slice(property.from, property.to);
+      }
+    }
+    return name;
+  }
+  return null;
+}
+
 /** One analysis core for worker and stdio transports. It never executes source. */
 export class StrudelLanguageService {
   private documents = new Map<string, Entry>();
@@ -58,7 +92,7 @@ export class StrudelLanguageService {
   handle(input: Message): object[] {
     const { id, method, params } = input;
     if (method === "$/cancelRequest") {
-      this.cancelled.add(params?.id);
+      if (params?.id !== undefined) this.cancelled.add(params.id);
       return [];
     }
     if (method === "initialize")
@@ -89,6 +123,7 @@ export class StrudelLanguageService {
     }
     if (method === "textDocument/didChange") {
       const uri = params?.textDocument?.uri;
+      if (!uri) return [];
       const current = this.documents.get(uri);
       const source = params?.contentChanges?.at(-1)?.text;
       const version = params?.textDocument?.version;
@@ -103,12 +138,13 @@ export class StrudelLanguageService {
       return [this.diagnostics(uri)];
     }
     if (method === "textDocument/didClose") {
-      this.documents.delete(params?.textDocument?.uri);
+      const uri = params?.textDocument?.uri;
+      if (uri) this.documents.delete(uri);
       return [];
     }
     if (id === undefined || this.cancelled.delete(id)) return [];
     const uri = params?.textDocument?.uri;
-    const document = this.documents.get(uri);
+    const document = uri ? this.documents.get(uri) : undefined;
     if (method === "workspace/symbol") {
       const query = String(params?.query ?? "").toLowerCase();
       return [
@@ -124,10 +160,16 @@ export class StrudelLanguageService {
     }
     if (!document) return [response(id, null)];
     const source = document.source;
+    if (
+      typeof params?.textDocument?.version === "number" &&
+      params.textDocument.version !== document.version
+    )
+      return [response(id, null)];
     const at = offset(source, params?.position ?? { line: 0, character: 0 });
     if (method === "textDocument/completion") {
       const sampleContext = /\b(?:s|sound)\s*\(\s*["'][^"']*$/.test(source.slice(0, at));
-      const candidates = sampleContext ? samples : names;
+      const locals = this.symbols(source).map((symbol) => symbol.name);
+      const candidates = sampleContext ? samples : [...new Set([...locals, ...names])];
       const prefix = wordAt(source.slice(0, at), at).toLowerCase();
       return [
         response(id, {
@@ -137,9 +179,13 @@ export class StrudelLanguageService {
             .slice(0, 120)
             .map((name) => ({
               label: name,
-              kind: sampleContext ? 12 : 3,
-              detail: docs[name]?.signature ?? `Strudel ${api.version}`,
-              documentation: docs[name]?.detail,
+              kind: sampleContext ? 12 : locals.includes(name) ? 6 : 3,
+              detail: locals.includes(name)
+                ? "Local declaration"
+                : (docs[name]?.signature ?? `Strudel ${api.version}`),
+              documentation: locals.includes(name)
+                ? "Declared in this document."
+                : docs[name]?.detail,
             })),
         }),
       ];
@@ -147,18 +193,26 @@ export class StrudelLanguageService {
     if (method === "textDocument/hover") {
       const name = wordAt(source, at);
       const found = docs[name];
+      const local = this.symbols(source).find((symbol) => symbol.name === name);
       return [
         response(
           id,
-          found
-            ? { contents: { kind: "markdown", value: `**${found.signature}**\n\n${found.detail}` } }
+          found || local
+            ? {
+                contents: {
+                  kind: "markdown",
+                  value: found
+                    ? `**${found.signature}**\n\n${found.detail}`
+                    : `**${name}** · declared on line ${local!.range.start.line + 1}`,
+                },
+              }
             : null,
         ),
       ];
     }
     if (method === "textDocument/signatureHelp") {
-      const match = source.slice(0, at).match(/([A-Za-z_$][\w$]*)\s*\([^()]*$/);
-      const found = match && docs[match[1]!];
+      const name = enclosingCall(source, at);
+      const found = name && docs[name];
       return [
         response(
           id,
@@ -198,17 +252,26 @@ export class StrudelLanguageService {
   }
 
   private symbols(source: string) {
-    return [...source.matchAll(/\b(?:const|let|var|function)\s+([A-Za-z_$][\w$]*)/g)].map(
-      (match) => {
-        const at = (match.index ?? 0) + match[0].lastIndexOf(match[1]!);
-        const range = { start: position(source, at), end: position(source, at + match[1]!.length) };
-        return {
-          name: match[1]!,
-          kind: match[0].startsWith("function") ? 12 : 13,
+    const result: {
+      name: string;
+      kind: number;
+      range: { start: Position; end: Position };
+      selectionRange: { start: Position; end: Position };
+    }[] = [];
+    javascriptLanguage.parser.parse(source).iterate({
+      enter(node) {
+        if (node.name !== "VariableDefinition") return;
+        const parent = node.node.parent?.name;
+        if (parent !== "VariableDeclaration" && parent !== "FunctionDeclaration") return;
+        const range = { start: position(source, node.from), end: position(source, node.to) };
+        result.push({
+          name: source.slice(node.from, node.to),
+          kind: parent === "FunctionDeclaration" ? 12 : 13,
           range,
           selectionRange: range,
-        };
+        });
       },
-    );
+    });
+    return result;
   }
 }
