@@ -602,6 +602,24 @@
   gap: 6px;
   flex: none;
 }
+
+/* Clerk's shadcn input fill inherits our control-edge token; use the stage fill instead. */
+.cl-formFieldInput {
+  background: var(--background);
+  border: 1px solid var(--input);
+  box-shadow: none;
+  color: var(--foreground);
+}
+.cl-formFieldInput::placeholder {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+.cl-formFieldInput:focus-visible {
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  box-shadow: none;
+}
 .jam-chooser-body {
   width: min(100%, 780px);
   margin: 0 auto;
