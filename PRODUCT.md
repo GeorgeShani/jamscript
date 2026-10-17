@@ -4,7 +4,7 @@
 
 ## Platform
 
-Desktop music IDE for Windows, macOS and Linux, with a collaborative browser companion. The current implementation is a browser editor; native packaging and connected services are planned.
+Desktop music IDE for Windows, macOS and Linux, with a collaborative browser companion. The public product site is at `/`; the working browser IDE is at `/app`. A separate static workbench-only frontend build is ready for a future desktop shell; native packaging and connected services are planned.
 
 ## Stack
 

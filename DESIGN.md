@@ -196,7 +196,9 @@ Adopt VS Code's organization with JamScript's visual system:
 
 Search, Source Control, Collaboration, Takes, assistant pane, Quick Open and a command palette follow when their behavior is implemented. Git is an optional desktop integration; JamScript manages workspaces independently.
 
-Docked panels sit flush with hairline separators; reserve shadows for floating layers. Keep the central editor dominant. Below 900px, panels become mutually exclusive drawers rather than compressing the editor into a narrow column. Keyboard order follows the visible arrangement.
+Docked panels sit flush with hairline separators; reserve shadows for floating layers. Keep the central editor dominant. Files and Inspector have keyboard-accessible drag handles, limited to 170–340px and 190–360px respectively, and retain enough space for the editor. On narrow screens they become mutually exclusive drawers rather than compressing the editor into a narrow column. Keyboard order follows the visible arrangement. Use the vertical fader icon for Inspector.
+
+The public site at `/` can use staged entrances, scroll reveals, subtle progress motion and a replayable illustrated workbench to explain the product. Label illustration as such. Keep the actual `/app` editor, audio meters and source controls free of decorative or simulated motion; honor reduced-motion settings on the public site as well.
 
 The browser entry offers workspace initialization and app-managed documents only. Open Folder, native Save/Save As, native file operations and disk watchers are desktop capabilities. Do not offer browser filesystem permission flows.
 

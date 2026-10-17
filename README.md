@@ -2,7 +2,7 @@
 
 Code is the source. Lenses are how you play it.
 
-JamScript is a browser music workbench built around a live Strudel editor. Create an app-managed workspace, edit multiple documents, set BPM, play the active source, and inspect supported track parameters and actual output. Workspaces autosave in this browser's IndexedDB. Native folders, collaboration, AI proposals, and Strudel IntelliSense are later milestones.
+JamScript serves a public product site at `/` and a browser music workbench at `/app`. Create an app-managed workspace, edit multiple documents, set BPM, play the active source, and inspect supported track parameters and actual output. Workspaces autosave in this browser's IndexedDB. Native folders, collaboration, AI proposals, and Strudel IntelliSense are later milestones.
 
 ## Development
 
@@ -15,10 +15,13 @@ bun run test
 bunx tsc --noEmit
 bun run lint
 bun run build
+bun run build:desktop-web
 bun run preview
 ```
 
-Open the URL printed by Vite. Browser audio starts after a user gesture and may need access to external sample hosts. The production build uses TanStack Start's Cloudflare Workers integration. `bun run cf-typegen` generates Worker types; `bun run deploy` deploys after Cloudflare credentials are configured. Tauri will receive a separate desktop build.
+Open the URL printed by Vite; `/app` opens the workspace chooser directly. Browser audio starts after a user gesture and may need access to external sample hosts. The production web build uses TanStack Start's Cloudflare Workers integration, server-rendering the public page and keeping the browser-dependent `/app` route client-rendered. `bun run cf-typegen` generates Worker types; `bun run deploy` deploys after Cloudflare credentials are configured.
+
+`bun run build:desktop-web` produces static workbench-only assets in `dist/desktop`, without the public site or its route. This is the frontend input for the planned Tauri v2 shell (`frontendDist`); it is not yet an installable desktop application and does not provide native file access. The desktop frontend currently uses local workspaces without account controls. Do not package the Cloudflare Worker or the marketing site into the desktop shell.
 
 Browser workspaces work without an account. Clerk sign-in uses browser-safe `VITE_CLERK_PUBLISHABLE_KEY` and Worker-only `CLERK_SECRET_KEY`. This project is linked to the selected Clerk application; after CLI login, `npx -y clerk@latest env pull` writes development keys into ignored `.env.local`. Future synced workspaces use `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for storage; private collaboration uses Worker-only `LIVEBLOCKS_SECRET_KEY` to mint per-document identity tokens. `VITE_LIVEBLOCKS_PUBLIC_KEY` is optional for intentionally public rooms. Gemini proposals use Worker-only `GEMINI_API_KEY`. Set `APP_ORIGIN` for invitation and auth redirects; `SUPABASE_SECRET_KEY` is optional for privileged server operations. See `.env.example` and `UI_IMPLEMENTATION_PLAN.md`. Store secrets in Cloudflare Worker secrets, never in `VITE_` variables or Git. Configure auth redirect URLs in their dashboards as well.
 

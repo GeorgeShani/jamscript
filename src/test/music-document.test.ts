@@ -82,4 +82,23 @@ describe("Source-derived music controls", () => {
     );
     expect(deriveMusic(source).tracks[0]!.name).toBe("claps");
   });
+
+  it("derives safe controls from direct multiline stack tracks and patches only their source", () => {
+    const source =
+      'setcps(0.5)\nstack(\n  s("bd ~ bd [~ bd]")\n    .gain(0.8),\n  s("~ hh ~ hh")\n    .room(0.2)\n)';
+    const model = deriveMusic(source);
+    expect(model.tracks.map((track) => track.name)).toEqual(["Track 1", "Track 2"]);
+    expect(model.tracks[0]?.lenses.map((lens) => lens.kind)).toEqual(["rhythm", "param"]);
+    expect(model.tracks[1]?.lenses.map((lens) => lens.kind)).toEqual(["rhythm", "param"]);
+    expect(model.tracks[0]?.lenses[0]?.kind === "rhythm" && model.tracks[0].lenses[0].locked).toBe(
+      false,
+    );
+    const kick = model.tracks[0]?.lenses[0];
+    expect(kick?.kind === "rhythm" && kick.steps[3]?.substeps).toEqual([null, "bd"]);
+    expect(edit(source, { target: "Track 1/param/gain", value: 0.65 })).toContain(".gain(0.65)");
+    expect(edit(source, { target: "Track 1/rhythm", step: 1 })).toContain('s("bd bd bd [~ bd]")');
+    expect(edit(source, { target: "Track 2/rhythm", step: 0 })).toContain('s("hh hh ~ hh")');
+    expect(edit(source, { target: "Track 2/param/room", value: 0.4 })).toContain(".room(0.4)");
+    expect(lensPatch(source, { target: "Track 1/rhythm", step: 3 })).toBeNull();
+  });
 });

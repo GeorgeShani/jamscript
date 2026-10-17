@@ -1,5 +1,5 @@
 import { javascriptLanguage } from "@codemirror/lang-javascript";
-import type { SyntaxNode } from "@lezer/common";
+import type { SyntaxNode, Tree } from "@lezer/common";
 
 export interface MixTrack {
   id: string;
@@ -9,8 +9,40 @@ export interface MixTrack {
   to: number;
 }
 
+export interface MixSourcePatch {
+  from: number;
+  to: number;
+  insert: string;
+}
+
 interface Target extends MixTrack {
   expression: SyntaxNode;
+}
+
+interface TrackComment {
+  from: number;
+  to: number;
+  name: string;
+}
+
+function lastLineComment(source: string, from: number, to: number): TrackComment | null {
+  const match = [...source.slice(from, to).matchAll(/\/\/[^\r\n]*/g)].at(-1);
+  return match
+    ? {
+        from: from + match.index!,
+        to: from + match.index! + match[0].length,
+        name: match[0].slice(2).trim(),
+      }
+    : null;
+}
+
+function nestedStackComment(expression: SyntaxNode, source: string): TrackComment | null {
+  const args = stackCall(expression, source)?.getChild("ArgList");
+  if (!args) return null;
+  const first = children(args).find(
+    (node) => !["(", ")", ",", "LineComment", "BlockComment"].includes(node.name),
+  );
+  return first ? lastLineComment(source, args.from, first.from) : null;
 }
 
 function children(node: SyntaxNode): SyntaxNode[] {
@@ -31,8 +63,11 @@ function stackCall(node: SyntaxNode | null, source: string): SyntaxNode | null {
 }
 
 /** Build playback-only orbit assignments. The CodeMirror document is never changed. */
-export function prepareMix(source: string): { code: string; tracks: MixTrack[] } {
-  const tree = javascriptLanguage.parser.parse(source);
+export function prepareMix(
+  source: string,
+  parsedTree?: Tree,
+): { code: string; tracks: MixTrack[] } {
+  const tree = parsedTree ?? javascriptLanguage.parser.parse(source);
   let invalid = false;
   tree.iterate({
     enter: (node) => {
@@ -77,9 +112,10 @@ export function prepareMix(source: string): { code: string; tracks: MixTrack[] }
       if (expressions.length < 2) continue;
       let previous = args.from;
       for (const expression of expressions) {
-        const prefix = source.slice(previous, expression.from);
-        const comment = [...prefix.matchAll(/\/\/\s*([^\r\n]+)/g)].at(-1)?.[1]?.trim();
-        add(comment ?? `Track ${targets.length + 1}`, expression);
+        const comment =
+          lastLineComment(source, previous, expression.from) ??
+          nestedStackComment(expression, source);
+        add(comment?.name ?? `Track ${targets.length + 1}`, expression);
         previous = expression.to;
       }
       break;
@@ -94,4 +130,85 @@ export function prepareMix(source: string): { code: string; tracks: MixTrack[] }
       code.slice(target.to);
   }
   return { code, tracks: targets.map(({ expression: _expression, ...track }) => track) };
+}
+
+/** Rename one syntax-derived track, then verify that the rest of the mix is unchanged. */
+export function renameTrackPatch(
+  source: string,
+  id: string,
+  requestedName: string,
+): MixSourcePatch | null {
+  const name = requestedName.trim();
+  if (!/^[\p{L}\p{N}_][\p{L}\p{N}_ -]{0,39}$/u.test(name)) return null;
+  const tree = javascriptLanguage.parser.parse(source);
+  const before = prepareMix(source, tree).tracks;
+  const index = before.findIndex((track) => track.id === id);
+  const target = before[index];
+  if (
+    !target ||
+    target.name === name ||
+    before.some(
+      (track, other) => other !== index && track.name.toLowerCase() === name.toLowerCase(),
+    )
+  )
+    return null;
+
+  let patch: MixSourcePatch | null = null;
+  const statements = children(tree.topNode);
+  const labelStatement = statements.find((statement) => {
+    const expression = statement.getChild("ExpressionStatement")?.firstChild;
+    return statement.name === "LabeledStatement" && expression?.from === target.from;
+  });
+  if (labelStatement) {
+    if (!/^[A-Za-z_$][\w$]*$/.test(name)) return null;
+    const label = labelStatement.getChild("Label");
+    if (label) patch = { from: label.from, to: label.to, insert: name };
+  } else {
+    for (const statement of statements) {
+      if (statement.name !== "ExpressionStatement") continue;
+      const args = stackCall(statement.firstChild, source)?.getChild("ArgList");
+      if (!args) continue;
+      const expressions = children(args).filter(
+        (node) => !["(", ")", ",", "LineComment", "BlockComment"].includes(node.name),
+      );
+      let previous = args.from;
+      for (const expression of expressions) {
+        if (expression.from === target.from && expression.to === target.to) {
+          const comment =
+            lastLineComment(source, previous, expression.from) ??
+            nestedStackComment(expression, source);
+          if (comment) {
+            patch = {
+              from: comment.from,
+              to: comment.to,
+              insert: `// ${name}`,
+            };
+          } else {
+            const lineStart = source.lastIndexOf("\n", expression.from - 1) + 1;
+            const beforeExpression = source.slice(lineStart, expression.from);
+            const indent = /^\s*$/.test(beforeExpression) ? beforeExpression : "  ";
+            const newline = source.includes("\r\n") ? "\r\n" : "\n";
+            patch = {
+              from: expression.from,
+              to: expression.from,
+              insert: `// ${name}${newline}${indent}`,
+            };
+          }
+          break;
+        }
+        previous = expression.to;
+      }
+      if (patch) break;
+    }
+  }
+  if (!patch) return null;
+  const result = source.slice(0, patch.from) + patch.insert + source.slice(patch.to);
+  const after = prepareMix(result).tracks;
+  if (
+    after.length !== before.length ||
+    after[index]?.name !== name ||
+    before.some((track, other) => other !== index && after[other]?.name !== track.name)
+  )
+    return null;
+  return patch;
 }

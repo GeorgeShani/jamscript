@@ -57,8 +57,14 @@ export function initPlayback(): Promise<StrudelWeb> {
         onEvalError: (error: unknown) => {
           evaluationError = message(error);
         },
-        // Temporary: loads drum sounds from GitHub. Replaced by self-hosted samples before submission.
-        prebake: () => strudel.samples("github:tidalcycles/dirt-samples"),
+        prebake: async () => {
+          // @strudel/web omits the soundfont extension. Register GM instruments so
+          // imported Strudel songs using gm_* sounds play every part of the mix.
+          const { registerSoundfonts } = await import("@strudel/soundfonts");
+          registerSoundfonts();
+          // Temporary: loads drum sounds from GitHub. Replaced by self-hosted samples before submission.
+          await strudel.samples("github:tidalcycles/dirt-samples");
+        },
       });
       activeStrudel = strudel;
       return strudel;

@@ -35,6 +35,9 @@ export function TrackInspector({
   onMixLevel,
   onMasterLevel,
   onSoloTrack,
+  mixColors,
+  onTrackColor,
+  onRenameTrack,
 }: {
   track: MusicTrack | null;
   tracks: MusicTrack[];
@@ -48,6 +51,9 @@ export function TrackInspector({
   onMixLevel: (id: string, value: number) => void;
   onMasterLevel: (value: number) => void;
   onSoloTrack: (id: string | null) => void;
+  mixColors: Record<string, number>;
+  onTrackColor: (orbit: number, color: number) => void;
+  onRenameTrack: (id: string, name: string) => boolean;
 }) {
   const gestures = useRef(new Map<string, number>());
   const edit = (lens: ParamLens, value: number, reason: string) => {
@@ -76,6 +82,9 @@ export function TrackInspector({
         onLevel={onMixLevel}
         onMaster={onMasterLevel}
         onSolo={onSoloTrack}
+        colors={mixColors}
+        onColor={onTrackColor}
+        onRename={onRenameTrack}
       />
       {!valid ? (
         <p className="jam-inspector-empty">Fix the code syntax to inspect tracks.</p>
@@ -95,7 +104,12 @@ export function TrackInspector({
                   className={item.name === track?.name ? "is-active" : ""}
                   onClick={() => onSelectTrack(item.name)}
                 >
-                  <span className={`jam-track-dot jam-track-${item.color}`} />
+                  <span
+                    className="jam-track-dot"
+                    style={{
+                      backgroundColor: `var(--jam-track-${item.orbit}, var(--track-${item.color}))`,
+                    }}
+                  />
                   {item.name}
                 </button>
               ))}

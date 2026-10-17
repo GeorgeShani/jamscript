@@ -1,5 +1,6 @@
 import { javascriptLanguage } from "@codemirror/lang-javascript";
 import type { SyntaxNode } from "@lezer/common";
+import { prepareMix } from "./mix-source";
 
 export interface SourceRange {
   from: number;
@@ -25,11 +26,12 @@ export interface RhythmLens extends LensBase {
   kind: "rhythm";
   locked: boolean;
   defaultSound: string;
-  steps: (SourceRange & { sound: string | null })[];
+  steps: (SourceRange & { sound: string | null; substeps?: (string | null)[] })[];
 }
 export type MusicLens = ParamLens | RhythmLens;
 export interface MusicTrack {
   name: string;
+  orbit: number;
   from: number;
   to: number;
   color: number;
@@ -49,10 +51,38 @@ interface Call {
   args: SyntaxNode[];
 }
 
+const SIMPLE_SOUND = /^(?:[A-Za-z_][\w-]*(?::\d+)?|~)$/;
+
+function rhythmToken(token: string): { sound: string | null; substeps?: (string | null)[] } | null {
+  if (SIMPLE_SOUND.test(token)) return { sound: token === "~" ? null : token };
+  if (!token.startsWith("[") || !token.endsWith("]")) return null;
+  const body = token.slice(1, -1);
+  if (body.includes("[") || body.includes("]")) return null;
+  const subdivisions = body.trim().split(/\s+/);
+  if (
+    subdivisions.length < 2 ||
+    subdivisions.length > 8 ||
+    !subdivisions.every((part) => SIMPLE_SOUND.test(part))
+  )
+    return null;
+  return { sound: token, substeps: subdivisions.map((part) => (part === "~" ? null : part)) };
+}
+
 function children(node: SyntaxNode) {
   const result: SyntaxNode[] = [];
   for (let child = node.firstChild; child; child = child.nextSibling) result.push(child);
   return result;
+}
+
+function nodeAtRange(node: SyntaxNode, from: number, to: number): SyntaxNode | null {
+  if (node.from === from && node.to === to) return node;
+  for (const child of children(node)) {
+    if (child.from <= from && child.to >= to) {
+      const found = nodeAtRange(child, from, to);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 /** Only direct function calls and ordinary dot chains are eligible for controls. */
@@ -98,10 +128,25 @@ export function deriveMusic(source: string): MusicDocument {
       if (Number.isFinite(value) && value > 0) tempo = value;
     }
   }
-  labels.forEach((statement, index) => {
-    const track = names[index];
-    if (!track || names.filter((name) => name === track).length !== 1) return;
-    const expression = statement.getChild("ExpressionStatement")?.firstChild ?? null;
+  const targets = labels.length
+    ? labels.map((statement, index) => ({
+        name: names[index],
+        from: statement.from,
+        to: statement.to,
+        expression: statement.getChild("ExpressionStatement")?.firstChild ?? null,
+        orbit: 64 + index,
+      }))
+    : prepareMix(source, tree).tracks.map((track) => ({
+        name: track.name,
+        from: track.from,
+        to: track.to,
+        expression: nodeAtRange(tree.topNode, track.from, track.to),
+        orbit: track.orbit,
+      }));
+  targets.forEach((target, index) => {
+    const track = target.name;
+    if (!track || (labels.length && names.filter((name) => name === track).length !== 1)) return;
+    const expression = target.expression;
     const chain = calls(expression, source);
     const lenses: MusicLens[] = [];
     const root = chain[0];
@@ -112,12 +157,16 @@ export function deriveMusic(source: string): MusicDocument {
       string?.name === "String"
     ) {
       const raw = source.slice(string.from + 1, string.to - 1);
-      const matches = [...raw.matchAll(/\S+/g)];
+      const matches = [...raw.matchAll(/\[[^\]]+\]|\S+/g)];
+      const tokens = matches.map((match) => rhythmToken(match[0]));
       const locked =
         !matches.length ||
         matches.length > 16 ||
-        matches.some((match) => !/^(?:[A-Za-z_][\w-]*(?::\d+)?|~)$/.test(match[0])) ||
+        tokens.some((token) => !token) ||
         raw.includes("\\");
+      const firstSound = tokens
+        .flatMap((token) => token?.substeps ?? (token?.sound ? [token.sound] : []))
+        .find((sound) => sound !== null);
       lenses.push({
         kind: "rhythm",
         id: `${track}/rhythm`,
@@ -125,14 +174,13 @@ export function deriveMusic(source: string): MusicDocument {
         from: string.from,
         to: string.to,
         locked,
-        defaultSound:
-          matches.find((match) => match[0] !== "~")?.[0] ?? (track === "hats" ? "hh" : "bd"),
+        defaultSound: firstSound ?? (track === "hats" ? "hh" : "bd"),
         steps: locked
           ? []
-          : matches.map((match) => ({
+          : matches.map((match, step) => ({
               from: string.from + 1 + match.index!,
               to: string.from + 1 + match.index! + match[0].length,
-              sound: match[0] === "~" ? null : match[0],
+              ...tokens[step]!,
             })),
       });
     }
@@ -157,8 +205,9 @@ export function deriveMusic(source: string): MusicDocument {
     if (lenses.length)
       tracks.push({
         name: track,
-        from: statement.from,
-        to: statement.to,
+        orbit: target.orbit,
+        from: target.from,
+        to: target.to,
         color: (index % 6) + 1,
         lenses,
       });
@@ -169,7 +218,7 @@ export function deriveMusic(source: string): MusicDocument {
 function signature(lens: MusicLens) {
   return lens.kind === "param"
     ? `${lens.name}:${lens.value}`
-    : JSON.stringify([lens.locked, lens.steps.map((step) => step.sound)]);
+    : JSON.stringify([lens.locked, lens.steps.map((step) => [step.sound, step.substeps])]);
 }
 
 /** Re-derive each target before editing, then check the result and all other lenses. */
@@ -192,7 +241,7 @@ export function lensPatch(source: string, edit: LensEdit): SourcePatch | null {
     Number.isInteger(edit.step)
   ) {
     const step = lens.steps[edit.step];
-    if (!step) return null;
+    if (!step || step.substeps) return null;
     patch = { from: step.from, to: step.to, insert: step.sound ? "~" : lens.defaultSound };
   } else return null;
   const result = source.slice(0, patch.from) + patch.insert + source.slice(patch.to);

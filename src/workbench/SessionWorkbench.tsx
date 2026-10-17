@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isolateHistory } from "@codemirror/commands";
+import { Transaction } from "@codemirror/state";
 import {
   AlertCircle,
   ChevronLeft,
   FileCode2,
   Folder,
   FolderPlus,
+  ArrowUpRight,
   PanelLeftClose,
   PanelLeftOpen,
   Play,
   Plus,
   Square,
+  SlidersVertical,
   Trash2,
   X,
 } from "lucide-react";
@@ -21,7 +25,7 @@ import { TempoControl } from "@/features/tempo/TempoControl";
 import { readTempo } from "@/features/tempo/tempo";
 import { changeEditorTempo } from "@/features/tempo/tempo-editor";
 import { deriveMusic, type MusicDocument } from "@/engine/music-document";
-import { prepareMix } from "@/engine/mix-source";
+import { prepareMix, renameTrackPatch } from "@/engine/mix-source";
 import type { EditorView } from "@codemirror/view";
 import {
   createDocument,
@@ -38,11 +42,40 @@ import {
 } from "@/workspaces/storage";
 import { TrackInspector } from "./TrackInspector";
 import { OutputPanel } from "./OutputPanel";
-import { AuthControls } from "./AuthControls";
+import { AuthControls } from "@/workbench/AuthControls";
 import { ExportControl } from "./ExportControl";
 
 type SaveStatus = "saved" | "saving" | "error";
+type PaneSide = "files" | "inspector";
+const PANE_LIMITS = { files: { min: 170, max: 340 }, inspector: { min: 190, max: 360 } } as const;
+const OUTPUT_LIMITS = { min: 110, max: 500 } as const;
 const EMPTY_LEVELS: Record<string, number> = {};
+
+function storedPaneWidth(side: PaneSide, fallback: number) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const value = Number(window.localStorage.getItem(`jamscript-${side}-width`));
+    return Number.isFinite(value) &&
+      value >= PANE_LIMITS[side].min &&
+      value <= PANE_LIMITS[side].max
+      ? value
+      : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function storedOutputHeight() {
+  if (typeof window === "undefined") return 174;
+  try {
+    const value = Number(window.localStorage.getItem("jamscript-output-height"));
+    return Number.isFinite(value) && value >= OUTPUT_LIMITS.min && value <= OUTPUT_LIMITS.max
+      ? value
+      : 174;
+  } catch {
+    return 174;
+  }
+}
 
 export function SessionWorkbench() {
   const [loadingWorkspaces, setLoadingWorkspaces] = useState(true);
@@ -62,6 +95,9 @@ export function SessionWorkbench() {
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 681px)").matches,
   );
   const [outputOpen, setOutputOpen] = useState(true);
+  const [outputHeight, setOutputHeight] = useState(storedOutputHeight);
+  const [filesWidth, setFilesWidth] = useState(() => storedPaneWidth("files", 232));
+  const [inspectorWidth, setInspectorWidth] = useState(() => storedPaneWidth("inspector", 256));
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +113,10 @@ export function SessionWorkbench() {
   const [tempo, setTempo] = useState(() => readTempo(""));
   const [, setReadyVersion] = useState(0);
   const views = useRef(new Map<string, EditorView>());
+  const mainPane = useRef<HTMLDivElement>(null);
+  const editorColumn = useRef<HTMLDivElement>(null);
+  const paneDrag = useRef<{ side: PaneSide; startX: number; startWidth: number } | null>(null);
+  const outputDrag = useRef<{ startY: number; startHeight: number } | null>(null);
   const drafts = useRef(new Map<string, DocumentRecord>());
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const activeIdRef = useRef<string | null>(null);
@@ -95,6 +135,7 @@ export function SessionWorkbench() {
     [activeDocument?.source],
   );
   const mixLevels = activeDocument?.mix?.levels ?? EMPTY_LEVELS;
+  const mixColors = activeDocument?.mix?.colors ?? EMPTY_LEVELS;
   const masterLevel = activeDocument?.mix?.master ?? 1;
   const track = model.tracks.find((item) => item.name === selectedTrack) ?? model.tracks[0] ?? null;
 
@@ -145,13 +186,59 @@ export function SessionWorkbench() {
     if (soloTrack && !mixTracks.some((item) => item.id === soloTrack)) setSoloTrack(null);
   }, [mixTracks, soloTrack]);
 
+  useEffect(() => {
+    if (!sidebarOpen || !inspectorOpen) return;
+    const fitPanes = () => {
+      const width = mainPane.current?.clientWidth || window.innerWidth;
+      const available = width - 46 - 12 - (window.innerWidth < 900 ? 280 : 420);
+      if (filesWidth + inspectorWidth <= available) return;
+      const nextInspector = Math.max(PANE_LIMITS.inspector.min, available - filesWidth);
+      const nextFiles = Math.max(PANE_LIMITS.files.min, available - nextInspector);
+      setInspectorWidth(nextInspector);
+      setFilesWidth(nextFiles);
+    };
+    fitPanes();
+    window.addEventListener("resize", fitPanes);
+    return () => window.removeEventListener("resize", fitPanes);
+  }, [filesWidth, inspectorWidth, sidebarOpen, inspectorOpen]);
+
   const changeMix = (master: number, levels: Record<string, number>) => {
     if (!activeId) return;
     const current = drafts.current.get(activeId);
     if (!current) return;
-    const next = { ...current, mix: { master, levels } };
+    const next = { ...current, mix: { ...current.mix, master, levels } };
     setDocuments((items) => items.map((item) => (item.id === activeId ? next : item)));
     scheduleSave(next);
+  };
+
+  const changeTrackColor = (orbit: number, color: number) => {
+    if (!activeId || exportingNow.current || !Number.isInteger(color) || color < 1 || color > 6)
+      return;
+    const current = drafts.current.get(activeId);
+    if (!current) return;
+    const next = {
+      ...current,
+      mix: {
+        master: current.mix?.master ?? 1,
+        levels: current.mix?.levels ?? {},
+        colors: { ...current.mix?.colors, [String(orbit)]: color },
+      },
+    };
+    setDocuments((items) => items.map((item) => (item.id === activeId ? next : item)));
+    scheduleSave(next);
+  };
+
+  const renameTrack = (id: string, name: string) => {
+    if (!activeId || exportingNow.current) return false;
+    const view = views.current.get(activeId);
+    if (!view) return false;
+    const patch = renameTrackPatch(view.state.doc.toString(), id, name);
+    if (!patch) return false;
+    view.dispatch({
+      changes: patch,
+      annotations: [Transaction.userEvent.of("input.type.track-rename"), isolateHistory.of("full")],
+    });
+    return true;
   };
 
   const openWorkspace = async (next: WorkspaceRecord) => {
@@ -249,10 +336,33 @@ export function SessionWorkbench() {
   const handleCodeChange = (id: string, source: string, nextModel: MusicDocument) => {
     const current = drafts.current.get(id);
     if (!current) return;
-    const next = { ...current, source };
+    const before = prepareMix(current.source).tracks;
+    const after = prepareMix(source).tracks;
+    const renamed = new Map<string, string>();
+    if (before.length === after.length)
+      before.forEach((item, index) => {
+        const replacement = after[index];
+        if (replacement && item.name !== replacement.name) renamed.set(item.name, replacement.name);
+      });
+    const levels = { ...current.mix?.levels };
+    for (const [oldName, newName] of renamed) {
+      if (Object.hasOwn(levels, oldName)) {
+        levels[newName] = levels[oldName]!;
+        delete levels[oldName];
+      }
+    }
+    const next = {
+      ...current,
+      source,
+      ...(current.mix ? { mix: { ...current.mix, levels } } : {}),
+    };
     setDocuments((items) => items.map((item) => (item.id === id ? next : item)));
     scheduleSave(next);
     if (activeIdRef.current !== id) return;
+    if (renamed.size) {
+      setSelectedTrack((selected) => renamed.get(selected ?? "") ?? selected);
+      setSoloTrack((solo) => renamed.get(solo ?? "") ?? solo);
+    }
     code.current = source;
     setTempo(readTempo(source));
     if (playingNow.current && nextModel.valid && !exportingNow.current) {
@@ -390,13 +500,132 @@ export function SessionWorkbench() {
     setDocuments([]);
     setOpenIds([]);
     setActiveId(null);
-    document.title = "JamScript";
+    document.title = "JamScript | Workspaces";
     void listWorkspaces()
       .then(setWorkspaces)
       .catch((cause: unknown) => setError(message(cause)));
   };
 
   const activeView = activeId ? (views.current.get(activeId) ?? null) : null;
+  const paneMaximum = (side: PaneSide) => {
+    const minCenter = window.innerWidth < 900 ? 280 : 420;
+    const otherWidth =
+      side === "files" && inspectorOpen
+        ? inspectorWidth
+        : side === "inspector" && sidebarOpen
+          ? filesWidth
+          : 0;
+    const room =
+      (mainPane.current?.clientWidth || window.innerWidth) - 46 - otherWidth - minCenter - 12;
+    return Math.max(PANE_LIMITS[side].min, Math.min(PANE_LIMITS[side].max, room));
+  };
+  const resizePane = (side: PaneSide, requestedWidth: number) => {
+    const width = Math.round(
+      Math.max(PANE_LIMITS[side].min, Math.min(paneMaximum(side), requestedWidth)),
+    );
+    (side === "files" ? setFilesWidth : setInspectorWidth)(width);
+    return width;
+  };
+  const onPanePointerDown = (side: PaneSide, event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    paneDrag.current = {
+      side,
+      startX: event.clientX,
+      startWidth: side === "files" ? filesWidth : inspectorWidth,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  };
+  const onPanePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = paneDrag.current;
+    if (!drag) return;
+    const delta = event.clientX - drag.startX;
+    resizePane(drag.side, drag.startWidth + (drag.side === "files" ? delta : -delta));
+  };
+  const onPanePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = paneDrag.current;
+    if (!drag) return;
+    const delta = event.clientX - drag.startX;
+    const width = resizePane(drag.side, drag.startWidth + (drag.side === "files" ? delta : -delta));
+    try {
+      window.localStorage.setItem(`jamscript-${drag.side}-width`, String(width));
+    } catch {
+      /* layout still works without persistence */
+    }
+    paneDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const onPaneKeyDown = (side: PaneSide, event: React.KeyboardEvent<HTMLDivElement>) => {
+    const direction = side === "files" ? 1 : -1;
+    const current = side === "files" ? filesWidth : inspectorWidth;
+    let next: number;
+    if (event.key === "Home") next = PANE_LIMITS[side].min;
+    else if (event.key === "End") next = paneMaximum(side);
+    else if (event.key === "ArrowRight") next = current + direction * 16;
+    else if (event.key === "ArrowLeft") next = current - direction * 16;
+    else return;
+    event.preventDefault();
+    const width = resizePane(side, next);
+    try {
+      window.localStorage.setItem(`jamscript-${side}-width`, String(width));
+    } catch {
+      /* layout still works without persistence */
+    }
+  };
+  const outputMaximum = () => {
+    const columnHeight =
+      editorColumn.current?.clientHeight || Math.max(320, window.innerHeight - 120);
+    return Math.max(OUTPUT_LIMITS.min, Math.min(OUTPUT_LIMITS.max, columnHeight - 36 - 200));
+  };
+  const resizeOutput = (requestedHeight: number) => {
+    const height = Math.round(
+      Math.max(OUTPUT_LIMITS.min, Math.min(outputMaximum(), requestedHeight)),
+    );
+    setOutputHeight(height);
+    return height;
+  };
+  const persistOutputHeight = (height: number) => {
+    try {
+      window.localStorage.setItem("jamscript-output-height", String(height));
+    } catch {
+      /* resizing still works without persistence */
+    }
+  };
+  const onOutputPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    outputDrag.current = { startY: event.clientY, startHeight: outputHeight };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  };
+  const onOutputPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = outputDrag.current;
+    if (drag) resizeOutput(drag.startHeight + drag.startY - event.clientY);
+  };
+  const onOutputPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = outputDrag.current;
+    if (!drag) return;
+    persistOutputHeight(resizeOutput(drag.startHeight + drag.startY - event.clientY));
+    outputDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const onOutputKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    let next: number;
+    if (event.key === "Home") next = OUTPUT_LIMITS.min;
+    else if (event.key === "End") next = outputMaximum();
+    else if (event.key === "ArrowUp") next = outputHeight + 16;
+    else if (event.key === "ArrowDown") next = outputHeight - 16;
+    else return;
+    event.preventDefault();
+    persistOutputHeight(resizeOutput(next));
+  };
+  useEffect(() => {
+    const fitOutput = () => setOutputHeight((height) => Math.min(height, outputMaximum()));
+    fitOutput();
+    window.addEventListener("resize", fitOutput);
+    return () => window.removeEventListener("resize", fitOutput);
+  }, [workspace]);
   const onTempoChange = (cps: number, expectedCps: number | null) => {
     const view = views.current.get(activeIdRef.current ?? "");
     return view !== undefined && changeEditorTempo(view, cps, expectedCps);
@@ -408,140 +637,166 @@ export function SessionWorkbench() {
     return (
       <main className="jam-chooser">
         <header>
-          <img src="/brand/logo.svg" alt="JamScript" width={156} height={30} />
-          <AuthControls />
+          {import.meta.env.MODE === "desktop" ? (
+            <img src="/brand/logo.svg" alt="JamScript" width={156} height={30} />
+          ) : (
+            <a href="/" aria-label="JamScript website">
+              <img src="/brand/logo.svg" alt="JamScript" width={156} height={30} />
+            </a>
+          )}
+          <div className="jam-chooser-header-actions">
+            {import.meta.env.MODE !== "desktop" && (
+              <a href="/">
+                Website <ArrowUpRight size={14} />
+              </a>
+            )}
+            <AuthControls />
+          </div>
         </header>
         <div className="jam-chooser-body">
-          <p className="jam-eyebrow">YOUR MUSIC WORKSPACE</p>
-          <h1>Make space for the next idea.</h1>
-          <p className="jam-chooser-intro">
-            Create a browser workspace to write and play Strudel music. Your documents stay in this
-            browser.
-          </p>
-          {error && (
-            <p role="alert" className="jam-error">
-              <AlertCircle size={16} />
-              {error}
+          <div className="jam-chooser-primary">
+            <p className="jam-eyebrow">YOUR MUSIC STUDIO</p>
+            <h1>
+              Where should we
+              <br />
+              <em>start playing?</em>
+            </h1>
+            <p className="jam-chooser-intro">
+              Open a session or make a new space for your music. Your workspaces save locally as you
+              work.
             </p>
-          )}
-          <form
-            className="jam-create-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void create(false);
-            }}
-          >
-            <label htmlFor="workspace-name">New workspace</label>
-            <div>
-              <input
-                id="workspace-name"
-                value={workspaceName}
-                onChange={(event) => setWorkspaceName(event.target.value)}
-                placeholder="Name your workspace"
-                required
-              />
-              <Button type="submit">
-                <FolderPlus size={16} /> Create
-              </Button>
-            </div>
-          </form>
-          <section className="jam-chooser-section" aria-labelledby="recent-heading">
-            <h2 id="recent-heading">Recent workspaces</h2>
-            {workspaces.length === 0 ? (
-              <p className="jam-muted">No workspaces yet.</p>
-            ) : (
-              <ul>
-                {workspaces.map((item) => (
-                  <li key={item.id}>
-                    {renaming === item.id ? (
-                      <form
-                        className="jam-inline-form"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void applyRename(item.id, true);
-                        }}
-                      >
-                        <input
-                          aria-label="Workspace name"
-                          value={renameValue}
-                          onChange={(event) => setRenameValue(event.target.value)}
-                          autoFocus
-                        />
-                        <Button size="sm" type="submit">
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          type="button"
-                          onClick={() => setRenaming(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </form>
-                    ) : (
-                      <>
-                        <button
-                          className="jam-recent-open"
-                          onClick={() => void openWorkspace(item)}
-                        >
-                          <Folder size={17} />
-                          <span>{item.name}</span>
-                          <small>{new Date(item.updatedAt).toLocaleDateString()}</small>
-                        </button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setRenaming(item.id);
-                            setRenameValue(item.name);
-                          }}
-                        >
-                          Rename
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Delete ${item.name}`}
-                          onClick={async () => {
-                            if (
-                              !confirm(
-                                `Delete ${item.name} and all its documents from this browser?`,
-                              )
-                            )
-                              return;
-                            try {
-                              await deleteWorkspace(item.id);
-                              setWorkspaces(await listWorkspaces());
-                            } catch (cause) {
-                              setError(message(cause));
-                            }
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
+            {error && (
+              <p role="alert" className="jam-error">
+                <AlertCircle size={16} />
+                {error}
+              </p>
             )}
-          </section>
-          <section className="jam-chooser-section" aria-labelledby="example-heading">
-            <h2 id="example-heading">Start from an example</h2>
-            <button className="jam-example" onClick={() => void create(true)}>
-              <FileCode2 size={22} />
-              <span>
-                <strong>Night bus</strong>
-                <small>A Strudel session you can edit, play and make your own.</small>
-              </span>
-              <span aria-hidden>↗</span>
-            </button>
-          </section>
+            <form
+              className="jam-create-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void create(false);
+              }}
+            >
+              <label htmlFor="workspace-name">CREATE A WORKSPACE</label>
+              <div>
+                <input
+                  id="workspace-name"
+                  value={workspaceName}
+                  onChange={(event) => setWorkspaceName(event.target.value)}
+                  placeholder="Your next project name"
+                  required
+                />
+                <Button type="submit">
+                  <FolderPlus size={16} /> Create
+                </Button>
+              </div>
+            </form>
+            <p className="jam-chooser-privacy">Saved locally · No account required</p>
+          </div>
+          <div className="jam-chooser-secondary">
+            <section className="jam-chooser-section" aria-labelledby="recent-heading">
+              <h2 id="recent-heading">Pick up a workspace</h2>
+              {workspaces.length === 0 ? (
+                <p className="jam-muted">No workspaces yet.</p>
+              ) : (
+                <ul>
+                  {workspaces.map((item) => (
+                    <li key={item.id}>
+                      {renaming === item.id ? (
+                        <form
+                          className="jam-inline-form"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void applyRename(item.id, true);
+                          }}
+                        >
+                          <input
+                            aria-label="Workspace name"
+                            value={renameValue}
+                            onChange={(event) => setRenameValue(event.target.value)}
+                            autoFocus
+                          />
+                          <Button size="sm" type="submit">
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            type="button"
+                            onClick={() => setRenaming(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </form>
+                      ) : (
+                        <>
+                          <button
+                            className="jam-recent-open"
+                            onClick={() => void openWorkspace(item)}
+                          >
+                            <Folder size={17} />
+                            <span>{item.name}</span>
+                            <small>
+                              {new Date(item.updatedAt).toLocaleString(undefined, {
+                                dateStyle: "medium",
+                                timeStyle: "short",
+                              })}
+                            </small>
+                          </button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setRenaming(item.id);
+                              setRenameValue(item.name);
+                            }}
+                          >
+                            Rename
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Delete ${item.name}`}
+                            onClick={async () => {
+                              if (
+                                !confirm(
+                                  `Delete ${item.name} and all its documents from this browser?`,
+                                )
+                              )
+                                return;
+                              try {
+                                await deleteWorkspace(item.id);
+                                setWorkspaces(await listWorkspaces());
+                              } catch (cause) {
+                                setError(message(cause));
+                              }
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section className="jam-chooser-section" aria-labelledby="example-heading">
+              <h2 id="example-heading">Or start with a song</h2>
+              <button className="jam-example" onClick={() => void create(true)}>
+                <FileCode2 size={22} />
+                <span>
+                  <strong>Night bus</strong>
+                  <small>A Strudel session you can edit, play and make your own.</small>
+                </span>
+                <span aria-hidden>↗</span>
+              </button>
+            </section>
+          </div>
         </div>
         <footer>
-          Browser workspaces are stored locally.{" "}
-          <a href="/licenses/THIRD_PARTY_NOTICES.txt">Licenses</a>
+          Workspaces are stored locally. <a href="/licenses/THIRD_PARTY_NOTICES.txt">Licenses</a>
         </footer>
       </main>
     );
@@ -588,7 +843,22 @@ export function SessionWorkbench() {
         </div>
         <AuthControls />
       </header>
-      <div className="jam-workbench-main">
+      <div
+        className="jam-workbench-main"
+        ref={mainPane}
+        style={
+          {
+            "--jam-files-width": `${filesWidth}px`,
+            "--jam-inspector-width": `${inspectorWidth}px`,
+            ...Object.fromEntries(
+              mixTracks.map((item) => [
+                `--jam-track-${item.orbit}`,
+                `var(--track-${mixColors[String(item.orbit)] ?? ((item.orbit - 64) % 6) + 1})`,
+              ]),
+            ),
+          } as React.CSSProperties
+        }
+      >
         <nav className="jam-activity-bar" aria-label="Workbench views">
           <button
             className={sidebarOpen ? "is-active" : ""}
@@ -608,7 +878,7 @@ export function SessionWorkbench() {
             }}
             aria-label={inspectorOpen ? "Hide inspector" : "Show inspector"}
           >
-            <span className="jam-inspector-glyph">◧</span>
+            <SlidersVertical size={20} aria-hidden="true" />
           </button>
         </nav>
         {sidebarOpen && (
@@ -700,7 +970,28 @@ export function SessionWorkbench() {
             </ul>
           </aside>
         )}
-        <div className="jam-editor-column">
+        {sidebarOpen && (
+          <div
+            className="jam-pane-resizer"
+            role="separator"
+            tabIndex={0}
+            aria-label="Resize Files pane"
+            aria-orientation="vertical"
+            aria-valuemin={PANE_LIMITS.files.min}
+            aria-valuemax={paneMaximum("files")}
+            aria-valuenow={filesWidth}
+            onPointerDown={(event) => onPanePointerDown("files", event)}
+            onPointerMove={onPanePointerMove}
+            onPointerUp={onPanePointerEnd}
+            onPointerCancel={onPanePointerEnd}
+            onKeyDown={(event) => onPaneKeyDown("files", event)}
+          />
+        )}
+        <div
+          className="jam-editor-column"
+          ref={editorColumn}
+          style={{ "--jam-output-height": `${outputHeight}px` } as React.CSSProperties}
+        >
           <div className="jam-tabs" role="tablist" aria-label="Open documents">
             {openIds.map((id) => {
               const item = documents.find((doc) => doc.id === id);
@@ -786,6 +1077,15 @@ export function SessionWorkbench() {
               error={playError ?? error}
               output={audioOutput}
               playing={playing}
+              resizeHandle={{
+                min: OUTPUT_LIMITS.min,
+                max: outputMaximum(),
+                now: Math.min(outputHeight, outputMaximum()),
+                onPointerDown: onOutputPointerDown,
+                onPointerMove: onOutputPointerMove,
+                onPointerEnd: onOutputPointerEnd,
+                onKeyDown: onOutputKeyDown,
+              }}
               onDismiss={() => {
                 setPlayError(null);
                 setError(null);
@@ -793,6 +1093,23 @@ export function SessionWorkbench() {
             />
           )}
         </div>
+        {inspectorOpen && (
+          <div
+            className="jam-pane-resizer"
+            role="separator"
+            tabIndex={0}
+            aria-label="Resize Inspector pane"
+            aria-orientation="vertical"
+            aria-valuemin={PANE_LIMITS.inspector.min}
+            aria-valuemax={paneMaximum("inspector")}
+            aria-valuenow={inspectorWidth}
+            onPointerDown={(event) => onPanePointerDown("inspector", event)}
+            onPointerMove={onPanePointerMove}
+            onPointerUp={onPanePointerEnd}
+            onPointerCancel={onPanePointerEnd}
+            onKeyDown={(event) => onPaneKeyDown("inspector", event)}
+          />
+        )}
         {inspectorOpen && (
           <TrackInspector
             track={track}
@@ -811,6 +1128,9 @@ export function SessionWorkbench() {
             onSoloTrack={(id) => {
               if (!exportingNow.current) setSoloTrack(id);
             }}
+            mixColors={mixColors}
+            onTrackColor={changeTrackColor}
+            onRenameTrack={renameTrack}
           />
         )}
       </div>

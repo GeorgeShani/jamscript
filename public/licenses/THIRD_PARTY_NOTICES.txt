@@ -127,6 +127,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @strudel/core@1.2.6 | AGPL-3.0-or-later | git+https://codeberg.org/uzu/strudel.git | texts 0d96a4ff68ad
 @strudel/draw@1.2.6 | AGPL-3.0-or-later | git+https://codeberg.org/uzu/strudel.git | texts 0d96a4ff68ad
 @strudel/mini@1.2.6 | AGPL-3.0-or-later | git+https://codeberg.org/uzu/strudel.git | texts 0d96a4ff68ad
+@strudel/soundfonts@1.3.0 | AGPL-3.0-or-later | git+https://codeberg.org/uzu/strudel.git | texts 0d96a4ff68ad
 @strudel/tonal@1.2.6 | AGPL-3.0-or-later | git+https://codeberg.org/uzu/strudel.git | texts 0d96a4ff68ad
 @strudel/transpiler@1.2.6 | AGPL-3.0-or-later | git+https://codeberg.org/uzu/strudel.git | texts 0d96a4ff68ad
 @strudel/web@1.3.0 | AGPL-3.0-or-later | git+https://codeberg.org/uzu/strudel.git | texts 0d96a4ff68ad
@@ -292,7 +293,10 @@ scheduler@0.27.0 | MIT | https://github.com/facebook/react.git | texts da6d3703e
 semver@6.3.1 | ISC | https://github.com/npm/node-semver.git | texts 4ec3d4c66cd8
 seroval-plugins@1.6.8 | MIT | https://github.com/lxsmnsyc/seroval.git | texts 2bd8a2c61751
 seroval@1.6.8 | MIT | https://github.com/lxsmnsyc/seroval.git | texts 2bd8a2c61751
+sfumato@0.1.2 | ISC | git+https://github.com/felixroos/sfumato.git | no top-level licence text in installed package; see source
 sonner@2.0.7 | MIT | git+https://github.com/emilkowalski/sonner.git | texts da9201378c36
+soundfont2@0.4.0 | MIT | https://github.com/Mrtenz/soundfont2.git | texts 60f5589ae492
+soundfont2@0.5.0 | MIT | https://github.com/Mrtenz/soundfont2.git | texts 60f5589ae492
 source-map@0.5.7 | BSD-3-Clause | http://github.com/mozilla/source-map.git | texts 6cb0631f71c7
 source-map@0.7.6 | BSD-3-Clause | http://github.com/mozilla/source-map.git | texts 6cb0631f71c7
 srvx@0.11.22 | MIT | h3js/srvx | texts 46231df5a773
@@ -2414,15 +2418,16 @@ SOFTWARE.
 
 ========================================================================
 Licence/notice 0d96a4ff68ad
-@strudel/web@1.3.0 (LICENSE)
+@strudel/soundfonts@1.3.0 (LICENSE)
 @strudel/core@1.2.6 (LICENSE)
-@strudel/mini@1.2.6 (LICENSE)
-@strudel/tonal@1.2.6 (LICENSE)
-@strudel/transpiler@1.2.6 (LICENSE)
 @strudel/webaudio@1.3.0 (LICENSE)
 superdough@1.3.0 (LICENSE)
 @strudel/draw@1.2.6 (LICENSE)
 supradough@1.2.4 (LICENSE)
+@strudel/web@1.3.0 (LICENSE)
+@strudel/mini@1.2.6 (LICENSE)
+@strudel/tonal@1.2.6 (LICENSE)
+@strudel/transpiler@1.2.6 (LICENSE)
 ------------------------------------------------------------------------
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
@@ -3085,6 +3090,34 @@ specific requirements.
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
+
+
+========================================================================
+Licence/notice 60f5589ae492
+soundfont2@0.4.0 (LICENSE)
+soundfont2@0.5.0 (LICENSE)
+------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2019 Maarten Zuidhoorn
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 
 ========================================================================
@@ -3783,6 +3816,32 @@ SOFTWARE.
 
 
 ========================================================================
+Licence/notice 9b9624d7c047
+nanostores@0.11.4 (LICENSE)
+------------------------------------------------------------------------
+The MIT License (MIT)
+
+Copyright 2020 Andrey Sitnik <andrey@sitnik.ru>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+========================================================================
 Licence/notice 0ff1a12a0f68
 @tonaljs/tonal@4.10.0 (LICENSE)
 @tonaljs/abc-notation@4.9.3 (LICENSE)
@@ -4139,32 +4198,6 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-========================================================================
-Licence/notice 9b9624d7c047
-nanostores@0.11.4 (LICENSE)
-------------------------------------------------------------------------
-The MIT License (MIT)
-
-Copyright 2020 Andrey Sitnik <andrey@sitnik.ru>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 
 ========================================================================
 Licence/notice cb4a7917af22

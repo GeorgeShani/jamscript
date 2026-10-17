@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isolateHistory, redo, undo } from "@codemirror/commands";
+import { Transaction } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { createMusicEditor, dispatchLensEdit, musicModel } from "@/components/jam/code-editor";
 import { SAMPLE_CODE } from "@/components/jam/session";
+import { renameTrackPatch } from "@/engine/mix-source";
 
 const views: EditorView[] = [];
 afterEach(() => {
@@ -62,5 +64,32 @@ describe("Real music editor", () => {
     expect(view.dom.querySelector('[aria-label="bass lpf"]')).toBe(slider);
     expect(slider.getAttribute("aria-valuenow")).toBe("800");
     expect(document.activeElement).toBe(slider);
+  });
+  it("renders inline controls for direct tracks in a multiline stack", () => {
+    const source =
+      'setcps(0.5)\nstack(\n  s("bd ~ bd [~ bd]")\n    .gain(0.8),\n  s("~ hh ~ hh")\n    .room(0.2)\n)';
+    const view = editor(source);
+    expect(view.dom.querySelectorAll('[aria-label^="Track 1, step"]')).toHaveLength(4);
+    expect(view.dom.querySelector('[aria-label*="subdivided: rest, bd"]')).not.toBeNull();
+    expect(view.dom.querySelector('[aria-label="Track 1 gain"]')).not.toBeNull();
+    expect(view.dom.querySelectorAll('[aria-label^="Track 2, step"]')).toHaveLength(4);
+    expect(view.dom.querySelector('[aria-label="Track 2 room"]')).not.toBeNull();
+    expect(dispatchLensEdit(view, { target: "Track 2/param/room", value: 0.4 })).toBe(true);
+    expect(view.state.doc.toString()).toContain(".room(0.4)");
+    expect(undo(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe(source);
+  });
+  it("puts a stack track rename in the same undo history as the editor", () => {
+    const source = 'stack(\n  s("bd"),\n  s("hh")\n)';
+    const view = editor(source);
+    const patch = renameTrackPatch(source, "Track 1", "Drums");
+    expect(patch).not.toBeNull();
+    view.dispatch({
+      changes: patch!,
+      annotations: [Transaction.userEvent.of("input.type.track-rename"), isolateHistory.of("full")],
+    });
+    expect(view.state.field(musicModel).tracks[0]?.name).toBe("Drums");
+    expect(undo(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe(source);
   });
 });

@@ -512,6 +512,25 @@
 .jam-live-rhythm button:hover {
   filter: brightness(1.1);
 }
+.jam-live-rhythm .jam-rhythm-subdivision {
+  display: flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--input);
+  border-radius: 4px;
+  background: var(--muted);
+}
+.jam-rhythm-subdivision i {
+  flex: 1;
+  min-width: 0;
+  background: var(--muted);
+}
+.jam-rhythm-subdivision i + i {
+  border-left: 1px solid var(--background);
+}
+.jam-rhythm-subdivision i.is-on {
+  background: var(--primary);
+}
 .jam-live-param {
   display: flex;
   align-items: center;
@@ -836,8 +855,12 @@
   font-size: 12px;
   list-style: none;
 }
-.jam-export-control summary::-webkit-details-marker { display: none; }
-.jam-export-control summary:hover { border-color: var(--primary); }
+.jam-export-control summary::-webkit-details-marker {
+  display: none;
+}
+.jam-export-control summary:hover {
+  border-color: var(--primary);
+}
 .jam-export-menu {
   position: absolute;
   z-index: 20;
@@ -851,14 +874,23 @@
   box-shadow: 0 12px 32px #0007;
   font-size: 12px;
 }
-.jam-export-menu strong { font-size: 13px; }
+.jam-export-menu strong {
+  font-size: 13px;
+}
 .jam-export-menu p {
   margin: 7px 0 13px;
   color: var(--muted-foreground);
   line-height: 1.45;
 }
-.jam-export-menu form { display: grid; gap: 10px; }
-.jam-export-menu label { display: grid; gap: 4px; color: var(--muted-foreground); }
+.jam-export-menu form {
+  display: grid;
+  gap: 10px;
+}
+.jam-export-menu label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted-foreground);
+}
 .jam-export-menu select {
   width: 100%;
   height: 30px;
@@ -876,10 +908,24 @@
   border-radius: 4px;
   color: var(--primary);
 }
-.jam-export-menu button:disabled { opacity: .45; cursor: not-allowed; }
-.jam-export-progress { display: grid; gap: 7px; }
-.jam-export-progress progress { width: 100%; accent-color: var(--primary); }
-.jam-export-progress button { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.jam-export-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.jam-export-progress {
+  display: grid;
+  gap: 7px;
+}
+.jam-export-progress progress {
+  width: 100%;
+  accent-color: var(--primary);
+}
+.jam-export-progress button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
 .jam-workbench-main {
   display: flex;
   flex: 1;
@@ -910,12 +956,8 @@
   background: var(--muted);
   border-left-color: var(--primary);
 }
-.jam-inspector-glyph {
-  font-size: 23px;
-  line-height: 1;
-}
 .jam-file-sidebar {
-  flex: 0 0 232px;
+  flex: 0 0 var(--jam-files-width, 232px);
   min-width: 0;
   overflow: auto;
   border-right: 1px solid var(--border);
@@ -1112,11 +1154,36 @@
   font-size: 12px;
 }
 .jam-inspector {
-  flex: 0 0 256px;
+  flex: 0 0 var(--jam-inspector-width, 256px);
   min-width: 0;
   overflow: auto;
   border-left: 1px solid var(--border);
   background: var(--card);
+}
+.jam-pane-resizer {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 6px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  background: var(--card);
+}
+.jam-pane-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 2px;
+  background: var(--border);
+  transition: background-color 0.15s ease;
+}
+.jam-pane-resizer:hover::after,
+.jam-pane-resizer:focus-visible::after,
+.jam-pane-resizer:active::after {
+  background: var(--primary);
+}
+.jam-pane-resizer:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
 }
 .jam-inspector-section {
   padding: 18px 14px;
@@ -1163,6 +1230,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.jam-mix-track-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.jam-mix-track-name .jam-track-dot {
+  flex: none;
+}
+.jam-mix-track-actions {
+  display: flex;
+  flex: none;
+  gap: 3px;
+}
 .jam-mix-track-heading button {
   width: 25px;
   height: 23px;
@@ -1170,6 +1250,48 @@
   border-radius: 4px;
   font-weight: 700;
   color: var(--muted-foreground);
+}
+.jam-mix-rename {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 4px;
+}
+.jam-mix-rename input {
+  min-width: 0;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 3px 5px;
+  font-size: 11px;
+}
+.jam-mix-rename button {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 5px;
+  font-size: 10px;
+}
+.jam-mix-rename p {
+  grid-column: 1 / -1;
+  color: var(--destructive);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.jam-mix-palette {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0;
+}
+.jam-mix-palette button {
+  width: 18px;
+  height: 18px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+}
+.jam-mix-palette button:hover,
+.jam-mix-palette button[aria-pressed="true"] {
+  outline: 1px solid var(--foreground);
+  outline-offset: 2px;
 }
 .jam-mix-track-heading button:hover,
 .jam-mix-track-heading button.is-solo {
@@ -1256,14 +1378,50 @@
   min-width: 0;
 }
 .jam-output {
-  flex: 0 0 174px;
+  flex: 0 0 var(--jam-output-height, 174px);
   display: flex;
   flex-direction: column;
   min-height: 0;
   border-top: 1px solid var(--border);
   background: var(--card);
 }
-.jam-output .jam-panel-heading span {
+.jam-output-resizer {
+  position: relative;
+  flex: none;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+.jam-output-resize-cue {
+  position: absolute;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transform: translateX(-50%);
+  color: var(--muted-foreground);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.jam-output-resizer:hover,
+.jam-output-resizer:focus-visible,
+.jam-output-resizer:active {
+  background: var(--muted);
+}
+.jam-output-resizer:hover .jam-output-resize-cue,
+.jam-output-resizer:focus-visible .jam-output-resize-cue,
+.jam-output-resizer:active .jam-output-resize-cue {
+  color: var(--primary);
+  opacity: 1;
+}
+.jam-output-resizer:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.jam-output .jam-output-state {
   color: var(--success);
 }
 .jam-output-body {
@@ -1364,20 +1522,21 @@
     grid-row: 2;
     justify-self: end;
   }
-  .jam-file-sidebar {
-    flex-basis: 190px;
-  }
-  .jam-inspector {
-    flex-basis: 208px;
-  }
 }
 @media (max-width: 680px) {
   .jam-workbench-toolbar {
     padding-inline: 9px;
   }
-  .jam-transport { gap: 7px; }
-  .jam-export-control summary { width: 32px; padding: 0; }
-  .jam-export-control summary span { display: none; }
+  .jam-transport {
+    gap: 7px;
+  }
+  .jam-export-control summary {
+    width: 32px;
+    padding: 0;
+  }
+  .jam-export-control summary span {
+    display: none;
+  }
   .jam-current-file {
     display: none;
   }
@@ -1390,14 +1549,14 @@
     width: min(80vw, 280px);
     box-shadow: 10px 0 25px #0005;
   }
+  .jam-pane-resizer {
+    display: none;
+  }
   .jam-file-sidebar {
     left: 46px;
   }
   .jam-inspector {
     right: 0;
-  }
-  .jam-output {
-    flex-basis: 140px;
   }
   .jam-chooser-body {
     padding-top: 50px;
@@ -1407,5 +1566,140 @@
   }
   .jam-create-form input {
     flex-basis: 100%;
+  }
+}
+
+/* The app welcome screen is a compact launcher, not a second marketing page. */
+.jam-chooser > header {
+  height: 58px;
+  gap: 20px;
+}
+.jam-chooser-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.jam-chooser-header-actions > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-chooser-header-actions > a:hover {
+  color: var(--foreground);
+}
+.jam-chooser-body {
+  width: min(100%, 1160px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr);
+  gap: 74px;
+  align-items: start;
+  padding: clamp(44px, 9vh, 96px) 28px 70px;
+}
+.jam-chooser-primary {
+  padding-top: 14px;
+}
+.jam-chooser h1 {
+  margin-top: 17px;
+  font-size: clamp(40px, 4vw, 58px);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+}
+.jam-chooser h1 em {
+  color: var(--primary);
+  font-style: normal;
+}
+.jam-chooser-intro {
+  max-width: 440px;
+  margin-top: 20px;
+  font-size: 16px;
+}
+.jam-create-form {
+  margin-top: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.jam-create-form label {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+.jam-create-form input,
+.jam-create-form button {
+  height: 43px;
+}
+.jam-chooser-privacy {
+  margin-top: 13px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-chooser-section {
+  margin-top: 0;
+}
+.jam-chooser-section + .jam-chooser-section {
+  margin-top: 32px;
+}
+.jam-chooser-section h2 {
+  margin-bottom: 12px;
+}
+.jam-chooser-section li {
+  min-height: 66px;
+}
+.jam-chooser-section .jam-recent-open {
+  gap: 10px;
+}
+.jam-chooser-section .jam-recent-open svg,
+.jam-example > svg {
+  color: var(--primary);
+  flex: none;
+}
+.jam-chooser-section .jam-recent-open small {
+  font-size: 11px;
+}
+.jam-example {
+  min-height: 82px;
+}
+.jam-chooser > footer {
+  padding: 13px 28px;
+}
+
+@media (max-width: 1100px) {
+  .jam-chooser-body {
+    gap: 35px;
+  }
+}
+@media (max-width: 720px) {
+  .jam-chooser-body {
+    display: block;
+    padding: 48px 20px 64px;
+  }
+  .jam-chooser-secondary {
+    margin-top: 52px;
+  }
+  .jam-chooser-section .jam-recent-open {
+    flex-wrap: wrap;
+  }
+  .jam-chooser-section .jam-recent-open small {
+    margin-left: 27px;
+    width: 100%;
+  }
+  .jam-chooser-section li {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 440px) {
+  .jam-chooser-header-actions {
+    gap: 8px;
+  }
+  .jam-chooser-header-actions > a {
+    display: none;
+  }
+  .jam-chooser > header {
+    padding: 0 14px;
+  }
+  .jam-chooser > header img {
+    width: 128px;
   }
 }

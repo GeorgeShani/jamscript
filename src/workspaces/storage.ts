@@ -10,7 +10,7 @@ export interface DocumentRecord {
   workspaceId: string;
   name: string;
   source: string;
-  mix?: { master: number; levels: Record<string, number> };
+  mix?: { master: number; levels: Record<string, number>; colors?: Record<string, number> };
   createdAt: number;
   updatedAt: number;
 }

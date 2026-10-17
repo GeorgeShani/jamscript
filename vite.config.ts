@@ -8,7 +8,7 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
     cloudflare({ viteEnvironment: { name: "ssr" } }),
-    tanstackStart({ spa: { enabled: true } }),
+    tanstackStart(),
     react(),
     tailwindcss(),
   ],

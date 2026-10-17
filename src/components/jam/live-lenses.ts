@@ -16,7 +16,9 @@ export interface LensHost {
 export const trackShape = (track: MusicTrack) =>
   track.lenses
     .map((lens) =>
-      lens.kind === "param" ? lens.id : `${lens.id}:${lens.locked}:${lens.steps.length}`,
+      lens.kind === "param"
+        ? lens.id
+        : `${lens.id}:${lens.locked}:${lens.steps.map((step) => step.substeps?.length ?? 0).join(",")}`,
     )
     .join("|");
 function currentParam(host: LensHost, id: string) {
@@ -169,7 +171,7 @@ export function createTrackControls(track: MusicTrack, host: LensHost) {
   strip.dataset["shape"] = trackShape(track);
   strip.setAttribute("role", "group");
   strip.setAttribute("aria-label", `${track.name} lenses`);
-  strip.style.borderLeftColor = `var(--track-${track.color})`;
+  strip.style.borderLeftColor = `var(--jam-track-${track.orbit}, var(--track-${track.color}))`;
   strip.onkeydown = (event) => {
     if (!(event.ctrlKey || event.metaKey) || !["z", "y"].includes(event.key.toLowerCase())) return;
     event.preventDefault();
@@ -209,13 +211,22 @@ export function createTrackControls(track: MusicTrack, host: LensHost) {
       shell.append(icon, document.createTextNode("Edit this pattern in code"));
     } else {
       shell.classList.add("jam-live-rhythm");
-      lens.steps.forEach((_step, index) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "jam-rhythm-cell";
-        button.dataset["step"] = String(index);
-        button.onclick = () => host.edit({ target: lens.id, step: index });
-        shell.append(button);
+      lens.steps.forEach((step, index) => {
+        if (step.substeps) {
+          const group = document.createElement("span");
+          group.className = "jam-rhythm-cell jam-rhythm-subdivision";
+          group.dataset["step"] = String(index);
+          group.setAttribute("role", "img");
+          for (const _part of step.substeps) group.append(document.createElement("i"));
+          shell.append(group);
+        } else {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "jam-rhythm-cell";
+          button.dataset["step"] = String(index);
+          button.onclick = () => host.edit({ target: lens.id, step: index });
+          shell.append(button);
+        }
       });
     }
     strip.append(shell);
@@ -245,13 +256,27 @@ export function updateTrackControls(strip: HTMLElement, track: MusicTrack) {
       shell.querySelector<HTMLElement>(".jam-knob-indicator")!.style.transform =
         `translateX(-50%) rotate(${-135 + position * 270}deg)`;
     } else if (!lens.locked) {
-      shell.querySelectorAll<HTMLButtonElement>("button").forEach((button, index) => {
+      shell.querySelectorAll<HTMLElement>("[data-step]").forEach((cell) => {
+        const index = Number(cell.dataset["step"]);
         const step = lens.steps[index];
         if (!step) return;
+        if (step.substeps) {
+          cell.setAttribute(
+            "aria-label",
+            `${track.name}, step ${index + 1}, subdivided: ${step.substeps.map((part) => part ?? "rest").join(", ")}. Edit this group in code.`,
+          );
+          cell.title = "Subdivided step. Edit this group in code.";
+          cell
+            .querySelectorAll("i")
+            .forEach((part, subIndex) =>
+              part.classList.toggle("is-on", step.substeps?.[subIndex] !== null),
+            );
+          return;
+        }
         const sound = step.sound;
-        button.setAttribute("aria-pressed", String(sound !== null));
-        button.setAttribute("aria-label", `${track.name}, step ${index + 1}, ${sound ?? "rest"}`);
-        button.title = sound
+        cell.setAttribute("aria-pressed", String(sound !== null));
+        cell.setAttribute("aria-label", `${track.name}, step ${index + 1}, ${sound ?? "rest"}`);
+        cell.title = sound
           ? `Step ${index + 1}: ${sound}. Click to silence.`
           : `Step ${index + 1}: rest. Click to add ${lens.defaultSound}.`;
       });
