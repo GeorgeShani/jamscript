@@ -14,7 +14,7 @@ Approved 17 October 2026. This plan supersedes the preview-only shell sections o
 
 - Use Clerk for sign-in, session identity and account UI. The private Drizzle PostgreSQL schema and migrations now define workspaces, documents, memberships, invitations and revisions. Add authenticated server routes and user-scoped authorization before enabling sync or invitations; keep the schema outside Supabase's exposed API until a tested Clerk-to-RLS mapping exists.
 - Add Liveblocks private per-document rooms with server-minted identity tokens and document permissions; then show presence and collaboration.
-- Add server-side Gemini proposal endpoints and explicit review/apply flow; then show AI assistance.
+- Add server-side Gemini Ask/Edit chat (`/api/agent-chat`) and proposal (`/api/agent-proposal`) endpoints with explicit review/apply; show the Assistant pane only when `GET /api/agent-chat` reports `available:true` for a signed-in non-viewer shared editor. Live Gemini end-to-end remains a deployment verification.
 - Keep workspace identity, documents, membership, revisions and sync in JamScript's own domain model. Git may become an optional desktop integration for users who want repository workflows; it is never required to create, save or share a workspace.
 
 ## Configuration and acceptance

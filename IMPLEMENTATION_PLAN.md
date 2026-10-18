@@ -41,6 +41,7 @@ Build complete, working slices in order. An example fixture is never evidence th
 - [x] A: native file deletion warns when it will also discard unsaved edits and their recovery copy.
 - [x] B: mixer changes after Stop cannot restore the muted master output; the next successful Play restores the chosen level.
 - [x] C: invitations reject invalid roles at the API and membership layers rather than silently granting editor access.
+- [x] C: invitation email uses Resend's HTTP API (Worker-safe); SMTP/nodemailer is removed. Live Resend delivery still needs a configured `RESEND_API_KEY`.
 - [x] D: offline hover and signature help cover the sample and chord calls used by the coastline fixture.
 - [x] B: desktop audio now builds as a single classic script in an opaque-origin frame; browser and packaged macOS smoke tests confirmed ready, Play, nonzero output levels, and Stop. The full coastline fixture also evaluated in the isolated browser frame with nonzero output. Missing remote sample banks no longer abort unrelated playback.
 - [x] B: the opaque desktop frame requests approved audio assets through a bounded parent bridge. IndexedDB keeps downloaded sample bytes for offline retries; the bridge omits credentials and refuses local endpoints. Packaged macOS Coastline Play and Stop showed live, nonzero output without a reported runtime error.
@@ -128,8 +129,8 @@ Acceptance: edit supported parts of "coastline" with surgical source patches and
 
 ### F. Real Takes and optional Git
 
-- [ ] Replace Takes fixtures with persistent, successful-evaluation snapshots, deduplicated by content and grouped around completed gestures; retain the latest 200 per song.
-- [ ] Implement musical labels, computed comparisons, audition, return to live and restore through the document transaction path.
+- [x] Replace Takes fixtures with persistent, successful-evaluation snapshots, deduplicated by content; retain the latest 200 per song. Gesture grouping around completed edits remains pending.
+- [x] Implement musical labels, computed comparisons, audition, return to live and restore through the document transaction path.
 - [x] Implement native Git behind a Rust git2 adapter: initialize/open/clone, status, add/remove, commit, push and fast-forward pull. Offer editable musical commit messages and plain-language guidance.
 - [ ] Add GitHub device authorization and OS credential storage. Refuse force push, automatic merges, destructive history changes and overwriting unsaved source. Browser users initialize app-managed workspaces and collaborate; native files and Git are desktop-only.
 
