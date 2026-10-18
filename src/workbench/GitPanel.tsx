@@ -116,8 +116,7 @@ export function GitPanel({
       const names = next.files
         .filter(
           (file) =>
-            file.status === "deleted" ||
-            documents.some((document) => document.name === file.name),
+            file.status === "deleted" || documents.some((document) => document.name === file.name),
         )
         .map((file) => file.name);
       setSelected(names);
@@ -142,9 +141,7 @@ export function GitPanel({
       <header className="jam-git-status">
         <GitBranch size={14} aria-hidden="true" />
         <span className="jam-git-status-text">
-          {missing
-            ? "No repo yet"
-            : `${status?.branch ?? "unborn"} · ${status?.files.length ?? 0}`}
+          {missing ? "No repo yet" : `${status?.branch ?? "unborn"} · ${status?.files.length ?? 0}`}
         </span>
         <button
           type="button"
@@ -417,7 +414,11 @@ export function GitPanel({
                 onChange={(event) => setTokenDraft(event.target.value)}
                 required
               />
-              <button type="submit" className="jam-git-secondary" disabled={busy || !tokenDraft.trim()}>
+              <button
+                type="submit"
+                className="jam-git-secondary"
+                disabled={busy || !tokenDraft.trim()}
+              >
                 Store
               </button>
             </form>

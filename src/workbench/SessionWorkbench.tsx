@@ -1835,9 +1835,7 @@ export function SessionWorkbench({
                   setAssistantOpen(false);
                 }
               }}
-              aria-label={
-                sidebarOpen && sidebarView === "git" ? "Hide Git" : "Show Git"
-              }
+              aria-label={sidebarOpen && sidebarView === "git" ? "Hide Git" : "Show Git"}
             >
               <GitBranch size={20} aria-hidden="true" />
             </button>

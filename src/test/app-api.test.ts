@@ -15,8 +15,6 @@ describe("apiUrl", () => {
   it("prefixes the desktop Worker origin when configured", async () => {
     vi.stubEnv("JAMSCRIPT_DESKTOP_PUBLIC_API_ORIGIN", "https://jamscript.example.workers.dev/");
     const { apiUrl } = await import("@/lib/app-api");
-    expect(apiUrl("/api/agent-chat")).toBe(
-      "https://jamscript.example.workers.dev/api/agent-chat",
-    );
+    expect(apiUrl("/api/agent-chat")).toBe("https://jamscript.example.workers.dev/api/agent-chat");
   });
 });
