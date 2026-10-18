@@ -24,7 +24,7 @@ jobs:
   verify:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_tag || github.ref }}
       - uses: oven-sh/setup-bun@v2
@@ -56,7 +56,7 @@ jobs:
             bundles: msi,nsis
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_tag || github.ref }}
       - uses: oven-sh/setup-bun@v2
@@ -153,7 +153,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_tag || github.ref }}
       - name: Check tag against desktop version
