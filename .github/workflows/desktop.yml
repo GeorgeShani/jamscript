@@ -30,3 +30,15 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Build the desktop app
         run: bun run desktop:build
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: jamscript-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*-setup.exe
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.rpm
+            src-tauri/target/release/bundle/**/*.AppImage
