@@ -21,20 +21,20 @@ export function parseAgentChatRequest(body: unknown): AgentChatRequest {
   if (!Array.isArray(rawMessages) || !rawMessages.length)
     throw new Error("Send at least one message");
   if (rawMessages.length > CHAT_LIMITS.maxMessages) throw new Error("Chat history is too long");
-  const messages: { role: ChatRole; content: string }[] = rawMessages.map((item) => {
+  // Drop empty assistant stubs left by failed turns so the next send still validates.
+  const messages: { role: ChatRole; content: string }[] = [];
+  for (const item of rawMessages) {
     if (!item || typeof item !== "object") throw new Error("Invalid chat message");
     const message = item as Record<string, unknown>;
     const role = message["role"];
     const content = message["content"];
-    if (
-      (role !== "user" && role !== "assistant") ||
-      typeof content !== "string" ||
-      !content.trim() ||
-      content.length > CHAT_LIMITS.maxMessageChars
-    )
+    if (role !== "user" && role !== "assistant") throw new Error("Invalid chat message");
+    if (typeof content !== "string" || content.length > CHAT_LIMITS.maxMessageChars)
       throw new Error("Invalid chat message");
-    return { role, content };
-  });
+    if (!content.trim()) continue;
+    messages.push({ role, content });
+  }
+  if (!messages.length) throw new Error("Send at least one message");
   if (messages.at(-1)?.role !== "user") throw new Error("The latest message must be from you");
   let selection: string | undefined;
   const rawSelection = value["selection"];

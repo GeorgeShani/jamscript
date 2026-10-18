@@ -196,7 +196,7 @@ export function ChatPanel({
           problems: problemsText,
         })
       : text.trim();
-    if (!content || content.length < 2) return;
+    if (!content) return;
     lastUserRef.current = content;
     const assistantId = crypto.randomUUID();
     const assistantMessage: ChatMessage = {
@@ -205,7 +205,10 @@ export function ChatPanel({
       content: "",
       createdAt: Date.now(),
     };
-    let history = thread.messages;
+    // Failed turns leave empty assistant stubs; strip them so the next request validates.
+    let history = thread.messages.filter(
+      (message) => message.role === "user" || message.content.trim().length > 0,
+    );
     if (regenerate) {
       if (history.at(-1)?.role === "assistant") history = history.slice(0, -1);
     } else {
@@ -250,7 +253,9 @@ export function ChatPanel({
           documentId,
           mode,
           scope,
-          messages: history.map(({ role, content: body }) => ({ role, content: body })),
+          messages: history
+            .filter((message) => message.content.trim().length > 0)
+            .map(({ role, content: body }) => ({ role, content: body })),
           ...(includeSelection && selection ? { selection } : {}),
           ...(attachedDocumentIds.length ? { attachedDocumentIds } : {}),
         }),
@@ -352,21 +357,22 @@ export function ChatPanel({
     .reverse()
     .find((message) => message.role === "assistant");
 
+  const bannerError = error && lastAssistant?.error !== error ? error : null;
+
   return (
     <div className="jam-chat-panel">
       <div className="jam-chat-toolbar">
-        <Button
-          size="sm"
-          variant="outline"
+        <button
           type="button"
+          className="jam-chat-tool-link"
           onClick={() => {
             abortRef.current?.abort();
             setThread(newChatThread(workspaceId));
             setError(null);
           }}
         >
-          New chat
-        </Button>
+          New
+        </button>
         <label className="jam-chat-history">
           <span className="sr-only">Chat history</span>
           <select
@@ -387,10 +393,9 @@ export function ChatPanel({
             ))}
           </select>
         </label>
-        <Button
-          size="sm"
-          variant="ghost"
+        <button
           type="button"
+          className="jam-chat-tool-link is-danger"
           disabled={!threads.some((item) => item.id === thread.id)}
           onClick={() => {
             const id = thread.id;
@@ -401,7 +406,7 @@ export function ChatPanel({
           }}
         >
           Delete
-        </Button>
+        </button>
       </div>
 
       <div
@@ -417,7 +422,9 @@ export function ChatPanel({
       >
         {thread.messages.length === 0 ? (
           <div className="jam-chat-empty">
-            <p>Ask about Strudel source, or switch to Edit for a reviewed proposal.</p>
+            <p className="jam-chat-empty-lead">
+              Ask about this Strudel file, or switch to Edit for a reviewed change.
+            </p>
             <ul>
               {STARTER_PROMPTS.map((prompt) => (
                 <li key={prompt}>
@@ -435,12 +442,16 @@ export function ChatPanel({
               className={`jam-chat-message is-${message.role}`}
               data-role={message.role}
             >
-              <header>{message.role === "user" ? "You" : "Assistant"}</header>
+              <header>
+                <span className="jam-chat-role">
+                  {message.role === "user" ? "You" : "Assistant"}
+                </span>
+              </header>
               {message.content ? (
                 <ChatMarkdown text={message.content} onInsertCode={insertAtCursor} />
               ) : pending && message.id === lastAssistant?.id ? (
                 <p className="jam-chat-streaming" aria-hidden={!pending}>
-                  {status ?? "Streaming…"}
+                  {status ?? "Thinking…"}
                 </p>
               ) : null}
               {message.proposal && (
@@ -475,7 +486,7 @@ export function ChatPanel({
               )}
               {message.seenDocumentIds?.length ? (
                 <p className="jam-chat-seen" id={`${seenLabelId}-${message.id}`}>
-                  Saw:{" "}
+                  Saw{" "}
                   {message.seenDocumentIds
                     .map((id) => documents.find((file) => file.id === id)?.name ?? id)
                     .join(", ")}
@@ -483,7 +494,7 @@ export function ChatPanel({
               ) : null}
               {message.error && (
                 <p role="alert" className="jam-chat-error">
-                  {message.error}{" "}
+                  <span>{message.error}</span>{" "}
                   <button type="button" onClick={() => void send(lastUserRef.current, true)}>
                     Retry
                   </button>
@@ -496,165 +507,187 @@ export function ChatPanel({
 
       {!atBottom && (
         <button type="button" className="jam-chat-jump" onClick={scrollToLatest}>
-          Jump to latest
+          Latest
         </button>
       )}
 
-      <div className="jam-chat-context" aria-label="Assistant context">
-        {includeActive && (
-          <button type="button" className="jam-chat-chip" onClick={() => setIncludeActive(false)}>
-            File: {documentName} ×
-          </button>
-        )}
-        {includeSelection && selection && (
-          <button
-            type="button"
-            className="jam-chat-chip"
-            onClick={() => setIncludeSelection(false)}
-          >
-            Selection ×
-          </button>
-        )}
-        {attachedIds.map((id) => {
-          const file = documents.find((item) => item.id === id);
-          if (!file || id === documentId) return null;
-          return (
+      <div className="jam-chat-dock">
+        <div className="jam-chat-dock-meta">
+          <div className="jam-chat-context" aria-label="Assistant context">
+            {includeActive && (
+              <button
+                type="button"
+                className="jam-chat-chip"
+                onClick={() => setIncludeActive(false)}
+              >
+                <span className="jam-chat-chip-label">{documentName}</span>
+                <span className="jam-chat-chip-x" aria-hidden="true">
+                  ×
+                </span>
+              </button>
+            )}
+            {includeSelection && selection && (
+              <button
+                type="button"
+                className="jam-chat-chip is-selection"
+                onClick={() => setIncludeSelection(false)}
+              >
+                <span className="jam-chat-chip-label">Selection</span>
+                <span className="jam-chat-chip-x" aria-hidden="true">
+                  ×
+                </span>
+              </button>
+            )}
+            {attachedIds.map((id) => {
+              const file = documents.find((item) => item.id === id);
+              if (!file || id === documentId) return null;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className="jam-chat-chip"
+                  onClick={() =>
+                    setAttachedIds((current) => current.filter((item) => item !== id))
+                  }
+                >
+                  <span className="jam-chat-chip-label">{file.name}</span>
+                  <span className="jam-chat-chip-x" aria-hidden="true">
+                    ×
+                  </span>
+                </button>
+              );
+            })}
+            <div className="jam-chat-add-file">
+              <button
+                type="button"
+                className="jam-chat-add-file-btn"
+                aria-expanded={pickerOpen}
+                onClick={() => setPickerOpen((open) => !open)}
+              >
+                + File
+              </button>
+              {pickerOpen && (
+                <ul role="listbox" aria-label="Workspace files">
+                  {documents
+                    .filter((file) => file.id !== documentId && !attachedIds.includes(file.id))
+                    .map((file) => (
+                      <li key={file.id}>
+                        <button
+                          type="button"
+                          role="option"
+                          onClick={() => {
+                            setAttachedIds((current) => [...current, file.id]);
+                            setPickerOpen(false);
+                          }}
+                        >
+                          {file.name}
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="jam-chat-mode" role="group" aria-label="Assistant mode">
             <button
-              key={id}
               type="button"
-              className="jam-chat-chip"
-              onClick={() => setAttachedIds((current) => current.filter((item) => item !== id))}
+              className={mode === "ask" ? "is-active" : undefined}
+              aria-pressed={mode === "ask"}
+              onClick={() => setMode("ask")}
             >
-              {file.name} ×
+              Ask
             </button>
-          );
-        })}
-        <div className="jam-chat-add-file">
-          <Button
-            size="sm"
-            variant="ghost"
-            type="button"
-            aria-expanded={pickerOpen}
-            onClick={() => setPickerOpen((open) => !open)}
-          >
-            Add file
-          </Button>
-          {pickerOpen && (
-            <ul role="listbox" aria-label="Workspace files">
-              {documents
-                .filter((file) => file.id !== documentId && !attachedIds.includes(file.id))
-                .map((file) => (
-                  <li key={file.id}>
-                    <button
-                      type="button"
-                      role="option"
-                      onClick={() => {
-                        setAttachedIds((current) => [...current, file.id]);
-                        setPickerOpen(false);
-                      }}
-                    >
-                      {file.name}
-                    </button>
-                  </li>
-                ))}
-            </ul>
+            <button
+              type="button"
+              className={mode === "edit" ? "is-active" : undefined}
+              aria-pressed={mode === "edit"}
+              onClick={() => setMode("edit")}
+            >
+              Edit
+            </button>
+            {mode === "edit" && (
+              <select
+                aria-label="Edit scope"
+                value={scope}
+                onChange={(event) => setScope(event.target.value as ChatScope)}
+              >
+                <option value="active">Active file</option>
+                <option value="workspace">Workspace</option>
+              </select>
+            )}
+          </div>
+        </div>
+
+        <div className="jam-chat-composer">
+          <textarea
+            ref={composerRef}
+            aria-label="Message the assistant"
+            rows={2}
+            value={draft}
+            placeholder="Ask about this file… (/explain, /fix, /clear)"
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && pending) {
+                event.preventDefault();
+                abortRef.current?.abort();
+                return;
+              }
+              if (event.key === "ArrowUp" && !draft && lastUserRef.current) {
+                event.preventDefault();
+                setDraft(lastUserRef.current);
+                return;
+              }
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if (!pending) void send(draft);
+              }
+            }}
+          />
+          {pending ? (
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              className="jam-chat-send"
+              onClick={() => abortRef.current?.abort()}
+            >
+              Stop
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              type="button"
+              className="jam-chat-send"
+              disabled={!draft.trim() && !draft.startsWith("/")}
+              onClick={() => void send(draft)}
+            >
+              Send
+            </Button>
           )}
         </div>
-      </div>
-
-      <div className="jam-chat-mode" role="group" aria-label="Assistant mode">
-        <label>
-          <input
-            type="radio"
-            name="jam-chat-mode"
-            checked={mode === "ask"}
-            onChange={() => setMode("ask")}
-          />
-          Ask
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="jam-chat-mode"
-            checked={mode === "edit"}
-            onChange={() => setMode("edit")}
-          />
-          Edit
-        </label>
-        {mode === "edit" && (
-          <select
-            aria-label="Edit scope"
-            value={scope}
-            onChange={(event) => setScope(event.target.value as ChatScope)}
-          >
-            <option value="active">Active file</option>
-            <option value="workspace">Workspace</option>
-          </select>
+        <div className="jam-chat-footer-row">
+          {lastAssistant && !pending && lastAssistant.content && (
+            <button
+              type="button"
+              className="jam-chat-tool-link jam-chat-regenerate"
+              onClick={() => void send(lastUserRef.current, true)}
+            >
+              Regenerate
+            </button>
+          )}
+          {pending && status && (
+            <p className="jam-chat-streaming" role="status">
+              {status}
+            </p>
+          )}
+        </div>
+        {bannerError && (
+          <p role="alert" className="jam-chat-error jam-chat-error-banner">
+            <span>{bannerError}</span>
+          </p>
         )}
       </div>
-
-      <div className="jam-chat-composer">
-        <textarea
-          ref={composerRef}
-          aria-label="Message the assistant"
-          rows={2}
-          value={draft}
-          placeholder="Ask about this Strudel file… (/explain, /fix, /clear)"
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape" && pending) {
-              event.preventDefault();
-              abortRef.current?.abort();
-              return;
-            }
-            if (event.key === "ArrowUp" && !draft && lastUserRef.current) {
-              event.preventDefault();
-              setDraft(lastUserRef.current);
-              return;
-            }
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              if (!pending) void send(draft);
-            }
-          }}
-        />
-        {pending ? (
-          <Button
-            size="sm"
-            variant="outline"
-            type="button"
-            onClick={() => abortRef.current?.abort()}
-          >
-            Stop
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            type="button"
-            disabled={draft.trim().length < 2 && !draft.startsWith("/")}
-            onClick={() => void send(draft)}
-          >
-            Send
-          </Button>
-        )}
-      </div>
-      {lastAssistant && !pending && lastAssistant.content && (
-        <Button
-          size="sm"
-          variant="ghost"
-          type="button"
-          className="jam-chat-regenerate"
-          onClick={() => void send(lastUserRef.current, true)}
-        >
-          Regenerate
-        </Button>
-      )}
-      {error && (
-        <p role="alert" className="jam-chat-error">
-          {error}
-        </p>
-      )}
-      {pending && status && <p role="status">{status}</p>}
     </div>
   );
 }

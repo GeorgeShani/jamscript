@@ -39,6 +39,24 @@ describe("agent chat request bounds", () => {
         selection: 's("bd")',
       }),
     ).toMatchObject({ mode: "ask", selection: 's("bd")' });
+    expect(
+      parseAgentChatRequest({
+        threadId: "t1",
+        documentId: "doc",
+        mode: "ask",
+        scope: "active",
+        messages: [
+          { role: "user", content: "Explain" },
+          { role: "assistant", content: "" },
+          { role: "user", content: "Hi" },
+        ],
+      }),
+    ).toMatchObject({
+      messages: [
+        { role: "user", content: "Explain" },
+        { role: "user", content: "Hi" },
+      ],
+    });
     expect(() =>
       parseAgentChatRequest({
         threadId: "t1",

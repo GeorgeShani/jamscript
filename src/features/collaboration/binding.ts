@@ -5,7 +5,14 @@ import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 
-import { presenceUserField, readSharedPresence, type SharedPresence } from "./presence";
+import {
+  ensureAwarenessUser,
+  guardAwarenessIdentity,
+  localCursorPresence,
+  publishLocalCursor,
+  writeAwarenessState,
+} from "./cursor-presence";
+import { presenceColorFor, readSharedPresence, type SharedPresence } from "./presence";
 import { canWrite, createLocalUndo, roomId } from "./shared-document";
 import type { CollaborationRole } from "./shared-document";
 
@@ -19,6 +26,60 @@ function liveblocks() {
   return client;
 }
 
+function collectRoomPresence(
+  awareness: LiveblocksYjsProvider["awareness"],
+  others: readonly {
+    presence: Record<string, unknown>;
+    info?: Record<string, unknown> | undefined;
+  }[],
+  localClientId: number,
+): SharedPresence[] {
+  const fromAwareness = readSharedPresence(
+    awareness.getStates() as Map<number, Record<string, unknown>>,
+    localClientId,
+  );
+  const byId = new Map(fromAwareness.map((person) => [person.clientId, person]));
+
+  for (const other of others) {
+    const clientId = other.presence["__yjs_clientid"];
+    if (typeof clientId !== "number") continue;
+    const key = String(clientId);
+    const existing = byId.get(key);
+    const infoName =
+      typeof other.info?.["name"] === "string" ? (other.info["name"] as string) : undefined;
+    // Ignore role-shaped leftovers from older auth tokens ("owner" / "editor" / "viewer").
+    const safeInfo =
+      infoName && !/^(owner|editor|viewer)$/i.test(infoName) ? infoName : undefined;
+    const presenceName =
+      typeof other.presence["name"] === "string" ? (other.presence["name"] as string) : undefined;
+    const presenceUserId =
+      typeof other.presence["userId"] === "string" ? (other.presence["userId"] as string) : undefined;
+    const name = existing?.name && existing.name !== "Collaborator"
+      ? existing.name
+      : safeInfo || presenceName || existing?.name || "Collaborator";
+    if (existing) {
+      byId.set(key, {
+        ...existing,
+        name,
+        id: presenceUserId || existing.id,
+      });
+      continue;
+    }
+    if (!safeInfo && !presenceName) continue;
+    const seed = presenceUserId || name;
+    const palette = presenceColorFor(seed);
+    byId.set(key, {
+      id: presenceUserId || key,
+      clientId: key,
+      name,
+      color: palette.color,
+      track: palette.track,
+    });
+  }
+
+  return [...byId.values()];
+}
+
 /** Align the editor before yCollab observes Y.Text deltas, avoiding duplicate source. */
 export function bindSharedEditor(
   view: EditorView,
@@ -27,6 +88,7 @@ export function bindSharedEditor(
   role: CollaborationRole,
   undo: Y.UndoManager,
   binding: Compartment,
+  identity: { userId: string; name: string } = { userId: "local", name: "Musician" },
 ) {
   const source = doc.getText("source").toString();
   if (view.state.doc.toString() !== source)
@@ -35,14 +97,18 @@ export function bindSharedEditor(
       annotations: Transaction.addToHistory.of(false),
     });
   const writable = canWrite(role);
+  const ytext = doc.getText("source");
+  if (awareness) ensureAwarenessUser(awareness, identity);
   view.dispatch({
     effects: binding.reconfigure([
-      yCollab(doc.getText("source"), awareness, { undoManager: writable ? undo : false }),
+      yCollab(ytext, awareness, { undoManager: writable ? undo : false }),
+      awareness ? localCursorPresence(awareness, ytext, identity) : [],
       writable
         ? Prec.highest(keymap.of(yUndoManagerKeymap))
         : [Prec.highest(EditorView.editable.of(false)), EditorState.readOnly.of(true)],
     ]),
   });
+  if (awareness) publishLocalCursor(awareness, ytext, view, identity);
 }
 
 /** Binds one editor to the shared document. Remote source never starts playback. */
@@ -57,21 +123,14 @@ export function attachSharedDocument(
     onPresence: (people: SharedPresence[]) => void;
   },
 ) {
+  const identity = { userId: input.userId, name: input.name };
   const doc = new Y.Doc();
   const { room, leave } = liveblocks().enterRoom(roomId(input.documentId), {
-    initialPresence: { name: input.name },
+    // Top-level presence is a fallback when `__yjs.user` blips during reconnect.
+    initialPresence: { name: input.name, userId: input.userId },
   });
   const provider = new LiveblocksYjsProvider(room, doc, { offlineSupport_experimental: true });
-  // y-codemirror only publishes cursors when local awareness is non-null, and
-  // paints remote carets from awareness.user { name, color, colorLight }.
-  const user = presenceUserField(input);
-  provider.awareness.setLocalStateField("user", {
-    id: user.id,
-    name: user.name,
-    color: user.color,
-    colorLight: user.colorLight,
-    track: user.track,
-  });
+  const unguard = guardAwarenessIdentity(provider.awareness, identity);
   const undo = createLocalUndo(doc);
   const previous = bindings.get(view);
   const binding = previous ?? new Compartment();
@@ -87,7 +146,7 @@ export function attachSharedDocument(
   let bound = false;
   const bindWhenReady = () => {
     if (bound || !provider.synced || doc.getMap("meta").get("ready") !== true) return;
-    bindSharedEditor(view, doc, provider.awareness, input.role, undo, binding);
+    bindSharedEditor(view, doc, provider.awareness, input.role, undo, binding, identity);
     bound = true;
     input.onStatus("connected");
   };
@@ -96,28 +155,51 @@ export function attachSharedDocument(
 
   const publishPresence = () => {
     input.onPresence(
-      readSharedPresence(
-        provider.awareness.getStates() as Map<number, Record<string, unknown>>,
+      collectRoomPresence(
+        provider.awareness,
+        room.getOthers() as readonly {
+          presence: Record<string, unknown>;
+          info?: Record<string, unknown> | undefined;
+        }[],
         doc.clientID,
       ),
     );
   };
   provider.awareness.on("change", publishPresence);
+  const unsubscribeOthers = room.subscribe("others", publishPresence);
   publishPresence();
+
+  const reassertIdentity = () => {
+    writeAwarenessState(provider.awareness, identity);
+    if (bound) publishLocalCursor(provider.awareness, doc.getText("source"), view, identity);
+  };
+
+  const onRoomStatus = (status: string) => {
+    if (status === "connected") reassertIdentity();
+    input.onStatus(status === "connected" && bound ? "connected" : status);
+  };
+  const unsubscribeStatus = room.subscribe("status", onRoomStatus);
+
   provider.on("sync", (synced: boolean) => {
-    if (synced) bindWhenReady();
+    if (synced) {
+      reassertIdentity();
+      bindWhenReady();
+    }
     input.onStatus(synced && bound ? "connected" : provider.getStatus());
   });
   bindWhenReady();
   input.onStatus(provider.getStatus());
 
   return () => {
+    unsubscribeStatus();
+    unsubscribeOthers();
     meta.unobserve(bindWhenReady);
     provider.awareness.off("change", publishPresence);
     input.onPresence([]);
     if (view.dom.isConnected) view.dispatch({ effects: binding.reconfigure([]) });
     undo.destroy();
     provider.destroy();
+    unguard();
     leave();
     doc.destroy();
   };

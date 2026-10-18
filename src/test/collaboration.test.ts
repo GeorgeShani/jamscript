@@ -14,6 +14,7 @@ import {
   listWorkspaceDocuments,
   listWorkspaceMembers,
   memberRole,
+  openSharedWorkspace,
   removeMember,
   roleForDocument,
   validInvitationEmail,
@@ -123,6 +124,13 @@ describe("shared project membership", () => {
         .sort(),
     ).toEqual(["bass.js", "coastline.strudel"]);
     expect(await listWorkspaceDocuments(db, project.workspaceId, "user_listener")).toBeNull();
+    const opened = await openSharedWorkspace(db, project.documentId, "user_editor");
+    expect(opened?.access.role).toBe("editor");
+    expect(opened?.documents.map((item) => item.name).sort()).toEqual([
+      "bass.js",
+      "coastline.strudel",
+    ]);
+    expect(await openSharedWorkspace(db, project.documentId, "user_listener")).toBeNull();
     await expect(
       renameSharedDocument(db, {
         documentId: project.documentId,
@@ -236,9 +244,12 @@ describe("liveblocks document rooms", () => {
     expect(liveblocks.getOrCreateRoom).toHaveBeenCalledWith(roomId("doc-1"), {
       defaultAccesses: [],
     });
+    vi.mocked(liveblocks.getOrCreateRoom).mockClear();
     expect(
       await readLiveblocksDocument(liveblocks, { id: "doc-1", name: "a.js", source: "" }),
     ).toEqual({ id: "doc-1", name: "a.js", source: 's("bd")' });
+    // Happy path reads the Yjs update without a second getOrCreateRoom.
+    expect(liveblocks.getOrCreateRoom).not.toHaveBeenCalled();
 
     rooms.set(roomId("doc-2"), new Uint8Array());
     expect(

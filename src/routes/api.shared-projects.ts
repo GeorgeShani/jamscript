@@ -7,20 +7,16 @@ import {
   createInvitation,
   createSharedProject,
   listActiveInvitations,
-  listWorkspaceDocuments,
   listWorkspaceMembers,
   listVisibleDocuments,
+  openSharedWorkspace,
   removeMember,
   renameSharedDocument,
   revokeInvitation,
-  roleForDocument,
   validInvitationEmail,
   workspaceNameForOwner,
 } from "@/features/collaboration/membership";
-import {
-  readLiveblocksDocuments,
-  seedLiveblocksDocument,
-} from "@/features/collaboration/liveblocks-document";
+import { seedLiveblocksDocument } from "@/features/collaboration/liveblocks-document";
 
 const headers = { "Cache-Control": "private, no-store" };
 
@@ -103,25 +99,24 @@ export const Route = createFileRoute("/api/shared-projects")({
         }
         const documentId = url.searchParams.get("documentId");
         if (documentId) {
-          const access = await withCollaborationDb((db) =>
-            roleForDocument(db, documentId, current.userId),
+          // Open from Postgres only. Pulling every Liveblocks Yjs room here was 2 API
+          // round-trips per file before the page could render; the workbench binds the
+          // live rooms after mount and replaces these snapshots once synced.
+          const opened = await withCollaborationDb((db) =>
+            openSharedWorkspace(db, documentId, current.userId),
           );
-          if (!access)
+          if (!opened)
             return Response.json({ error: "No access to this document" }, { status: 403, headers });
-          const files = await withCollaborationDb((db) =>
-            listWorkspaceDocuments(db, access.workspaceId, current.userId),
-          );
-          const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"]! });
-          const liveFiles = await readLiveblocksDocuments(liveblocks, files ?? []);
+          const { access, documents: files } = opened;
           return Response.json(
             {
               documentId,
               workspaceId: access.workspaceId,
               workspaceName: access.workspaceName,
               name: access.name,
-              source: liveFiles.find((file) => file.id === documentId)?.source ?? access.source,
+              source: files.find((file) => file.id === documentId)?.source ?? access.source,
               role: access.role,
-              documents: liveFiles,
+              documents: files,
             },
             { headers },
           );

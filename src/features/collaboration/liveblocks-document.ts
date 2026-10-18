@@ -24,20 +24,27 @@ export async function seedLiveblocksDocument(
  * Prefer the live Yjs room. If the room was never created or never seeded, heal it
  * from the database copy so owners can reopen projects after a partial Share.
  * Hard Liveblocks failures fall back to the database source so open still works.
+ * Skips getOrCreateRoom on the happy path (one Liveblocks round-trip instead of two).
  */
 export async function readLiveblocksDocument(
   liveblocks: Liveblocks,
   file: SharedFileSource,
 ): Promise<SharedFileSource> {
+  const id = roomId(file.id);
   try {
-    await liveblocks.getOrCreateRoom(roomId(file.id), PRIVATE_ROOM);
-    const update = await liveblocks.getYjsDocumentAsBinaryUpdate(roomId(file.id));
+    let update: ArrayBuffer;
+    try {
+      update = await liveblocks.getYjsDocumentAsBinaryUpdate(id);
+    } catch {
+      await liveblocks.getOrCreateRoom(id, PRIVATE_ROOM);
+      update = await liveblocks.getYjsDocumentAsBinaryUpdate(id);
+    }
     const doc = new Y.Doc();
     Y.applyUpdate(doc, new Uint8Array(update));
     const live = doc.getText("source").toString();
     if (!live && file.source) {
       seedSharedText(doc, file.source);
-      await liveblocks.sendYjsBinaryUpdate(roomId(file.id), Y.encodeStateAsUpdate(doc));
+      await liveblocks.sendYjsBinaryUpdate(id, Y.encodeStateAsUpdate(doc));
       return { id: file.id, name: file.name, source: file.source };
     }
     return { id: file.id, name: file.name, source: live || file.source };

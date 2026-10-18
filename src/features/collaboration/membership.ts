@@ -142,6 +142,24 @@ export async function listWorkspaceDocuments(
     .where(eq(documents.workspaceId, workspaceId));
 }
 
+/**
+ * One DB round-trip for the shared workbench open path.
+ * Returns database snapshots only — live Yjs is loaded in the browser room after mount.
+ */
+export async function openSharedWorkspace(
+  db: CollaborationDb,
+  documentId: string,
+  userId: string,
+) {
+  const access = await roleForDocument(db, documentId, userId);
+  if (!access) return null;
+  const files = await db
+    .select({ id: documents.id, name: documents.name, source: documents.source })
+    .from(documents)
+    .where(eq(documents.workspaceId, access.workspaceId));
+  return { access, documents: files };
+}
+
 export async function renameSharedDocument(
   db: CollaborationDb,
   input: { documentId: string; actorId: string; name: string },

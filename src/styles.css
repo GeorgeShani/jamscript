@@ -466,6 +466,68 @@
 .jam-code-editor .cm-editor {
   width: 100%;
 }
+/* Remote carets: y-codemirror hides the name until hover; keep them readable on stage. */
+.jam-code-editor .cm-ySelectionCaret {
+  position: relative;
+  border-left: 2px solid;
+  border-right: 2px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  box-sizing: border-box;
+  display: inline;
+}
+.jam-code-editor .cm-ySelectionCaretDot {
+  border-radius: 50%;
+  position: absolute;
+  width: 0.55em;
+  height: 0.55em;
+  top: -0.3em;
+  left: -0.3em;
+  background-color: inherit;
+  box-sizing: border-box;
+}
+.jam-code-editor .cm-ySelectionInfo {
+  position: absolute;
+  top: -1.45em;
+  left: -2px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.2;
+  user-select: none;
+  color: var(--background);
+  padding: 2px 6px;
+  border-radius: 3px 3px 3px 0;
+  z-index: 120;
+  white-space: nowrap;
+  opacity: 1;
+  pointer-events: none;
+  box-shadow: 0 1px 3px #0008;
+}
+.jam-code-editor .cm-ySelection {
+  border-radius: 2px;
+}
+.jam-code-editor .cm-ySelectionCaret.is-moving,
+.jam-code-editor .cm-ySelectionCaret {
+  transition: border-color 80ms linear;
+}
+.jam-code-editor .cm-line.jam-peer-line {
+  background: color-mix(in oklch, var(--jam-peer-color, var(--track-1)) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--jam-peer-color, var(--track-1));
+}
+.jam-code-editor .cm-line.jam-peer-line.is-moving {
+  background: color-mix(in oklch, var(--jam-peer-color, var(--track-1)) 22%, transparent);
+}
+.jam-code-editor .cm-line.jam-peer-line.is-selecting {
+  background: color-mix(in oklch, var(--jam-peer-color, var(--track-1)) 28%, transparent);
+  box-shadow: inset 3px 0 0 var(--jam-peer-color, var(--track-1));
+}
+@media (prefers-reduced-motion: reduce) {
+  .jam-code-editor .cm-ySelectionCaret {
+    transition: none;
+  }
+}
 .cm-linked-source {
   background: color-mix(in oklch, var(--link) 25%, transparent);
 }
@@ -1696,30 +1758,66 @@
 }
 .jam-assistant-pane {
   display: flex;
-  flex: 0 0 min(320px, 32vw);
+  flex: 0 0 min(340px, 34vw);
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid var(--border);
   background: var(--card);
 }
+.jam-assistant-pane > .jam-panel-heading {
+  border-bottom-color: var(--border);
+}
+.jam-assistant-pane > .jam-panel-heading > span {
+  color: var(--ai);
+  font-weight: 600;
+}
 .jam-chat-panel {
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: 8px;
-  padding: 0 10px 10px;
+  gap: 0;
+  padding: 0;
 }
 .jam-chat-toolbar,
 .jam-chat-composer,
 .jam-chat-mode,
 .jam-chat-context,
-.jam-chat-proposal-actions {
+.jam-chat-dock-meta,
+.jam-chat-proposal-actions,
+.jam-chat-footer-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+.jam-chat-toolbar {
+  gap: 10px;
+  padding: 8px 14px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-chat-tool-link {
+  flex: none;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.jam-chat-tool-link:hover:not(:disabled) {
+  color: var(--foreground);
+}
+.jam-chat-tool-link:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.jam-chat-tool-link.is-danger:hover:not(:disabled) {
+  color: var(--destructive);
 }
 .jam-chat-history {
   min-width: 0;
@@ -1728,62 +1826,152 @@
 .jam-chat-history select {
   width: 100%;
   max-width: 100%;
+  height: 26px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 2px;
+  text-overflow: ellipsis;
+}
+.jam-chat-history select:focus {
+  outline: none;
+  color: var(--ai);
 }
 .jam-chat-log {
+  position: relative;
   min-height: 0;
   flex: 1;
   overflow: auto;
   scroll-behavior: smooth;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
-  background: var(--background);
+  padding: 14px 14px 8px;
+  background: var(--card);
 }
 @media (prefers-reduced-motion: reduce) {
   .jam-chat-log {
     scroll-behavior: auto;
   }
 }
+.jam-chat-empty {
+  display: grid;
+  gap: 14px;
+  padding: 8px 0 4px;
+}
+.jam-chat-empty-lead {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.55;
+}
 .jam-chat-empty ul {
   display: grid;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.jam-chat-empty button,
+.jam-chat-empty button {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  text-align: left;
+}
+.jam-chat-empty button:hover {
+  background: var(--muted);
+}
 .jam-chat-chip,
 .jam-chat-jump,
 .jam-chat-code-actions button,
-.jam-chat-proposal-file-name {
+.jam-chat-proposal-file-name,
+.jam-chat-add-file-btn {
   border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--foreground);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--muted-foreground);
   font-size: 11px;
+  font-weight: 500;
   padding: 4px 8px;
   text-align: left;
 }
+.jam-chat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.jam-chat-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+}
+.jam-chat-chip-x {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1;
+}
+.jam-chat-chip:hover,
+.jam-chat-add-file-btn:hover,
+.jam-chat-jump:hover {
+  border-color: var(--control-edge, var(--border));
+  color: var(--foreground);
+  background: var(--muted);
+}
+.jam-chat-chip.is-selection {
+  border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
+}
+.jam-chat-chip.is-selection .jam-chat-chip-label {
+  font-family: inherit;
+}
 .jam-chat-message {
   display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-  font-size: 12px;
+  gap: 4px;
+  margin: 0 0 18px;
+  font-size: 13px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .jam-chat-message > header {
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: normal;
+  letter-spacing: 0.01em;
   text-transform: none;
 }
+.jam-chat-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.jam-chat-message.is-assistant > header .jam-chat-role {
+  color: color-mix(in oklch, var(--ai) 70%, var(--muted-foreground));
+}
 .jam-chat-message.is-user {
-  border-left: 2px solid var(--primary);
-  padding-left: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--background) 88%, var(--primary));
+}
+.jam-chat-message.is-assistant {
+  padding: 0 2px;
 }
 .jam-chat-markdown {
   display: grid;
-  gap: 6px;
-  font-size: 12px;
-  line-height: 1.45;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--foreground);
 }
 .jam-chat-inline-code,
 .jam-chat-code pre {
@@ -1791,9 +1979,9 @@
   font-size: 12px;
 }
 .jam-chat-inline-code {
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--muted);
-  padding: 0 3px;
+  padding: 0 4px;
 }
 .jam-chat-code {
   border: 1px solid var(--border);
@@ -1810,44 +1998,142 @@
   margin: 0;
   overflow: auto;
   padding: 8px;
-  background: var(--muted);
+  background: var(--background);
 }
-.jam-chat-composer textarea {
-  min-height: 52px;
-  max-height: 160px;
+.jam-chat-dock {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in oklch, var(--card) 92%, var(--background));
+}
+.jam-chat-dock-meta {
+  justify-content: space-between;
+  gap: 8px 10px;
+}
+.jam-chat-context {
+  min-width: 0;
   flex: 1;
-  resize: vertical;
+  gap: 5px;
+}
+.jam-chat-mode {
+  flex: none;
+  gap: 0;
+  padding: 2px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--background);
+  width: fit-content;
+  max-width: 100%;
+}
+.jam-chat-mode > button {
+  min-width: 44px;
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.jam-chat-mode > button:hover {
+  color: var(--foreground);
+}
+.jam-chat-mode > button.is-active {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.jam-chat-mode > select {
+  height: 24px;
+  margin-left: 2px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0 4px 4px 0;
+  background: transparent;
   color: var(--foreground);
   font: inherit;
-  font-size: 12px;
-  padding: 8px;
+  font-size: 11px;
+  padding: 0 8px;
+}
+.jam-chat-composer {
+  align-items: flex-end;
+  gap: 8px;
+}
+.jam-chat-composer textarea {
+  min-height: 52px;
+  max-height: 140px;
+  flex: 1;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 9px 11px;
+}
+.jam-chat-composer textarea::placeholder {
+  color: color-mix(in oklch, var(--muted-foreground) 85%, transparent);
+}
+.jam-chat-composer textarea:focus {
+  outline: none;
+  border-color: color-mix(in oklch, var(--ai) 45%, var(--border));
+}
+.jam-chat-composer .jam-chat-send,
+.jam-chat-composer .jam-play {
+  flex: none;
+  min-width: 56px;
+  height: 32px;
 }
 .jam-chat-add-file {
   position: relative;
 }
+.jam-chat-add-file-btn {
+  color: var(--muted-foreground);
+  border-style: dashed;
+}
 .jam-chat-add-file ul {
   position: absolute;
   z-index: 3;
-  right: 0;
-  bottom: 100%;
-  min-width: 160px;
+  left: 0;
+  bottom: calc(100% + 4px);
+  min-width: 168px;
   max-height: 180px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--card);
+  border-radius: 8px;
+  background: var(--popover);
+  box-shadow: 0 10px 28px var(--floating-shadow, #0006);
   padding: 4px;
+  list-style: none;
+  margin: 0;
+}
+.jam-chat-add-file ul button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  padding: 6px 8px;
+  text-align: left;
+}
+.jam-chat-add-file ul button:hover {
+  background: var(--muted);
 }
 .jam-chat-proposal {
   display: grid;
   gap: 8px;
+  margin-top: 4px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
-  background: var(--card);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--background);
 }
 .jam-chat-proposal[data-status="stale"],
 .jam-chat-proposal[data-status="rejected"] {
@@ -1860,14 +2146,48 @@
 .jam-chat-proposal .jam-take-compare {
   grid-template-columns: 1fr;
 }
-.jam-chat-error,
+.jam-chat-error {
+  color: var(--destructive);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 2px 0 0;
+}
+.jam-chat-error button {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.jam-chat-error button:hover {
+  color: var(--ai);
+}
+.jam-chat-error-banner {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 .jam-chat-seen,
 .jam-chat-streaming {
   color: var(--muted-foreground);
   font-size: 11px;
+  margin: 0;
 }
 .jam-chat-jump {
   align-self: center;
+  margin: 0 0 6px;
+}
+.jam-chat-footer-row {
+  min-height: 18px;
+  gap: 10px;
+}
+.jam-chat-regenerate {
+  height: auto;
 }
 .jam-pane-resizer {
   position: relative;

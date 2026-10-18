@@ -76,7 +76,12 @@ function SharedDocumentPage() {
         </p>
       </main>
     );
-  if (!opened) return <div className="jam-loading">Opening shared project…</div>;
+  if (!opened)
+    return (
+      <div className="jam-loading" role="status">
+        Opening shared project…
+      </div>
+    );
   const storage = sharedDocumentStorage(opened);
   return (
     <SessionWorkbench

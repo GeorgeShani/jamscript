@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  encodeCursor,
+  writeAwarenessState,
+} from "@/features/collaboration/cursor-presence";
+import {
   aggregatePresence,
   presenceColorFor,
   presenceInitials,
   presenceUserField,
   readSharedPresence,
 } from "@/features/collaboration/presence";
+import * as Y from "yjs";
 
 describe("collaboration presence", () => {
   it("assigns a stable track colour from a user id", () => {
@@ -49,6 +54,41 @@ describe("collaboration presence", () => {
         track: presenceColorFor("Legacy").track,
       },
     ]);
+  });
+
+  it("always rewrites identity when publishing awareness so cursor updates cannot drop the name", () => {
+    const states: Record<string, unknown>[] = [];
+    const awareness = {
+      getLocalState: () => states.at(-1) ?? null,
+      setLocalState: (state: Record<string, unknown> | null) => {
+        if (state) states.push(state);
+      },
+    };
+    writeAwarenessState(awareness as never, { userId: "user_a", name: "Ada" }, {
+      cursor: { anchor: { tname: "source" }, head: { tname: "source" } },
+    });
+    // Simulate y-codemirror's cursor-only field write path by publishing again
+    // with only a cursor patch against an empty local snapshot.
+    awareness.getLocalState = () => null;
+    writeAwarenessState(awareness as never, { userId: "user_a", name: "Ada" }, {
+      cursor: { anchor: { tname: "source" }, head: { tname: "source" } },
+    });
+    expect(states.at(-1)).toMatchObject({
+      user: { id: "user_a", name: "Ada" },
+      cursor: { anchor: { tname: "source" } },
+    });
+  });
+
+  it("encodes caret and selection ends as Liveblocks-safe JSON relative positions", () => {
+    const doc = new Y.Doc();
+    const text = doc.getText("source");
+    text.insert(0, "note(c3)");
+    const caret = encodeCursor(text, 2, 2);
+    const selection = encodeCursor(text, 2, 5);
+    expect(caret.anchor).toMatchObject({ tname: "source" });
+    expect(selection.head).toMatchObject({ tname: "source" });
+    expect(JSON.parse(JSON.stringify(selection))).toEqual(selection);
+    expect(selection.anchor).not.toEqual(selection.head);
   });
 
   it("aggregates peers across open documents without duplicating a user", () => {

@@ -1,11 +1,11 @@
 /** Track-palette colours for collaborator cursors and avatars (DESIGN.md). */
 export const PRESENCE_COLORS = [
-  { track: 1, color: "#58B3F6", colorLight: "#58B3F633" },
-  { track: 2, color: "#ED7EC7", colorLight: "#ED7EC733" },
-  { track: 3, color: "#55B577", colorLight: "#55B57733" },
-  { track: 4, color: "#C7BC1C", colorLight: "#C7BC1C33" },
-  { track: 5, color: "#E19678", colorLight: "#E1967833" },
-  { track: 6, color: "#EABDFE", colorLight: "#EABDFE33" },
+  { track: 1, color: "#58B3F6", colorLight: "#58B3F666" },
+  { track: 2, color: "#ED7EC7", colorLight: "#ED7EC766" },
+  { track: 3, color: "#55B577", colorLight: "#55B57766" },
+  { track: 4, color: "#C7BC1C", colorLight: "#C7BC1C66" },
+  { track: 5, color: "#E19678", colorLight: "#E1967866" },
+  { track: 6, color: "#EABDFE", colorLight: "#EABDFE66" },
 ] as const;
 
 export type PresencePalette = (typeof PRESENCE_COLORS)[number];
