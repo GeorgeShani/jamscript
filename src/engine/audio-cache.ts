@@ -69,10 +69,10 @@ export function installAudioCache() {
       throw cause;
     }
   };
-  window.fetch = Object.assign(cachedFetch, {
-    preconnect: (...args: Parameters<typeof originalFetch.preconnect>) =>
-      originalFetch.preconnect?.(...args),
-  });
+  const preconnect = Reflect.get(originalFetch, "preconnect");
+  if (typeof preconnect === "function")
+    Reflect.set(cachedFetch, "preconnect", preconnect.bind(originalFetch));
+  window.fetch = cachedFetch as typeof window.fetch;
 }
 
 export function onMissingSample(callback: ((detail: string) => void) | null) {
