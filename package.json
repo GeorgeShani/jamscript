@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "build:desktop-web": "vite build --config vite.desktop.config.ts --mode desktop",
-    "dev:desktop-web": "vite dev --config vite.desktop.config.ts --mode desktop --host 127.0.0.1",
+    "build:desktop-sandbox": "vite build --config vite.sandbox.config.ts --mode desktop",
+    "build:desktop-web": "bun run build:desktop-sandbox && vite build --config vite.desktop.config.ts --mode desktop && node scripts/copy-desktop-sandbox.mjs",
+    "dev:desktop-web": "bun run build:desktop-sandbox && node scripts/copy-desktop-sandbox.mjs --dev && vite dev --config vite.desktop.config.ts --mode desktop --host 127.0.0.1",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "build:dev": "vite build --mode development",

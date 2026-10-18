@@ -309,7 +309,9 @@ export function SessionWorkbench({
     if (soloTrack && !mixTracks.some((item) => item.id === soloTrack)) setSoloTrack(null);
     setMutedTracks((current) => {
       const next = new Set([...current].filter((id) => mixTracks.some((item) => item.id === id)));
-      return next.size === current.size && [...next].every((id) => current.has(id)) ? current : next;
+      return next.size === current.size && [...next].every((id) => current.has(id))
+        ? current
+        : next;
     });
   }, [mixTracks, soloTrack]);
 

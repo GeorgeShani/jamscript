@@ -21,26 +21,39 @@ function fileName(url: string) {
 
 /** Caches downloaded samples and reports a miss that Play can retry. */
 export function installAudioCache() {
-  if (installed || typeof window === "undefined" || !("caches" in window)) return;
+  if (installed || typeof window === "undefined") return;
   installed = true;
+  // An opaque-origin playback frame exposes the property but throws when read.
+  let storage: CacheStorage | null = null;
+  try {
+    storage = window.caches;
+  } catch {
+    // Remote assets can still load; the frame cannot persist them itself.
+  }
   const nativeFetch = window.fetch.bind(window);
   const cachedFetch = async (input: Parameters<typeof window.fetch>[0], init?: RequestInit) => {
     const request = new Request(input, init);
     if (request.method !== "GET" || !cacheable(request.url)) return nativeFetch(input, init);
-    const cache = await caches.open(AUDIO_CACHE);
+    let cache: Cache | null = null;
+    try {
+      cache = storage ? await storage.open(AUDIO_CACHE) : null;
+    } catch {
+      // Cache access can fail in private browsing or after a storage eviction.
+    }
     try {
       const response = await nativeFetch(input, init);
-      if (response.ok) void cache.put(request, response.clone());
-      else reportMissing(`Could not load ${fileName(request.url)}. Press Play to retry.`);
+      if (response.ok) {
+        if (cache) void cache.put(request, response.clone()).catch(() => {});
+      } else reportMissing(`Could not load ${fileName(request.url)}. Press Play to retry.`);
       return response;
     } catch (cause) {
-      const cached = await cache.match(request);
+      const cached = await cache?.match(request);
       if (cached) return cached;
       reportMissing(`Offline and not cached: ${fileName(request.url)}.`);
       throw cause;
     }
   };
-  window.fetch = Object.assign(cachedFetch, { preconnect: window.fetch.preconnect });
+  window.fetch = cachedFetch;
 }
 
 export function onMissingSample(callback: ((detail: string) => void) | null) {

@@ -45,8 +45,8 @@ function ensureFrame() {
   if (ready) return ready;
   ready = new Promise<void>((resolve, reject) => {
     const iframe = document.createElement("iframe");
-    // allow-same-origin is required for Vite ES modules; the frame still has no Tauri bridge.
-    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+    // An opaque origin keeps executable source away from the workbench and native IPC.
+    iframe.setAttribute("sandbox", "allow-scripts");
     iframe.allow = "autoplay";
     iframe.title = "JamScript isolated audio runtime";
     iframe.hidden = true;

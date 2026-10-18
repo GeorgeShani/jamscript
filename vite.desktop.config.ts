@@ -33,7 +33,6 @@ export default defineConfig({
     rolldownOptions: {
       input: {
         index: fileURLToPath(new URL("./desktop/index.html", import.meta.url)),
-        sandbox: fileURLToPath(new URL("./desktop/sandbox.html", import.meta.url)),
       },
     },
   },

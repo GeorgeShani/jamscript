@@ -106,10 +106,13 @@ describe("BPM control", () => {
     expect(tempo).toHaveValue(144);
   });
 
-  it("keeps the advanced tempo settings panel out of the toolbar", async () => {
+  it("keeps advanced tempo settings collapsed until requested", async () => {
     await openExample();
-    expect(screen.queryByText("Tempo settings")).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Beats per cycle" })).not.toBeInTheDocument();
+    const summary = screen.getByText("Tempo settings");
+    expect(summary.closest("details")).not.toHaveAttribute("open");
+    fireEvent.click(summary);
+    expect(summary.closest("details")).toHaveAttribute("open");
+    expect(screen.getByRole("combobox", { name: "Beats per cycle" })).toBeInTheDocument();
   });
 
   it("refuses a programmatic BPM write in a viewer editor", () => {

@@ -161,7 +161,7 @@ export function initPlayback(): Promise<StrudelWeb> {
           // Match the REPL's default banks, including rim and other named drums.
           // These recording assets remain remote until self-hosted with their licences.
           const base = "https://raw.githubusercontent.com/felixroos/dough-samples/main";
-          await Promise.all(
+          await Promise.allSettled(
             ["tidal-drum-machines", "piano", "Dirt-Samples", "EmuSP12", "vcsl", "mridangam"].map(
               (bank) => strudel.samples(`${base}/${bank}.json`),
             ),
