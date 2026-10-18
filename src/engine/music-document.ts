@@ -7,10 +7,12 @@ export interface SourceRange {
   to: number;
 }
 export const PARAMS = {
-  gain: { min: 0, max: 1, step: 0.01, log: false },
-  room: { min: 0, max: 1, step: 0.01, log: false },
-  lpf: { min: 50, max: 20000, step: 10, log: true },
-  hpf: { min: 50, max: 20000, step: 10, log: true },
+  gain: { min: 0, max: 1, step: 0.01, decimals: 2, log: false },
+  room: { min: 0, max: 1, step: 0.01, decimals: 2, log: false },
+  lpf: { min: 50, max: 20000, step: 10, decimals: 2, log: true },
+  hpf: { min: 50, max: 20000, step: 10, decimals: 2, log: true },
+  fast: { min: 0.125, max: 16, step: 0.125, decimals: 3, log: true },
+  slow: { min: 0.125, max: 16, step: 0.125, decimals: 3, log: true },
 } as const;
 export type ParamName = keyof typeof PARAMS;
 interface LensBase extends SourceRange {
@@ -26,7 +28,13 @@ export interface RhythmLens extends LensBase {
   kind: "rhythm";
   locked: boolean;
   defaultSound: string;
-  steps: (SourceRange & { sound: string | null; substeps?: (string | null)[] })[];
+  steps: (SourceRange & {
+    sound: string | null;
+    substeps?: (string | null)[];
+    substepRanges?: SourceRange[];
+    alternatives?: (string | null)[];
+    alternativeRanges?: SourceRange[];
+  })[];
 }
 export type MusicLens = ParamLens | RhythmLens;
 export interface MusicTrack {
@@ -42,7 +50,9 @@ export interface MusicDocument {
   tracks: MusicTrack[];
   tempo: number | null;
 }
-export type LensEdit = { target: string; value: number } | { target: string; step: number };
+export type LensEdit =
+  | { target: string; value: number }
+  | { target: string; step: number; substep?: number; alternative?: number };
 export interface SourcePatch extends SourceRange {
   insert: string;
 }
@@ -54,9 +64,25 @@ interface Call {
 const PATTERN_ROOTS = new Set(["s", "sound", "n", "note", "chord", "stack", "arrange", "cat"]);
 
 const SIMPLE_SOUND = /^(?:[A-Za-z_][\w-]*(?::\d+)?|~)$/;
+/** Literal pitches and scale degrees for note()/n() grids. */
+const SIMPLE_PITCH = /^(?:~|-|[a-gA-G][#b]?\d{0,2}|\d+)$/;
 
-function rhythmToken(token: string): { sound: string | null; substeps?: (string | null)[] } | null {
-  if (SIMPLE_SOUND.test(token)) return { sound: token === "~" ? null : token };
+function rhythmToken(
+  token: string,
+  simple: RegExp,
+): { sound: string | null; substeps?: (string | null)[]; alternatives?: (string | null)[] } | null {
+  if (simple.test(token)) return { sound: token === "~" || token === "-" ? null : token };
+  if (token.startsWith("<") && token.endsWith(">")) {
+    const body = token.slice(1, -1);
+    if (body.includes("<") || body.includes(">")) return null;
+    const parts = body.trim().split(/\s+/);
+    if (parts.length < 2 || parts.length > 8 || !parts.every((part) => simple.test(part)))
+      return null;
+    return {
+      sound: token,
+      alternatives: parts.map((part) => (part === "~" || part === "-" ? null : part)),
+    };
+  }
   if (!token.startsWith("[") || !token.endsWith("]")) return null;
   const body = token.slice(1, -1);
   if (body.includes("[") || body.includes("]")) return null;
@@ -64,10 +90,69 @@ function rhythmToken(token: string): { sound: string | null; substeps?: (string 
   if (
     subdivisions.length < 2 ||
     subdivisions.length > 8 ||
-    !subdivisions.every((part) => SIMPLE_SOUND.test(part))
+    !subdivisions.every((part) => simple.test(part))
   )
     return null;
-  return { sound: token, substeps: subdivisions.map((part) => (part === "~" ? null : part)) };
+  return {
+    sound: token,
+    substeps: subdivisions.map((part) => (part === "~" || part === "-" ? null : part)),
+  };
+}
+
+function stringRhythmLens(
+  rootName: string,
+  idBase: string,
+  track: string,
+  string: SyntaxNode,
+  source: string,
+): RhythmLens | null {
+  const isPitch = rootName === "note" || rootName === "n";
+  const isSound = rootName === "s" || rootName === "sound";
+  if (!isPitch && !isSound) return null;
+  const simple = isPitch ? SIMPLE_PITCH : SIMPLE_SOUND;
+  const raw = source.slice(string.from + 1, string.to - 1);
+  const matches = [...raw.matchAll(/\[[^\]]+\]|<[^>]+>|\S+/g)];
+  const tokens = matches.map((match) => rhythmToken(match[0], simple));
+  const locked =
+    !matches.length || matches.length > 16 || tokens.some((token) => !token) || raw.includes("\\");
+  const firstSound = tokens
+    .flatMap(
+      (token) => token?.substeps ?? token?.alternatives ?? (token?.sound ? [token.sound] : []),
+    )
+    .find((sound) => sound !== null);
+  return {
+    kind: "rhythm",
+    id: `${idBase}rhythm`,
+    track,
+    from: string.from,
+    to: string.to,
+    locked,
+    defaultSound:
+      firstSound ?? (isPitch ? (rootName === "n" ? "0" : "c3") : track === "hats" ? "hh" : "bd"),
+    steps: locked
+      ? []
+      : matches.map((match, step) => ({
+          from: string.from + 1 + match.index!,
+          to: string.from + 1 + match.index! + match[0].length,
+          ...tokens[step]!,
+          ...(tokens[step]!.substeps
+            ? {
+                substepRanges: [...match[0].slice(1, -1).matchAll(/\S+/g)].map((part) => ({
+                  from: string.from + 2 + match.index! + part.index!,
+                  to: string.from + 2 + match.index! + part.index! + part[0].length,
+                })),
+              }
+            : {}),
+          ...(tokens[step]!.alternatives
+            ? {
+                alternativeRanges: [...match[0].slice(1, -1).matchAll(/\S+/g)].map((part) => ({
+                  from: string.from + 2 + match.index! + part.index!,
+                  to: string.from + 2 + match.index! + part.index! + part[0].length,
+                })),
+              }
+            : {}),
+        })),
+  };
 }
 
 function children(node: SyntaxNode) {
@@ -238,56 +323,40 @@ export function deriveMusic(source: string): MusicDocument {
     const lenses: MusicLens[] = [];
     for (const { chain, path } of chainsIn(expression, source, references)) {
       const idBase = `${track}/${path}`;
-      const root = chain[0];
-      const string = root?.args[0];
-      if (
-        (root?.name === "s" || root?.name === "sound") &&
-        root.args.length === 1 &&
-        string?.name === "String"
-      ) {
-        const raw = source.slice(string.from + 1, string.to - 1);
-        const matches = [...raw.matchAll(/\[[^\]]+\]|\S+/g)];
-        const tokens = matches.map((match) => rhythmToken(match[0]));
-        const locked =
-          !matches.length ||
-          matches.length > 16 ||
-          tokens.some((token) => !token) ||
-          raw.includes("\\");
-        const firstSound = tokens
-          .flatMap((token) => token?.substeps ?? (token?.sound ? [token.sound] : []))
-          .find((sound) => sound !== null);
-        lenses.push({
-          kind: "rhythm",
-          id: `${idBase}rhythm`,
+      const patternCall = chain.find(
+        (call) =>
+          (call.name === "s" ||
+            call.name === "sound" ||
+            call.name === "note" ||
+            call.name === "n") &&
+          call.args.length === 1 &&
+          call.args[0]?.name === "String",
+      );
+      if (patternCall) {
+        const rhythm = stringRhythmLens(
+          patternCall.name,
+          idBase,
           track,
-          from: string.from,
-          to: string.to,
-          locked,
-          defaultSound: firstSound ?? (track === "hats" ? "hh" : "bd"),
-          steps: locked
-            ? []
-            : matches.map((match, step) => ({
-                from: string.from + 1 + match.index!,
-                to: string.from + 1 + match.index! + match[0].length,
-                ...tokens[step]!,
-              })),
-        });
+          patternCall.args[0]!,
+          source,
+        );
+        if (rhythm) lenses.push(rhythm);
       }
+      const occurrences = new Map<string, number>();
       for (const call of chain.slice(1)) {
-        if (
-          !(call.name in PARAMS) ||
-          chain.filter((other) => other.name === call.name).length !== 1
-        )
-          continue;
+        if (!(call.name in PARAMS)) continue;
+        const occurrence = occurrences.get(call.name) ?? 0;
+        occurrences.set(call.name, occurrence + 1);
         const arg = call.args[0];
         if (call.args.length !== 1 || arg?.name !== "Number") continue;
         const name = call.name as ParamName;
         const value = Number(source.slice(arg.from, arg.to));
         if (!Number.isFinite(value) || value < PARAMS[name].min || value > PARAMS[name].max)
           continue;
+        const repeated = chain.filter((other) => other.name === name).length > 1;
         lenses.push({
           kind: "param",
-          id: `${idBase}param/${name}`,
+          id: `${idBase}param/${name}${repeated ? `/${occurrence}` : ""}`,
           track,
           name,
           value,
@@ -312,7 +381,10 @@ export function deriveMusic(source: string): MusicDocument {
 function signature(lens: MusicLens) {
   return lens.kind === "param"
     ? `${lens.name}:${lens.value}`
-    : JSON.stringify([lens.locked, lens.steps.map((step) => [step.sound, step.substeps])]);
+    : JSON.stringify([
+        lens.locked,
+        lens.steps.map((step) => [step.sound, step.substeps, step.alternatives]),
+      ]);
 }
 
 /** Re-derive each target before editing, then check the result and all other lenses. */
@@ -325,7 +397,8 @@ export function lensPatch(source: string, edit: LensEdit): SourcePatch | null {
   if (lens.kind === "param" && "value" in edit) {
     const spec = PARAMS[lens.name];
     if (!Number.isFinite(edit.value) || edit.value < spec.min || edit.value > spec.max) return null;
-    const value = Math.round(edit.value * 100) / 100;
+    const scale = 10 ** spec.decimals;
+    const value = Math.round(edit.value * scale) / scale;
     if (value === lens.value) return null;
     patch = { from: lens.from, to: lens.to, insert: String(value) };
   } else if (
@@ -335,8 +408,25 @@ export function lensPatch(source: string, edit: LensEdit): SourcePatch | null {
     Number.isInteger(edit.step)
   ) {
     const step = lens.steps[edit.step];
-    if (!step || step.substeps) return null;
-    patch = { from: step.from, to: step.to, insert: step.sound ? "~" : lens.defaultSound };
+    if (!step) return null;
+    if (edit.substep !== undefined && edit.alternative !== undefined) return null;
+    if (edit.substep === undefined && edit.alternative === undefined) {
+      if (step.substeps || step.alternatives) return null;
+      patch = { from: step.from, to: step.to, insert: step.sound ? "~" : lens.defaultSound };
+    } else if (edit.substep !== undefined) {
+      if (!Number.isInteger(edit.substep) || !step.substeps || !step.substepRanges) return null;
+      const part = step.substeps[edit.substep];
+      const range = step.substepRanges[edit.substep];
+      if (part === undefined || !range) return null;
+      patch = { ...range, insert: part ? "~" : lens.defaultSound };
+    } else {
+      if (!Number.isInteger(edit.alternative) || !step.alternatives || !step.alternativeRanges)
+        return null;
+      const part = step.alternatives[edit.alternative!];
+      const range = step.alternativeRanges[edit.alternative!];
+      if (part === undefined || !range) return null;
+      patch = { ...range, insert: part ? "~" : lens.defaultSound };
+    }
   } else return null;
   const result = source.slice(0, patch.from) + patch.insert + source.slice(patch.to);
   const after = deriveMusic(result);

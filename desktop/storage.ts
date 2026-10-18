@@ -114,6 +114,54 @@ async function getFolder(id: string) {
 
 export const desktopStorage: WorkspaceStorage = {
   ...browserStorage,
+  git: {
+    async status(workspaceId) {
+      if (!isNativeWorkspace(workspaceId))
+        throw new Error("Git is available for desktop folders only");
+      return invoke("git_status", { folderId: folderId(workspaceId) });
+    },
+    async initialize(workspaceId) {
+      if (!isNativeWorkspace(workspaceId))
+        throw new Error("Git is available for desktop folders only");
+      return invoke("git_init", { folderId: folderId(workspaceId) });
+    },
+    async commit(workspaceId, documents, deletedNames, message) {
+      if (!isNativeWorkspace(workspaceId))
+        throw new Error("Git is available for desktop folders only");
+      const files: { name: string; expectedRevision?: string; deleted: boolean }[] = documents.map(
+        (document) => {
+          if (document.workspaceId !== workspaceId || desktopStorage.isDirty?.(document))
+            throw new Error("Save selected files to disk before committing");
+          const baseline = baselines.get(document.id);
+          if (!baseline) throw new Error("Reopen the selected folder before committing");
+          return { name: document.name, expectedRevision: baseline.revision, deleted: false };
+        },
+      );
+      for (const name of deletedNames) files.push({ name, deleted: true });
+      return invoke("git_commit_files", { folderId: folderId(workspaceId), files, message });
+    },
+    async cloneInto(workspaceId, url) {
+      if (!isNativeWorkspace(workspaceId))
+        throw new Error("Git is available for desktop folders only");
+      return invoke("git_clone", { folderId: folderId(workspaceId), url });
+    },
+    async push(workspaceId) {
+      if (!isNativeWorkspace(workspaceId))
+        throw new Error("Git is available for desktop folders only");
+      return invoke("git_push", { folderId: folderId(workspaceId) });
+    },
+    async pull(workspaceId, documents) {
+      if (!isNativeWorkspace(workspaceId))
+        throw new Error("Git is available for desktop folders only");
+      if (
+        documents.some(
+          (document) => document.workspaceId !== workspaceId || desktopStorage.isDirty?.(document),
+        )
+      )
+        throw new Error("Save all open files before Pull");
+      return invoke("git_pull_fast_forward", { folderId: folderId(workspaceId) });
+    },
+  },
   isNativeWorkspace,
   isDirty(document) {
     return (

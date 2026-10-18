@@ -209,6 +209,51 @@ export async function listActiveInvitations(
     );
 }
 
+/** Members of a workspace the actor can access, with invite email when known. */
+export async function listWorkspaceMembers(
+  db: CollaborationDb,
+  workspaceId: string,
+  actorId: string,
+) {
+  if (!(await memberRole(db, workspaceId, actorId))) throw new Error("No access to this workspace");
+  const members = await db
+    .select({
+      userId: workspaceMembers.clerkUserId,
+      role: workspaceMembers.role,
+      joinedAt: workspaceMembers.joinedAt,
+    })
+    .from(workspaceMembers)
+    .where(eq(workspaceMembers.workspaceId, workspaceId));
+  const accepted = await db
+    .select({
+      userId: workspaceInvitations.acceptedByClerkUserId,
+      email: workspaceInvitations.invitedEmail,
+    })
+    .from(workspaceInvitations)
+    .where(
+      and(
+        eq(workspaceInvitations.workspaceId, workspaceId),
+        isNull(workspaceInvitations.revokedAt),
+      ),
+    );
+  const emailByUser = new Map(
+    accepted
+      .filter((row): row is { userId: string; email: string } => !!row.userId)
+      .map((row) => [row.userId, row.email]),
+  );
+  return members
+    .map((member) => ({
+      userId: member.userId,
+      role: member.role,
+      email: emailByUser.get(member.userId) ?? null,
+      joinedAt: member.joinedAt,
+    }))
+    .sort((left, right) => {
+      const rank = { owner: 0, editor: 1, viewer: 2 } as const;
+      return rank[left.role] - rank[right.role] || left.userId.localeCompare(right.userId);
+    });
+}
+
 export async function workspaceNameForOwner(
   db: CollaborationDb,
   workspaceId: string,

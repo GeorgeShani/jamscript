@@ -102,11 +102,12 @@ export function setMix(
   levels: Record<string, number>,
   solo: string | null,
   master: number,
-  muted: readonly string[] = [],
+  muted?: readonly string[],
 ) {
   mixLevels = levels;
   soloTrack = solo;
-  mutedTracks = new Set(muted);
+  // Omit muted to keep the current mute set (e.g. levels-only updates). Pass [] to clear.
+  if (muted !== undefined) mutedTracks = new Set(muted);
   masterLevel = master;
   applyMix();
 }

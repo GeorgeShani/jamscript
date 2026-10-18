@@ -170,7 +170,7 @@ export function OutputPanel({
                     aria-pressed={selectedTakeId === take.id}
                     onClick={() => setSelectedTakeId(take.id)}
                   >
-                    {new Date(take.createdAt).toLocaleString()}
+                    {take.label ?? "Saved Take"} · {new Date(take.createdAt).toLocaleString()}
                     {auditionTakeId === take.id ? " · Auditioning" : ""}
                   </button>
                 ))}

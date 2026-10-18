@@ -72,10 +72,32 @@ describe("Real music editor", () => {
     expect(view.dom.querySelectorAll('[aria-label^="Track 1, step"]')).toHaveLength(4);
     expect(view.dom.querySelector('[aria-label*="subdivided: rest, bd"]')).not.toBeNull();
     expect(view.dom.querySelector('[aria-label="Track 1 gain"]')).not.toBeNull();
+    const substep = view.dom.querySelector<HTMLButtonElement>(
+      '[aria-label="Track 1, part 1 of step 4, rest"]',
+    );
+    expect(substep).not.toBeNull();
+    substep!.click();
+    expect(view.state.doc.toString()).toContain("[bd bd]");
+    expect(undo(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe(source);
     expect(view.dom.querySelectorAll('[aria-label^="Track 2, step"]')).toHaveLength(4);
     expect(view.dom.querySelector('[aria-label="Track 2 room"]')).not.toBeNull();
     expect(dispatchLensEdit(view, { target: "Track 2/param/room", value: 0.4 })).toBe(true);
     expect(view.state.doc.toString()).toContain(".room(0.4)");
+    expect(undo(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe(source);
+  });
+  it("keeps alternation branches separately keyboard-accessible and undoable", () => {
+    const source = 'drums: s("bd <~ sd> cp");';
+    const view = editor(source);
+    const branch = view.dom.querySelector<HTMLButtonElement>(
+      '[aria-label="drums, alternative 1 of step 2, rest"]',
+    );
+    expect(branch).not.toBeNull();
+    branch!.focus();
+    branch!.click();
+    expect(view.state.doc.toString()).toBe('drums: s("bd <bd sd> cp");');
+    expect(document.activeElement).toBe(branch);
     expect(undo(view)).toBe(true);
     expect(view.state.doc.toString()).toBe(source);
   });

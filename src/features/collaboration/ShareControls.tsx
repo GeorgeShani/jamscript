@@ -13,11 +13,19 @@ export function SharedProjectList() {
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<
-    { documentId: string; documentName: string; workspaceName: string; role: string }[]
+    {
+      workspaceId: string;
+      documentId: string;
+      documentName: string;
+      workspaceName: string;
+      role: string;
+    }[]
   >([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!isSignedIn) return;
+    setLoading(true);
     void fetch("/api/shared-projects")
       .then(async (response) => {
         const body = (await response.json()) as { error?: string } | typeof items;
@@ -27,32 +35,46 @@ export function SharedProjectList() {
       })
       .catch((cause: unknown) =>
         setError(cause instanceof Error ? cause.message : "Shared projects are unavailable"),
-      );
+      )
+      .finally(() => setLoading(false));
   }, [isSignedIn]);
   if (!import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"] || !isSignedIn) return null;
+  const projects = [...new Map(items.map((item) => [item.workspaceId, item])).values()];
   return (
-    <section className="jam-chooser-section" aria-labelledby="shared-heading">
-      <h2 id="shared-heading">Shared projects</h2>
+    <section className="jam-chooser-section jam-chooser-shared" aria-labelledby="shared-heading">
+      <h2 id="shared-heading">Shared with you</h2>
       {error && <p role="alert">{error}</p>}
-      {items.length === 0 ? (
-        <p>Projects you own or join will appear here.</p>
+      {loading ? (
+        <p className="jam-muted">Loading shared projects…</p>
+      ) : items.length === 0 ? (
+        <p className="jam-muted">
+          Sign-in workspaces you create or join appear here. Invite people from an open session with
+          Share.
+        </p>
       ) : (
         <ul>
-          {items.map((item) => (
-            <li key={item.documentId}>
-              <button
-                type="button"
-                onClick={() =>
-                  void navigate({
-                    to: "/app/shared/$documentId",
-                    params: { documentId: item.documentId },
-                  })
-                }
-              >
-                {item.workspaceName} · {item.documentName} · {item.role}
-              </button>
-            </li>
-          ))}
+          {projects.map((item) => {
+            const fileCount = items.filter((file) => file.workspaceId === item.workspaceId).length;
+            return (
+              <li key={item.workspaceId}>
+                <button
+                  type="button"
+                  className="jam-shared-open"
+                  onClick={() =>
+                    void navigate({
+                      to: "/app/shared/$documentId",
+                      params: { documentId: item.documentId },
+                    })
+                  }
+                >
+                  <span className="jam-shared-open-name">{item.workspaceName}</span>
+                  <small>
+                    {fileCount} {fileCount === 1 ? "file" : "files"} · {item.role}
+                  </small>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
@@ -79,6 +101,9 @@ export function ShareControls({
   const [invitations, setInvitations] = useState<
     { id: string; email: string; role: string; expiresAt: string }[]
   >([]);
+  const [members, setMembers] = useState<
+    { userId: string; role: string; email: string | null; joinedAt: string }[]
+  >([]);
   const [inviteVersion, setInviteVersion] = useState(0);
   const activeDocumentId = document?.id;
   useEffect(() => {
@@ -88,15 +113,23 @@ export function ShareControls({
     const workspaceId = document?.shared?.workspaceId;
     if (!workspaceId || document?.shared?.role !== "owner") return;
     let current = true;
-    void fetch(`/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&invitations=1`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Could not load invitations");
-        const rows = (await response.json()) as typeof invitations;
-        if (current) setInvitations(rows);
+    void Promise.all([
+      fetch(`/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&invitations=1`),
+      fetch(`/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&members=1`),
+    ])
+      .then(async ([inviteResponse, memberResponse]) => {
+        if (!inviteResponse.ok) throw new Error("Could not load invitations");
+        if (!memberResponse.ok) throw new Error("Could not load collaborators");
+        const inviteRows = (await inviteResponse.json()) as typeof invitations;
+        const memberRows = (await memberResponse.json()) as typeof members;
+        if (current) {
+          setInvitations(inviteRows);
+          setMembers(memberRows);
+        }
       })
       .catch((cause: unknown) => {
         if (current)
-          setNotice(cause instanceof Error ? cause.message : "Could not load invitations");
+          setNotice(cause instanceof Error ? cause.message : "Could not load collaborators");
       });
     return () => {
       current = false;
@@ -196,9 +229,30 @@ export function ShareControls({
     }
   };
 
+  const remove = async (memberId: string) => {
+    const workspaceId = document.shared?.workspaceId;
+    if (!workspaceId) return;
+    setPending(true);
+    try {
+      const response = await fetch("/api/shared-projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove-member", workspaceId, memberId }),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "Could not remove collaborator");
+      setInviteVersion((version) => version + 1);
+      setNotice("Collaborator removed");
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : "Could not remove collaborator");
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
     <details className="jam-share-control">
-      <summary>{document.shared ? "Invite" : "Share"}</summary>
+      <summary>{document.shared ? "Collaborators" : "Share workspace"}</summary>
       <form
         className="jam-share"
         onSubmit={(event) => {
@@ -230,9 +284,9 @@ export function ShareControls({
           </fieldset>
         )}
         <label>
-          Invite email
+          Collaborator email
           <input
-            aria-label="Invite email"
+            aria-label="Collaborator email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             type="email"
@@ -240,9 +294,9 @@ export function ShareControls({
           />
         </label>
         <label>
-          Role
+          Access
           <select
-            aria-label="Invitation role"
+            aria-label="Collaborator access"
             value={role}
             onChange={(event) => setRole(event.target.value === "viewer" ? "viewer" : "editor")}
           >
@@ -251,13 +305,36 @@ export function ShareControls({
           </select>
         </label>
         <Button size="sm" variant="outline" type="submit" disabled={pending}>
-          {document.shared ? "Invite" : "Share"}
+          {document.shared ? "Send invite" : "Create shared workspace"}
         </Button>
+        {document.shared && members.length > 0 && (
+          <ul className="jam-share-people" aria-label="Collaborators">
+            {members.map((member) => (
+              <li key={member.userId}>
+                <span>
+                  {member.email ?? (member.role === "owner" ? "Owner" : "Collaborator")} ·{" "}
+                  {member.role}
+                </span>
+                {member.role !== "owner" && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => void remove(member.userId)}
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
         {document.shared && invitations.length > 0 && (
-          <ul aria-label="Pending invitations">
+          <ul className="jam-share-people" aria-label="Pending invitations">
             {invitations.map((invitation) => (
               <li key={invitation.id}>
-                {invitation.email} · {invitation.role}
+                <span>
+                  {invitation.email} · {invitation.role} · pending
+                </span>
                 <button type="button" disabled={pending} onClick={() => void revoke(invitation.id)}>
                   Revoke
                 </button>
@@ -294,6 +371,6 @@ export function SharedSession({
     });
     // The source captured here is the pre-sync snapshot. Later keystrokes stay in the Yjs document.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onPresence, onStatus, shared?.documentId, shared?.role, view]);
+  }, [shared?.documentId, shared?.role, view]);
   return null;
 }

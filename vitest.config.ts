@@ -12,6 +12,9 @@ export default defineConfig({
     testTimeout: 20000,
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "cloudflare:workers": path.resolve(__dirname, "./src/test/cloudflare-workers.ts"),
+    },
   },
 });

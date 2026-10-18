@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { captureTake, deleteDocumentTakes, listTakes } from "@/features/takes/take-store";
+import { takeLabel } from "@/features/takes/take-label";
 
 describe("persistent Takes", () => {
+  it("labels a recognized musical change and falls back for opaque edits", () => {
+    expect(takeLabel(null, 'bass: s("bd").gain(.5);')).toBe("First play");
+    expect(takeLabel('bass: s("bd").gain(.5);', 'bass: s("bd").gain(.7);')).toBe(
+      "bass gain 0.5 → 0.7",
+    );
+    expect(takeLabel('drums: s("bd ~");', 'drums: s("bd sd");')).toBe("drums rhythm edit");
+    expect(takeLabel('drums: s("<bd sd>");', 'drums: s("<bd ~>");')).toBe("drums rhythm edit");
+    expect(takeLabel("const x = 1;", "const x = 2;")).toBe("Source edit");
+  });
   it("captures successful sources, deduplicates consecutive plays, and isolates documents", async () => {
     const documentId = crypto.randomUUID();
     const otherId = crypto.randomUUID();

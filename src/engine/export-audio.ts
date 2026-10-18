@@ -84,7 +84,7 @@ export async function recordMainFlow({
   let progress: ReturnType<typeof setInterval> | undefined;
   try {
     await stop();
-    setMix(levels, null, master); // Export always captures the full mix, even if a track is soloed.
+    setMix(levels, null, master, []); // Export captures the full mix: no solo, no mute.
     if (!(await play(code))) throw new Error("Could not play the current document for export.");
     startedAt = performance.now();
     await new Promise<void>((resolve, reject) => {

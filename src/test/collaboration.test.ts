@@ -12,13 +12,19 @@ import {
   hashInviteToken,
   listVisibleDocuments,
   listWorkspaceDocuments,
+  listWorkspaceMembers,
   memberRole,
+  removeMember,
   roleForDocument,
   validInvitationEmail,
   renameSharedDocument,
   revokeInvitation,
   type CollaborationDb,
 } from "@/features/collaboration/membership";
+import {
+  readLiveblocksDocument,
+  seedLiveblocksDocument,
+} from "@/features/collaboration/liveblocks-document";
 import {
   createLocalUndo,
   documentIdFromRoom,
@@ -28,6 +34,7 @@ import {
   sharedSource,
 } from "@/features/collaboration/shared-document";
 import { sharedDocumentStorage } from "@/features/collaboration/shared-storage";
+import type { Liveblocks } from "@liveblocks/node";
 
 async function database() {
   const client = new PGlite();
@@ -80,6 +87,31 @@ describe("shared project membership", () => {
       email: "editor@example.com",
     });
     expect(accepted.role).toBe("editor");
+    const members = await listWorkspaceMembers(db, project.workspaceId, "user_owner");
+    expect(members.map((member) => [member.userId, member.role, member.email])).toEqual([
+      ["user_owner", "owner", null],
+      ["user_editor", "editor", "editor@example.com"],
+    ]);
+    await expect(listWorkspaceMembers(db, project.workspaceId, "user_listener")).rejects.toThrow(
+      /No access/,
+    );
+    await removeMember(db, {
+      workspaceId: project.workspaceId,
+      actorId: "user_owner",
+      memberId: "user_editor",
+    });
+    expect(await memberRole(db, project.workspaceId, "user_editor")).toBeNull();
+    const editorInviteAgain = await createInvitation(db, {
+      workspaceId: project.workspaceId,
+      actorId: "user_owner",
+      email: "editor@example.com",
+      role: "editor",
+    });
+    await acceptInvitation(db, {
+      token: editorInviteAgain.token,
+      userId: "user_editor",
+      email: "editor@example.com",
+    });
     const visible = await listVisibleDocuments(db, "user_editor");
     expect(visible.map((item) => item.documentName).sort()).toEqual([
       "bass.js",
@@ -175,5 +207,63 @@ describe("shared source", () => {
     expect((await storage.renameDocument(document, "renamed.js")).name).toBe("renamed.js");
     expect((await storage.listDocuments(workspace.id))[0]?.name).toBe("renamed.js");
     vi.unstubAllGlobals();
+  });
+});
+
+describe("liveblocks document rooms", () => {
+  it("creates the room before seeding and heals empty rooms from the database", async () => {
+    const rooms = new Map<string, Uint8Array>();
+    const liveblocks = {
+      getOrCreateRoom: vi.fn(async (id: string) => {
+        if (!rooms.has(id)) rooms.set(id, new Uint8Array());
+        return { id };
+      }),
+      sendYjsBinaryUpdate: vi.fn(async (id: string, update: Uint8Array) => {
+        const doc = new Y.Doc();
+        const existing = rooms.get(id);
+        if (existing?.length) Y.applyUpdate(doc, existing);
+        Y.applyUpdate(doc, update);
+        rooms.set(id, Y.encodeStateAsUpdate(doc));
+      }),
+      getYjsDocumentAsBinaryUpdate: vi.fn(async (id: string) => {
+        const update = rooms.get(id);
+        if (!update) throw new Error("Room not found");
+        return update.buffer.slice(update.byteOffset, update.byteOffset + update.byteLength);
+      }),
+    } as unknown as Liveblocks;
+
+    await seedLiveblocksDocument(liveblocks, "doc-1", 's("bd")');
+    expect(liveblocks.getOrCreateRoom).toHaveBeenCalledWith(roomId("doc-1"), {
+      defaultAccesses: [],
+    });
+    expect(
+      await readLiveblocksDocument(liveblocks, { id: "doc-1", name: "a.js", source: "" }),
+    ).toEqual({ id: "doc-1", name: "a.js", source: 's("bd")' });
+
+    rooms.set(roomId("doc-2"), new Uint8Array());
+    expect(
+      await readLiveblocksDocument(liveblocks, {
+        id: "doc-2",
+        name: "b.js",
+        source: 's("sd")',
+      }),
+    ).toEqual({ id: "doc-2", name: "b.js", source: 's("sd")' });
+  });
+
+  it("falls back to the database source when Liveblocks is unavailable", async () => {
+    const liveblocks = {
+      getOrCreateRoom: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+      sendYjsBinaryUpdate: vi.fn(),
+      getYjsDocumentAsBinaryUpdate: vi.fn(),
+    } as unknown as Liveblocks;
+    expect(
+      await readLiveblocksDocument(liveblocks, {
+        id: "doc-3",
+        name: "c.js",
+        source: 's("hh")',
+      }),
+    ).toEqual({ id: "doc-3", name: "c.js", source: 's("hh")' });
   });
 });

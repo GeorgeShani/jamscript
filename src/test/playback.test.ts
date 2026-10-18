@@ -211,6 +211,12 @@ describe("Live playback adapter", () => {
     playback.setMix({ drums: 0.4, hats: 0.8 }, null, 0.5, ["hats"]);
     expect(hats.setTargetAtTime).toHaveBeenLastCalledWith(0, 3, 0.015);
     expect(drums.setTargetAtTime).toHaveBeenLastCalledWith(0.4, 3, 0.015);
+    // Levels-only setMix and a live re-evaluate must not clear mute (knob tweaks).
+    playback.setMix({ drums: 0.5, hats: 0.8 }, null, 0.5);
+    expect(hats.setTargetAtTime).toHaveBeenLastCalledWith(0, 3, 0.015);
+    expect(await playback.play('drums: s("bd").lpf(800);\nhats: s("hh");')).toBe(true);
+    expect(hats.setTargetAtTime).toHaveBeenLastCalledWith(0, 3, 0.015);
+    expect(drums.setTargetAtTime).toHaveBeenLastCalledWith(0.5, 3, 0.015);
     await playback.stop();
   });
 

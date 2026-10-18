@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Liveblocks } from "@liveblocks/node";
-import * as Y from "yjs";
 
 import { withCollaborationDb } from "@/features/collaboration/database";
 import {
@@ -9,6 +8,7 @@ import {
   createSharedProject,
   listActiveInvitations,
   listWorkspaceDocuments,
+  listWorkspaceMembers,
   listVisibleDocuments,
   removeMember,
   renameSharedDocument,
@@ -17,7 +17,10 @@ import {
   validInvitationEmail,
   workspaceNameForOwner,
 } from "@/features/collaboration/membership";
-import { roomId, seedSharedText } from "@/features/collaboration/shared-document";
+import {
+  readLiveblocksDocuments,
+  seedLiveblocksDocument,
+} from "@/features/collaboration/liveblocks-document";
 
 const headers = { "Cache-Control": "private, no-store" };
 
@@ -89,6 +92,16 @@ export const Route = createFileRoute("/api/shared-projects")({
             return Response.json({ error: "No access to invitations" }, { status: 403, headers });
           }
         }
+        if (invitationWorkspace && url.searchParams.get("members") === "1") {
+          try {
+            const members = await withCollaborationDb((db) =>
+              listWorkspaceMembers(db, invitationWorkspace, current.userId),
+            );
+            return Response.json(members, { headers });
+          } catch {
+            return Response.json({ error: "No access to members" }, { status: 403, headers });
+          }
+        }
         const documentId = url.searchParams.get("documentId");
         if (documentId) {
           const access = await withCollaborationDb((db) =>
@@ -99,23 +112,8 @@ export const Route = createFileRoute("/api/shared-projects")({
           const files = await withCollaborationDb((db) =>
             listWorkspaceDocuments(db, access.workspaceId, current.userId),
           );
-          let liveFiles: { id: string; name: string; source: string }[];
-          try {
-            const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"]! });
-            liveFiles = await Promise.all(
-              (files ?? []).map(async (file) => {
-                const update = await liveblocks.getYjsDocumentAsBinaryUpdate(roomId(file.id));
-                const doc = new Y.Doc();
-                Y.applyUpdate(doc, new Uint8Array(update));
-                return { id: file.id, name: file.name, source: doc.getText("source").toString() };
-              }),
-            );
-          } catch {
-            return Response.json(
-              { error: "Shared source is temporarily unavailable. Retry when connected." },
-              { status: 503, headers },
-            );
-          }
+          const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"]! });
+          const liveFiles = await readLiveblocksDocuments(liveblocks, files ?? []);
           return Response.json(
             {
               documentId,
@@ -171,11 +169,9 @@ export const Route = createFileRoute("/api/shared-projects")({
             );
             const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"]! });
             await Promise.all(
-              created.documents.map(async (file) => {
-                const doc = new Y.Doc();
-                seedSharedText(doc, file.source);
-                await liveblocks.sendYjsBinaryUpdate(roomId(file.id), Y.encodeStateAsUpdate(doc));
-              }),
+              created.documents.map((file) =>
+                seedLiveblocksDocument(liveblocks, file.id, file.source),
+              ),
             );
             const origin = process.env["APP_ORIGIN"] ?? new URL(request.url).origin;
             let delivery:

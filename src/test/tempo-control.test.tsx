@@ -87,10 +87,16 @@ describe("BPM control", () => {
     const input = screen.getByRole("spinbutton", { name: "Tempo in BPM" });
     expect(input).toBeDisabled();
     expect(input).toHaveAttribute("placeholder", "Code");
+    expect(screen.getByRole("status")).toHaveTextContent("Tempo from code");
     view.rerender(<TempoControl cps={0.5} onCpsChange={onCpsChange} />);
     fireEvent.change(input, { target: { value: "180" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(screen.getByRole("alert")).toHaveTextContent("changed in code");
+  });
+
+  it("shows known BPM to read-only viewers", () => {
+    render(<TempoControl cps={0.75} editable={false} onCpsChange={vi.fn()} />);
+    expect(screen.getByRole("spinbutton", { name: "Tempo in BPM" })).toHaveValue(180);
   });
 
   it("patches the actual workbench source and follows its undo history", async () => {

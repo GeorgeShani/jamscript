@@ -45,6 +45,31 @@ export interface WorkspaceStorage {
   watchWorkspace?: (workspaceId: string, onChange: () => void) => Promise<() => void>;
   isNativeWorkspace?: (id: string) => boolean;
   isDirty?: (document: DocumentRecord) => boolean;
+  git?: {
+    status(
+      workspaceId: string,
+    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+    initialize(
+      workspaceId: string,
+    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+    commit(
+      workspaceId: string,
+      documents: DocumentRecord[],
+      deletedNames: string[],
+      message: string,
+    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+    cloneInto(
+      workspaceId: string,
+      url: string,
+    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+    push(
+      workspaceId: string,
+    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+    pull(
+      workspaceId: string,
+      documents: DocumentRecord[],
+    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+  };
 }
 
 export interface DocumentRefresh {

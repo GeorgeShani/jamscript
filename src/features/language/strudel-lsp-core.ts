@@ -46,6 +46,11 @@ const docs: Record<string, { signature: string; detail: string }> = {
     detail: "Set the global playback rate in cycles per minute.",
   },
 };
+
+/** A bounded, pinned documentation lookup for server-side assistant context. */
+export function strudelDocumentation(name: string) {
+  return docs[name] ?? null;
+}
 const samples = [
   "bd",
   "sd",

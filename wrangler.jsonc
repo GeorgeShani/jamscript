@@ -3,5 +3,12 @@
   "name": "jamscript",
   "compatibility_date": "2026-10-17",
   "compatibility_flags": ["nodejs_compat"],
+  "ratelimits": [
+    {
+      "name": "AGENT_RATE_LIMITER",
+      "namespace_id": "604211",
+      "simple": { "limit": 3, "period": 60 }
+    }
+  ],
   "main": "@tanstack/react-start/server-entry"
 }

@@ -38,11 +38,13 @@ export function MixerPanel({
   master,
   solo,
   muted,
+  selected,
   colors,
   onLevel,
   onMaster,
   onSolo,
   onMute,
+  onSelect,
   onColor,
   onRename,
   emptyMessage,
@@ -52,11 +54,13 @@ export function MixerPanel({
   master: number;
   solo: string | null;
   muted: ReadonlySet<string>;
+  selected?: string | null;
   colors: Record<string, number>;
   onLevel: (id: string, value: number) => void;
   onMaster: (value: number) => void;
   onSolo: (id: string | null) => void;
   onMute: (id: string) => void;
+  onSelect?: (id: string) => void;
   onColor: (orbit: number, color: number) => void;
   onRename: (id: string, name: string) => boolean;
   emptyMessage?: string | undefined;
@@ -91,7 +95,10 @@ export function MixerPanel({
           {tracks.map((track) => {
             const color = `var(--jam-track-${track.orbit}, var(--track-${((track.orbit - 64) % 6) + 1}))`;
             return (
-              <div className="jam-mix-track" key={track.orbit}>
+              <div
+                className={selected === track.id ? "jam-mix-track is-selected" : "jam-mix-track"}
+                key={track.orbit}
+              >
                 {renaming === track.id ? (
                   <form
                     className="jam-mix-rename"
@@ -124,10 +131,17 @@ export function MixerPanel({
                   </form>
                 ) : (
                   <div className="jam-mix-track-heading">
-                    <span className="jam-mix-track-name" title={track.name}>
+                    <button
+                      type="button"
+                      className="jam-mix-track-name"
+                      aria-label={`Inspect ${track.name}`}
+                      title={`Inspect ${track.name}`}
+                      aria-pressed={selected === track.id}
+                      onClick={() => onSelect?.(track.id)}
+                    >
                       <span className="jam-track-dot" style={{ backgroundColor: color }} />
                       {track.name}
-                    </span>
+                    </button>
                     <div className="jam-mix-track-actions">
                       <button
                         type="button"

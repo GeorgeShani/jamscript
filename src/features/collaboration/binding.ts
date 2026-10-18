@@ -1,4 +1,4 @@
-import { Prec, StateEffect } from "@codemirror/state";
+import { Compartment, Prec, StateEffect } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { createClient } from "@liveblocks/client";
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
@@ -14,6 +14,7 @@ export interface SharedPresence {
 }
 
 let client: ReturnType<typeof createClient> | null = null;
+const bindings = new WeakMap<EditorView, Compartment>();
 
 function liveblocks() {
   client ??= createClient({ authEndpoint: "/api/collaboration/auth" });
@@ -38,13 +39,19 @@ export function attachSharedDocument(
   const provider = new LiveblocksYjsProvider(room, doc, { offlineSupport_experimental: true });
   const undo = createLocalUndo(doc);
   const writable = canWrite(input.role);
+  const previous = bindings.get(view);
+  const binding = previous ?? new Compartment();
+  if (!previous) bindings.set(view, binding);
+  const extension = [
+    yCollab(doc.getText("source"), provider.awareness, { undoManager: writable ? undo : false }),
+    writable
+      ? Prec.highest(keymap.of(yUndoManagerKeymap))
+      : Prec.highest(EditorView.editable.of(false)),
+  ];
   view.dispatch({
-    effects: StateEffect.appendConfig.of([
-      yCollab(doc.getText("source"), provider.awareness, { undoManager: writable ? undo : false }),
-      writable
-        ? Prec.highest(keymap.of(yUndoManagerKeymap))
-        : Prec.highest(EditorView.editable.of(false)),
-    ]),
+    effects: previous
+      ? binding.reconfigure(extension)
+      : StateEffect.appendConfig.of(binding.of(extension)),
   });
 
   const publishPresence = () => {
@@ -65,6 +72,8 @@ export function attachSharedDocument(
 
   return () => {
     provider.awareness.off("change", publishPresence);
+    if (view.dom.isConnected) view.dispatch({ effects: binding.reconfigure([]) });
+    undo.destroy();
     provider.destroy();
     leave();
     doc.destroy();

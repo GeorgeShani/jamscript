@@ -1,9 +1,12 @@
 /** Successful local evaluations only. Takes are private to this device. */
+import { takeLabel } from "./take-label";
+
 export interface TakeRecord {
   id: string;
   documentId: string;
   source: string;
   createdAt: number;
+  label?: string;
 }
 
 const DATABASE = "jamscript-takes";
@@ -70,6 +73,7 @@ export async function captureTake(documentId: string, source: string): Promise<T
         documentId,
         source,
         createdAt: Math.max(Date.now(), (existing[0]?.createdAt ?? 0) + 1),
+        label: takeLabel(existing[0]?.source ?? null, source),
       };
       store.put(take);
       for (const old of existing.slice(LIMIT - 1)) store.delete(old.id);

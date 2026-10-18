@@ -17,6 +17,24 @@ vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
 afterEach(cleanup);
 
 describe("track controls", () => {
+  it("opens the inspector on a track that already has numeric parameters", async () => {
+    render(
+      <TooltipProvider>
+        <SessionWorkbench />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show inspector" }));
+    expect(screen.getByRole("heading", { name: /HATS · PARAMETERS/i })).toBeTruthy();
+    expect(screen.getByRole("slider", { name: "gain" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Inspect drums" }));
+    expect(screen.getByRole("heading", { name: /DRUMS · PARAMETERS/i })).toBeTruthy();
+    expect(screen.getByText(/Select hats, bass for gain, room, or filter controls/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Inspect bass" }));
+    expect(screen.getByRole("heading", { name: /BASS · PARAMETERS/i })).toBeTruthy();
+    expect(screen.getByRole("slider", { name: "lpf" })).toBeTruthy();
+  });
+
   it("renames a track in the live source and saves its color and mixer level", async () => {
     render(
       <TooltipProvider>

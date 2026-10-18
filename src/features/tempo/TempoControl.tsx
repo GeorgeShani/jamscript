@@ -60,7 +60,7 @@ export function TempoControl({
         aria-describedby={`${id}-help${error ? ` ${id}-error` : ""}`}
         aria-invalid={error ? true : undefined}
         className="code-face h-7 w-14 px-1 py-0 text-right text-ui [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        value={disabled ? "" : (draft?.text ?? display)}
+        value={draft?.text ?? display}
         placeholder={disabled ? "Code" : "Set"}
         disabled={disabled}
         onChange={(event) => {
@@ -83,6 +83,11 @@ export function TempoControl({
       <label htmlFor={id} className="shrink-0 text-label text-muted-foreground">
         BPM
       </label>
+      {!editable && cps === null && (
+        <span className="text-label text-muted-foreground" role="status">
+          Tempo from code
+        </span>
+      )}
       <span id={`${id}-help`} className="sr-only">
         {explanation}
       </span>

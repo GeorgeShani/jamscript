@@ -3,6 +3,7 @@ import { isolateHistory } from "@codemirror/commands";
 import { Transaction } from "@codemirror/state";
 import {
   AlertCircle,
+  Bot,
   ChevronLeft,
   FileCode2,
   Folder,
@@ -46,6 +47,10 @@ import {
   SharedSession,
 } from "@/features/collaboration/ShareControls";
 import { ExportControl } from "./ExportControl";
+import { AgentProposalControl } from "@/features/assistant/AgentProposalControl";
+import { applyReviewedProposal } from "@/features/assistant/apply-proposal";
+import type { ChangeProposal } from "@/features/assistant/proposal";
+import { GitPanel } from "./GitPanel";
 import { CommandPalette, type WorkbenchCommand } from "./CommandPalette";
 import { syntaxProblems } from "@/features/language/syntax-problems";
 import {
@@ -134,6 +139,8 @@ export function SessionWorkbench({
   const [inspectorOpen, setInspectorOpen] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
   );
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [agentAvailable, setAgentAvailable] = useState(false);
   const [outputOpen, setOutputOpen] = useState(true);
   const [paletteMode, setPaletteMode] = useState<"files" | "commands" | null>(null);
   const [outputHeight, setOutputHeight] = useState(storedOutputHeight);
@@ -159,6 +166,8 @@ export function SessionWorkbench({
   } | null>(null);
   const [collabStatus, setCollabStatus] = useState("offline");
   const [presence, setPresence] = useState<{ id: string; name: string }[]>([]);
+  const collabStatusByDocument = useRef(new Map<string, string>());
+  const presenceByDocument = useRef(new Map<string, { id: string; name: string }[]>());
   const [takes, setTakes] = useState<TakeRecord[]>([]);
   const [auditionTakeId, setAuditionTakeId] = useState<string | null>(null);
   const [tempo, setTempo] = useState(() => readTempo(""));
@@ -185,6 +194,28 @@ export function SessionWorkbench({
   const exportingNow = useRef(false);
 
   const activeDocument = documents.find((item) => item.id === activeId) ?? null;
+  const agentRole = activeDocument?.shared?.role;
+  useEffect(() => {
+    if (!collaboration || !agentRole || agentRole === "viewer") {
+      setAgentAvailable(false);
+      setAssistantOpen(false);
+      return;
+    }
+    let current = true;
+    void fetch("/api/agent-proposal")
+      .then(async (response) =>
+        response.ok ? (response.json() as Promise<{ available: boolean }>) : { available: false },
+      )
+      .then((result) => {
+        if (current) setAgentAvailable(result.available);
+      })
+      .catch(() => {
+        if (current) setAgentAvailable(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [collaboration, agentRole]);
   const nativeWorkspace = !!workspace && !!storage.isNativeWorkspace?.(workspace.id);
   const diskDirty = !!activeDocument && !!storage.isDirty?.(activeDocument);
   const beatsPerCycle = activeDocument?.beatsPerCycle ?? 4;
@@ -200,7 +231,11 @@ export function SessionWorkbench({
   const mixLevels = activeDocument?.mix?.levels ?? EMPTY_LEVELS;
   const mixColors = activeDocument?.mix?.colors ?? EMPTY_LEVELS;
   const masterLevel = activeDocument?.mix?.master ?? 1;
-  const track = model.tracks.find((item) => item.name === selectedTrack) ?? model.tracks[0] ?? null;
+  const track =
+    model.tracks.find((item) => item.name === selectedTrack) ??
+    model.tracks.find((item) => item.lenses.some((lens) => lens.kind === "param")) ??
+    model.tracks[0] ??
+    null;
   const editableCount = model.tracks.reduce(
     (total, item) =>
       total + item.lenses.filter((lens) => lens.kind === "param" || !lens.locked).length,
@@ -317,12 +352,15 @@ export function SessionWorkbench({
 
   useEffect(() => {
     const fitDrawers = () => {
-      if (window.innerWidth < 900 && sidebarOpen && inspectorOpen) setInspectorOpen(false);
+      if (window.innerWidth < 900 && sidebarOpen && (inspectorOpen || assistantOpen)) {
+        setInspectorOpen(false);
+        setAssistantOpen(false);
+      }
     };
     fitDrawers();
     window.addEventListener("resize", fitDrawers);
     return () => window.removeEventListener("resize", fitDrawers);
-  }, [sidebarOpen, inspectorOpen]);
+  }, [sidebarOpen, inspectorOpen, assistantOpen]);
 
   useEffect(() => {
     if (!sidebarOpen || !inspectorOpen) return;
@@ -474,7 +512,9 @@ export function SessionWorkbench({
             flashPlaybackRanges(currentView, ranges);
         });
         const current = drafts.current.get(activeIdRef.current ?? "");
-        playback.setMix(current?.mix?.levels ?? {}, soloTrack, current?.mix?.master ?? 1);
+        playback.setMix(current?.mix?.levels ?? {}, soloTrack, current?.mix?.master ?? 1, [
+          ...mutedTracks,
+        ]);
         const ok = await playback.play(evaluatedSource);
         if (!mounted.current || request !== evaluation.current) return;
         if (ok) {
@@ -524,7 +564,7 @@ export function SessionWorkbench({
         }
       }
     },
-    [soloTrack],
+    [soloTrack, mutedTracks],
   );
 
   const stopPlayback = useCallback(async () => {
@@ -602,6 +642,10 @@ export function SessionWorkbench({
     if (playingNow.current || loadingNow.current) void stopPlayback();
     setOpenIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
     setActiveId(id);
+    if (collaboration) {
+      setCollabStatus(collabStatusByDocument.current.get(id) ?? "connecting");
+      setPresence(presenceByDocument.current.get(id) ?? []);
+    }
     onDocumentRoute?.(id);
     setSelectedTrack(null);
     setSoloTrack(null);
@@ -865,6 +909,26 @@ export function SessionWorkbench({
     }
   }, [storage]);
 
+  const reloadNativeFiles = async () => {
+    if (!workspace) return;
+    await refreshOpenDocuments();
+    const diskFiles = await listDocuments(workspace.id);
+    const ids = new Set(diskFiles.map((item) => item.id));
+    for (const item of diskFiles)
+      if (!drafts.current.has(item.id)) drafts.current.set(item.id, item);
+    for (const id of drafts.current.keys()) if (!ids.has(id)) drafts.current.delete(id);
+    setDocuments((current) => [
+      ...current.filter((item) => ids.has(item.id)),
+      ...diskFiles.filter((item) => !current.some((existing) => existing.id === item.id)),
+    ]);
+    setOpenIds((current) => current.filter((id) => ids.has(id)));
+    if (!activeIdRef.current || !ids.has(activeIdRef.current)) {
+      const first = diskFiles[0]?.id ?? null;
+      setOpenIds(first ? [first] : []);
+      setActiveId(first);
+    }
+  };
+
   useEffect(() => {
     if (!nativeWorkspace || !workspace) return;
     let stop = false;
@@ -1073,7 +1137,10 @@ export function SessionWorkbench({
       group: "Commands",
       run: () => {
         setSidebarOpen(!sidebarOpen);
-        if (!sidebarOpen && window.innerWidth < 900) setInspectorOpen(false);
+        if (!sidebarOpen && window.innerWidth < 900) {
+          setInspectorOpen(false);
+          setAssistantOpen(false);
+        }
       },
     },
     {
@@ -1082,9 +1149,28 @@ export function SessionWorkbench({
       group: "Commands",
       run: () => {
         setInspectorOpen(!inspectorOpen);
-        if (!inspectorOpen && window.innerWidth < 900) setSidebarOpen(false);
+        if (!inspectorOpen) {
+          setAssistantOpen(false);
+          if (window.innerWidth < 900) setSidebarOpen(false);
+        }
       },
     },
+    ...(agentAvailable
+      ? [
+          {
+            id: "assistant",
+            label: assistantOpen ? "Hide Assistant" : "Show Assistant",
+            group: "Commands" as const,
+            run: () => {
+              setAssistantOpen(!assistantOpen);
+              if (!assistantOpen) {
+                setInspectorOpen(false);
+                if (window.innerWidth < 900) setSidebarOpen(false);
+              }
+            },
+          },
+        ]
+      : []),
     {
       id: "output",
       label: outputOpen ? "Hide Output" : "Show Output",
@@ -1100,7 +1186,10 @@ export function SessionWorkbench({
             keywords: "file create",
             run: () => {
               setSidebarOpen(true);
-              if (window.innerWidth < 900) setInspectorOpen(false);
+              if (window.innerWidth < 900) {
+                setInspectorOpen(false);
+                setAssistantOpen(false);
+              }
               requestAnimationFrame(() => document.getElementById("new-document-name")?.focus());
             },
           },
@@ -1509,6 +1598,19 @@ export function SessionWorkbench({
           >
             Keep mine
           </Button>
+          <details className="jam-conflict-compare">
+            <summary>Compare changes</summary>
+            <div className="jam-take-compare">
+              <div>
+                <strong>Unsaved editor</strong>
+                <pre>{activeDocument.source}</pre>
+              </div>
+              <div>
+                <strong>Changed on disk</strong>
+                <pre>{diskConflicts[activeDocument.id]}</pre>
+              </div>
+            </div>
+          </details>
         </div>
       )}
       <div
@@ -1546,7 +1648,10 @@ export function SessionWorkbench({
             className={sidebarOpen ? "is-active" : ""}
             onClick={() => {
               setSidebarOpen(!sidebarOpen);
-              if (!sidebarOpen && window.innerWidth < 900) setInspectorOpen(false);
+              if (!sidebarOpen && window.innerWidth < 900) {
+                setInspectorOpen(false);
+                setAssistantOpen(false);
+              }
             }}
             aria-label={sidebarOpen ? "Hide files" : "Show files"}
           >
@@ -1556,12 +1661,30 @@ export function SessionWorkbench({
             className={inspectorOpen ? "is-active" : ""}
             onClick={() => {
               setInspectorOpen(!inspectorOpen);
-              if (!inspectorOpen && window.innerWidth < 900) setSidebarOpen(false);
+              if (!inspectorOpen) {
+                setAssistantOpen(false);
+                if (window.innerWidth < 900) setSidebarOpen(false);
+              }
             }}
             aria-label={inspectorOpen ? "Hide inspector" : "Show inspector"}
           >
             <SlidersVertical size={20} aria-hidden="true" />
           </button>
+          {agentAvailable && (
+            <button
+              className={assistantOpen ? "is-active" : ""}
+              onClick={() => {
+                setAssistantOpen(!assistantOpen);
+                if (!assistantOpen) {
+                  setInspectorOpen(false);
+                  if (window.innerWidth < 900) setSidebarOpen(false);
+                }
+              }}
+              aria-label={assistantOpen ? "Hide assistant" : "Show assistant"}
+            >
+              <Bot size={20} aria-hidden="true" />
+            </button>
+          )}
         </nav>
         {sidebarOpen && (
           <aside className="jam-file-sidebar">
@@ -1663,6 +1786,17 @@ export function SessionWorkbench({
                 </li>
               ))}
             </ul>
+            {nativeWorkspace && storage.git && (
+              <GitPanel
+                workspaceId={workspace.id}
+                documents={documents}
+                git={storage.git}
+                isDirty={(document) => !!storage.isDirty?.(document)}
+                onFilesChanged={() =>
+                  void reloadNativeFiles().catch((cause: unknown) => setError(message(cause)))
+                }
+              />
+            )}
           </aside>
         )}
         {sidebarOpen && (
@@ -1714,14 +1848,26 @@ export function SessionWorkbench({
               );
             })}
           </div>
-          {collaboration && activeDocument?.shared && (
-            <SharedSession
-              view={activeView}
-              document={activeDocument}
-              onStatus={setCollabStatus}
-              onPresence={setPresence}
-            />
-          )}
+          {collaboration &&
+            openIds.map((id) => {
+              const document = documents.find((item) => item.id === id);
+              const view = views.current.get(id);
+              return document?.shared && view ? (
+                <SharedSession
+                  key={id}
+                  view={view}
+                  document={document}
+                  onStatus={(status) => {
+                    collabStatusByDocument.current.set(id, status);
+                    if (activeIdRef.current === id) setCollabStatus(status);
+                  }}
+                  onPresence={(people) => {
+                    presenceByDocument.current.set(id, people);
+                    if (activeIdRef.current === id) setPresence(people);
+                  }}
+                />
+              ) : null;
+            })}
           <div className="jam-editor-stage">
             {openIds.length ? (
               openIds.map((id) => {
@@ -1881,6 +2027,47 @@ export function SessionWorkbench({
             onRenameTrack={renameTrack}
           />
         )}
+        {assistantOpen &&
+          agentAvailable &&
+          activeDocument?.shared &&
+          activeDocument.shared.role !== "viewer" && (
+            <aside className="jam-assistant-pane" aria-label="Assistant">
+              <div className="jam-panel-heading">
+                <span>ASSISTANT</span>
+                <button
+                  type="button"
+                  aria-label="Close assistant"
+                  onClick={() => setAssistantOpen(false)}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              <AgentProposalControl
+                documentId={activeDocument.id}
+                sources={documents.map((document) => ({
+                  id: document.id,
+                  source: document.source,
+                }))}
+                onReveal={(documentIds) => {
+                  setOpenIds((current) => [...new Set([...current, ...documentIds])]);
+                }}
+                onApply={(proposal: ChangeProposal) => {
+                  const applied = applyReviewedProposal(proposal, views.current, (documentId) => {
+                    const shared = drafts.current.get(documentId)?.shared;
+                    return (
+                      !!shared &&
+                      shared.role !== "viewer" &&
+                      shared.workspaceId === activeDocument.shared?.workspaceId
+                    );
+                  });
+                  if (!applied) return false;
+                  void stopPlayback();
+                  views.current.get(activeIdRef.current ?? "")?.focus();
+                  return true;
+                }}
+              />
+            </aside>
+          )}
       </div>
       <footer className="jam-statusbar">
         <span>{playing ? "● Playing" : "○ Stopped"}</span>
@@ -1909,8 +2096,13 @@ export function SessionWorkbench({
           title="Visual controls are derived from supported source expressions"
           onClick={() => {
             setInspectorOpen(true);
+            setAssistantOpen(false);
             if (window.innerWidth < 900) setSidebarOpen(false);
-            if (model.tracks[0]) setSelectedTrack(model.tracks[0].name);
+            const preferred =
+              model.tracks.find((item) => item.name === selectedTrack) ??
+              model.tracks.find((item) => item.lenses.some((lens) => lens.kind === "param")) ??
+              model.tracks[0];
+            if (preferred) setSelectedTrack(preferred.name);
           }}
         >
           {editableCount ? `${editableCount} source controls` : "No visual controls"}

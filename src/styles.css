@@ -526,16 +526,25 @@
   border-radius: 4px;
   background: var(--muted);
 }
-.jam-rhythm-subdivision i {
+.jam-rhythm-subdivision button {
   flex: 1;
   min-width: 0;
+  width: auto;
+  height: 100%;
+  padding: 0;
   background: var(--muted);
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
 }
-.jam-rhythm-subdivision i + i {
+.jam-rhythm-subdivision button + button {
   border-left: 1px solid var(--background);
 }
-.jam-rhythm-subdivision i.is-on {
+.jam-rhythm-subdivision button.is-on {
   background: var(--primary);
+}
+.jam-rhythm-alternation {
+  border-style: dashed !important;
 }
 .jam-live-param {
   display: flex;
@@ -749,6 +758,57 @@
   color: var(--muted-foreground);
   white-space: nowrap;
 }
+.jam-shared-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  text-align: left;
+}
+.jam-shared-open-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.jam-shared-open small {
+  color: var(--muted-foreground);
+}
+.jam-shared-open:hover {
+  background: var(--muted);
+}
+.jam-chooser-shared {
+  margin-top: 28px;
+}
+.jam-share-people {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jam-share-people li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+}
+.jam-share-people button {
+  flex: none;
+  color: var(--muted-foreground);
+  text-decoration: underline;
+}
+.jam-share-people button:hover {
+  color: var(--foreground);
+}
 .jam-recent-open:hover,
 .jam-example:hover {
   background: var(--muted);
@@ -911,6 +971,7 @@
 }
 .jam-conflict {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-height: 36px;
@@ -922,6 +983,12 @@
 }
 .jam-conflict span {
   margin-right: auto;
+}
+.jam-conflict-compare {
+  width: 100%;
+}
+.jam-conflict-compare summary {
+  cursor: pointer;
 }
 
 .jam-workbench {
@@ -1072,6 +1139,138 @@
   color: var(--foreground);
   background: var(--background);
   border: 1px solid var(--border);
+}
+.jam-agent-control {
+  position: relative;
+  flex: none;
+  font-size: 12px;
+}
+.jam-agent-control > summary {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  list-style: none;
+}
+.jam-agent-control > summary::-webkit-details-marker {
+  display: none;
+}
+.jam-agent-popup {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  gap: 10px;
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(640px, 75vh);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  box-shadow: 0 12px 32px #0007;
+}
+.jam-agent-popup form {
+  display: grid;
+  gap: 8px;
+}
+.jam-agent-popup textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  resize: vertical;
+}
+.jam-agent-actions {
+  display: flex;
+  gap: 6px;
+}
+.jam-agent-review {
+  display: grid;
+  gap: 8px;
+}
+.jam-agent-review .jam-take-compare {
+  max-height: 250px;
+  overflow: auto;
+}
+.jam-git-control {
+  position: relative;
+  flex: none;
+  font-size: 12px;
+}
+.jam-git-control > summary {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  list-style: none;
+}
+.jam-git-control > summary::-webkit-details-marker {
+  display: none;
+}
+.jam-git-popup {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  gap: 10px;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(500px, 70vh);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  box-shadow: 0 12px 32px #0007;
+}
+.jam-git-popup form,
+.jam-git-popup fieldset,
+.jam-git-popup form > label {
+  display: grid;
+  gap: 8px;
+}
+.jam-git-popup fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.jam-git-popup input:not([type="checkbox"]) {
+  width: 100%;
+  min-height: 30px;
+  padding: 0 8px;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+.jam-file-sidebar .jam-git-control,
+.jam-assistant-pane .jam-agent-control {
+  margin: 10px;
+}
+.jam-file-sidebar .jam-git-control > summary,
+.jam-assistant-pane .jam-agent-control > summary {
+  justify-content: space-between;
+  background: var(--muted);
+}
+.jam-file-sidebar .jam-git-popup,
+.jam-assistant-pane .jam-agent-popup {
+  position: static;
+  width: 100%;
+  max-height: none;
+  border-top: 0;
+  box-shadow: none;
+}
+.jam-assistant-pane .jam-agent-review .jam-take-compare {
+  grid-template-columns: 1fr;
 }
 .jam-export-control summary {
   display: flex;
@@ -1431,6 +1630,13 @@
   border-left: 1px solid var(--border);
   background: var(--card);
 }
+.jam-assistant-pane {
+  flex: 0 0 min(320px, 32vw);
+  min-width: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+}
 .jam-pane-resizer {
   position: relative;
   z-index: 2;
@@ -1488,6 +1694,9 @@
   display: grid;
   gap: 5px;
 }
+.jam-mix-track.is-selected .jam-mix-track-name {
+  color: var(--foreground);
+}
 .jam-mix-track-heading {
   display: flex;
   align-items: center;
@@ -1503,8 +1712,21 @@
 }
 .jam-mix-track-name {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 7px;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
 }
 .jam-mix-track-name .jam-track-dot {
   flex: none;
@@ -1514,7 +1736,7 @@
   flex: none;
   gap: 3px;
 }
-.jam-mix-track-heading button {
+.jam-mix-track-actions button {
   width: 25px;
   height: 23px;
   display: grid;
@@ -1567,18 +1789,18 @@
   outline: 1px solid var(--foreground);
   outline-offset: 2px;
 }
-.jam-mix-track-heading button:hover,
-.jam-mix-track-heading button.is-solo {
+.jam-mix-track-actions button:hover,
+.jam-mix-track-actions button.is-solo {
   border-color: var(--primary);
   color: var(--primary);
   background: var(--muted);
 }
-.jam-mix-track-heading button.is-mute {
+.jam-mix-track-actions button.is-mute {
   border-color: var(--channel-mute);
   color: var(--channel-mute-foreground);
   background: var(--muted);
 }
-.jam-mix-track-heading button.is-mute:hover {
+.jam-mix-track-actions button.is-mute:hover {
   border-color: var(--destructive);
   color: var(--destructive);
 }
@@ -1964,7 +2186,8 @@
     justify-self: end;
   }
   .jam-file-sidebar,
-  .jam-inspector {
+  .jam-inspector,
+  .jam-assistant-pane {
     position: absolute;
     z-index: 5;
     top: 76px;
@@ -1978,7 +2201,8 @@
   .jam-file-sidebar {
     left: 46px;
   }
-  .jam-inspector {
+  .jam-inspector,
+  .jam-assistant-pane {
     right: 0;
   }
 }

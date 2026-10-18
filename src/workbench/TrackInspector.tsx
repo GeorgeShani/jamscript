@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { isolateHistory } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
 import { dispatchLensEdit } from "@/components/jam/code-editor";
@@ -40,6 +40,7 @@ export function TrackInspector({
   mixColors,
   onTrackColor,
   onRenameTrack,
+  extra,
 }: {
   track: MusicTrack | null;
   tracks: MusicTrack[];
@@ -58,6 +59,7 @@ export function TrackInspector({
   mixColors: Record<string, number>;
   onTrackColor: (orbit: number, color: number) => void;
   onRenameTrack: (id: string, name: string) => boolean;
+  extra?: ReactNode;
 }) {
   const gestures = useRef(new Map<string, number>());
   const edit = (lens: ParamLens, value: number, reason: string) => {
@@ -74,6 +76,11 @@ export function TrackInspector({
       view?.dispatch({ annotations: isolateHistory.of("after") });
   };
   const parameters = track?.lenses.filter((lens): lens is ParamLens => lens.kind === "param") ?? [];
+  const otherParamTracks = tracks
+    .filter(
+      (item) => item.name !== track?.name && item.lenses.some((lens) => lens.kind === "param"),
+    )
+    .map((item) => item.name);
 
   return (
     <aside className="jam-inspector" aria-label="Track inspector">
@@ -84,10 +91,12 @@ export function TrackInspector({
         master={masterLevel}
         solo={soloTrack}
         muted={mutedTracks}
+        selected={track?.name ?? null}
         onLevel={onMixLevel}
         onMaster={onMasterLevel}
         onSolo={onSoloTrack}
         onMute={onMuteTrack}
+        onSelect={onSelectTrack}
         colors={mixColors}
         onColor={onTrackColor}
         onRename={onRenameTrack}
@@ -173,12 +182,15 @@ export function TrackInspector({
               </div>
             ) : (
               <p className="jam-inspector-empty">
-                This track has no supported numeric parameters. Edit its code directly.
+                {otherParamTracks.length
+                  ? `This track has no supported numeric parameters. Select ${otherParamTracks.join(", ")} for gain, room, or filter controls, or add them in this track's code.`
+                  : "This track has no supported numeric parameters. Edit its code directly."}
               </p>
             )}
           </div>
         </>
       )}
+      {extra}
     </aside>
   );
 }

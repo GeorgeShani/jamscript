@@ -40,6 +40,7 @@
     "@codemirror/lsp-client": "^6.3.0",
     "@codemirror/state": "6",
     "@codemirror/view": "6",
+    "@google/genai": "^2.30.0",
     "@lezer/common": "1",
     "@lezer/highlight": "1",
     "@liveblocks/client": "^3.24.3",
