@@ -140,4 +140,28 @@ describe("Strudel language service", () => {
     );
     expect(JSON.stringify(signature)).toContain("samples(source)");
   });
+
+  it("completes pinned GM sounds inside a mini-notation string without evaluating it", () => {
+    const service = new StrudelLanguageService();
+    const uri = "file:///sounds.js";
+    service.handle({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: { textDocument: { uri, version: 1, text: 's("bd gm_ep")' } },
+    });
+    const completions = service.handle(
+      request(12, "textDocument/completion", {
+        textDocument: { uri, version: 1 },
+        position: { line: 0, character: 11 },
+      }),
+    );
+    expect(JSON.stringify(completions)).toContain('"label":"gm_epiano1"');
+    const hover = service.handle(
+      request(13, "textDocument/hover", {
+        textDocument: { uri, version: 1 },
+        position: { line: 0, character: 4 },
+      }),
+    );
+    expect(hover).toEqual([{ jsonrpc: "2.0", id: 13, result: null }]);
+  });
 });

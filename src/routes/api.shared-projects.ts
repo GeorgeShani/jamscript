@@ -7,8 +7,11 @@ import {
   acceptInvitation,
   createInvitation,
   createSharedProject,
+  listActiveInvitations,
+  listWorkspaceDocuments,
   listVisibleDocuments,
   removeMember,
+  renameSharedDocument,
   revokeInvitation,
   roleForDocument,
 } from "@/features/collaboration/membership";
@@ -39,6 +42,17 @@ export const Route = createFileRoute("/api/shared-projects")({
         const current = await actor();
         if ("error" in current && current.error) return current.error;
         const url = new URL(request.url);
+        const invitationWorkspace = url.searchParams.get("workspaceId");
+        if (invitationWorkspace && url.searchParams.get("invitations") === "1") {
+          try {
+            const invitations = await withCollaborationDb((db) =>
+              listActiveInvitations(db, invitationWorkspace, current.userId),
+            );
+            return Response.json(invitations, { headers });
+          } catch {
+            return Response.json({ error: "No access to invitations" }, { status: 403, headers });
+          }
+        }
         const documentId = url.searchParams.get("documentId");
         if (documentId) {
           const access = await withCollaborationDb((db) =>
@@ -46,14 +60,35 @@ export const Route = createFileRoute("/api/shared-projects")({
           );
           if (!access)
             return Response.json({ error: "No access to this document" }, { status: 403, headers });
+          const files = await withCollaborationDb((db) =>
+            listWorkspaceDocuments(db, access.workspaceId, current.userId),
+          );
+          let liveFiles: { id: string; name: string; source: string }[];
+          try {
+            const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"]! });
+            liveFiles = await Promise.all(
+              (files ?? []).map(async (file) => {
+                const update = await liveblocks.getYjsDocumentAsBinaryUpdate(roomId(file.id));
+                const doc = new Y.Doc();
+                Y.applyUpdate(doc, new Uint8Array(update));
+                return { id: file.id, name: file.name, source: doc.getText("source").toString() };
+              }),
+            );
+          } catch {
+            return Response.json(
+              { error: "Shared source is temporarily unavailable. Retry when connected." },
+              { status: 503, headers },
+            );
+          }
           return Response.json(
             {
               documentId,
               workspaceId: access.workspaceId,
               workspaceName: access.workspaceName,
               name: access.name,
-              source: access.source,
+              source: liveFiles.find((file) => file.id === documentId)?.source ?? access.source,
               role: access.role,
+              documents: liveFiles,
             },
             { headers },
           );
@@ -71,22 +106,41 @@ export const Route = createFileRoute("/api/shared-projects")({
         try {
           if (body.action === "create") {
             const source = text("source");
+            const additionalDocuments = Array.isArray(body["files"])
+              ? body["files"].map((item) => {
+                  const file = item as { name?: unknown; source?: unknown };
+                  return {
+                    name: typeof file?.name === "string" ? file.name : "",
+                    source: typeof file?.source === "string" ? file.source : "",
+                  };
+                })
+              : [];
             const created = await withCollaborationDb((db) =>
               createSharedProject(db, {
                 name: text("name"),
                 ownerId: current.userId,
                 documentName: text("documentName"),
                 source,
+                additionalDocuments,
               }),
             );
-            const doc = new Y.Doc();
-            seedSharedText(doc, source);
             const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"]! });
-            await liveblocks.sendYjsBinaryUpdate(
-              roomId(created.documentId),
-              Y.encodeStateAsUpdate(doc),
+            await Promise.all(
+              created.documents.map(async (file) => {
+                const doc = new Y.Doc();
+                seedSharedText(doc, file.source);
+                await liveblocks.sendYjsBinaryUpdate(roomId(file.id), Y.encodeStateAsUpdate(doc));
+              }),
             );
-            return Response.json(created, { headers });
+            return Response.json(
+              {
+                workspaceId: created.workspaceId,
+                documentId: created.documentId,
+                documents: created.documents.map(({ id, name }) => ({ id, name })),
+                role: created.role,
+              },
+              { headers },
+            );
           }
           if (body.action === "invite") {
             const invitationRole = body["role"];
@@ -117,6 +171,16 @@ export const Route = createFileRoute("/api/shared-projects")({
               }),
             );
             return Response.json({ ok: true }, { headers });
+          }
+          if (body.action === "rename-document") {
+            const renamed = await withCollaborationDb((db) =>
+              renameSharedDocument(db, {
+                documentId: text("documentId"),
+                actorId: current.userId,
+                name: text("name"),
+              }),
+            );
+            return Response.json(renamed, { headers });
           }
           if (body.action === "remove-member") {
             await withCollaborationDb((db) =>

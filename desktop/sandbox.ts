@@ -1,4 +1,24 @@
 import * as playback from "../src/engine/playback";
+import { configureIsolatedAssetFetch } from "../src/engine/audio-cache";
+import { canProxyAssetUrl } from "./asset-cache";
+
+let nextAssetId = 0;
+const assetPending = new Map<
+  number,
+  { resolve: (value: Response) => void; reject: (cause: Error) => void }
+>();
+configureIsolatedAssetFetch(async (url) => {
+  if (!canProxyAssetUrl(url)) return null;
+  const id = ++nextAssetId;
+  return new Promise<Response>((resolve, reject) => {
+    assetPending.set(id, { resolve, reject });
+    window.parent.postMessage({ channel: "jamscript-audio", type: "asset-request", id, url }, "*");
+    window.setTimeout(() => {
+      if (!assetPending.delete(id)) return;
+      reject(new Error("Sample request timed out"));
+    }, 30_000);
+  });
+});
 
 let meterTimer: number | null = null;
 function stopMeter() {
@@ -60,9 +80,29 @@ playback.onAsset((detail) => send({ type: "asset", detail }));
 playback.onHighlight((ranges) => send({ type: "highlight", ranges }));
 window.addEventListener("message", async (event: MessageEvent<unknown>) => {
   if (event.source !== window.parent || !event.data || typeof event.data !== "object") return;
-  const data = event.data as Partial<Request>;
+  const data = event.data as Partial<Request> & {
+    type?: string;
+    ok?: boolean;
+    bytes?: ArrayBuffer;
+    contentType?: string;
+    detail?: string;
+  };
   if (data.channel !== "jamscript-audio" || !Number.isSafeInteger(data.id)) return;
   const id = data.id as number;
+  if (data.type === "asset-response") {
+    const pending = assetPending.get(id);
+    if (!pending) return;
+    assetPending.delete(id);
+    if (data.ok && data.bytes instanceof ArrayBuffer)
+      pending.resolve(
+        new Response(data.bytes, {
+          status: 200,
+          headers: { "Content-Type": data.contentType ?? "application/octet-stream" },
+        }),
+      );
+    else pending.reject(new Error(data.detail ?? "Sample unavailable"));
+    return;
+  }
   try {
     if (data.command === "play" && typeof data.code === "string" && data.code.length <= 1_000_000) {
       const ok = await playback.play(data.code);

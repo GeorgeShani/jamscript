@@ -16,7 +16,7 @@ function SharedDocumentPage() {
   const [error, setError] = useState<string | null>(null);
   const [opened, setOpened] = useState<{
     workspace: WorkspaceRecord;
-    document: DocumentRecord;
+    documents: DocumentRecord[];
   } | null>(null);
 
   useEffect(() => {
@@ -30,28 +30,33 @@ function SharedDocumentPage() {
           name?: string;
           source?: string;
           role?: CollaborationRole;
+          documents?: { id: string; name: string; source: string }[];
         };
         if (!response.ok || !body.workspaceId || !body.name || body.role === undefined)
           throw new Error(body.error ?? "This shared document is unavailable");
         if (!current) return;
         const now = Date.now();
+        const workspace = {
+          id: body.workspaceId,
+          name: body.workspaceName ?? body.name,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const files = body.documents?.length
+          ? body.documents
+          : [{ id: documentId, name: body.name, source: body.source ?? "" }];
         setOpened({
-          workspace: {
-            id: body.workspaceId,
-            name: body.workspaceName ?? body.name,
-            createdAt: now,
-            updatedAt: now,
-          },
-          document: {
-            id: documentId,
-            workspaceId: body.workspaceId,
-            name: body.name,
-            source: body.source ?? "",
+          workspace,
+          documents: files.map((file) => ({
+            id: file.id,
+            workspaceId: workspace.id,
+            name: file.name,
+            source: file.source,
             beatsPerCycle: 4,
-            shared: { workspaceId: body.workspaceId, documentId, role: body.role },
+            shared: { workspaceId: workspace.id, documentId: file.id, role: body.role! },
             createdAt: now,
             updatedAt: now,
-          },
+          })),
         });
       })
       .catch((cause: unknown) => {
@@ -79,7 +84,7 @@ function SharedDocumentPage() {
       sharedOnly
       storage={storage}
       workspaceId={opened.workspace.id}
-      initialDocumentId={opened.document.id}
+      initialDocumentId={documentId}
       onWorkspaceRoute={() => void navigate({ to: "/app" })}
     />
   );

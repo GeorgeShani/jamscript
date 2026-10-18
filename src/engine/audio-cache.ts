@@ -1,6 +1,12 @@
 const AUDIO_CACHE = "jamscript-audio-v1";
 let installed = false;
 let reportMissing: (detail: string) => void = () => {};
+let isolatedAssetFetch: ((url: string) => Promise<Response | null>) | null = null;
+
+/** Desktop may supply a narrow asset bridge because opaque frames cannot use CacheStorage. */
+export function configureIsolatedAssetFetch(fetcher: (url: string) => Promise<Response | null>) {
+  isolatedAssetFetch = fetcher;
+}
 
 function cacheable(url: string) {
   return (
@@ -34,6 +40,15 @@ export function installAudioCache() {
   const cachedFetch = async (input: Parameters<typeof window.fetch>[0], init?: RequestInit) => {
     const request = new Request(input, init);
     if (request.method !== "GET" || !cacheable(request.url)) return nativeFetch(input, init);
+    if (!storage && isolatedAssetFetch) {
+      try {
+        const bridged = await isolatedAssetFetch(request.url);
+        if (bridged) return bridged;
+      } catch (cause) {
+        reportMissing(`Offline and not cached: ${fileName(request.url)}.`);
+        throw cause;
+      }
+    }
     let cache: Cache | null = null;
     try {
       cache = storage ? await storage.open(AUDIO_CACHE) : null;

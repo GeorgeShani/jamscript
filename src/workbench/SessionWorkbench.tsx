@@ -1412,10 +1412,15 @@ export function SessionWorkbench({
           {collaboration && (
             <ShareControls
               document={activeDocument}
-              onShared={(next) => {
-                drafts.current.set(next.id, next);
-                setDocuments((items) => items.map((item) => (item.id === next.id ? next : item)));
-                void saveDocument(next);
+              documents={documents}
+              workspaceName={workspace?.name ?? "Workspace"}
+              onShared={(shared) => {
+                const byId = new Map(shared.map((item) => [item.id, item]));
+                for (const item of shared) {
+                  drafts.current.set(item.id, item);
+                  void saveDocument(item);
+                }
+                setDocuments((items) => items.map((item) => byId.get(item.id) ?? item));
               }}
             />
           )}
@@ -1632,7 +1637,7 @@ export function SessionWorkbench({
                           {storage.isDirty?.(item) ? " •" : ""}
                         </span>
                       </button>
-                      {!sharedOnly && (
+                      {(!sharedOnly || (item.shared && item.shared.role !== "viewer")) && (
                         <button
                           className="jam-file-action"
                           aria-label={`Rename ${item.name}`}

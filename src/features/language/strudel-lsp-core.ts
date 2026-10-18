@@ -46,7 +46,19 @@ const docs: Record<string, { signature: string; detail: string }> = {
     detail: "Set the global playback rate in cycles per minute.",
   },
 };
-const samples = ["bd", "sd", "hh", "oh", "cp", "rim", "kick", "snare", "piano", "bass"];
+const samples = [
+  "bd",
+  "sd",
+  "hh",
+  "oh",
+  "cp",
+  "rim",
+  "kick",
+  "snare",
+  "piano",
+  "bass",
+  ...api.sounds,
+];
 const names = api.names.filter(
   (name) => !/^(get|setAudio|register|unregister|init|create|destroy|is[A-Z]|has[A-Z])/.test(name),
 );
@@ -90,6 +102,16 @@ function enclosingCall(source: string, at: number) {
     return name;
   }
   return null;
+}
+
+function isStringOrComment(source: string, at: number) {
+  const node = javascriptLanguage.parser.parse(source).resolveInner(Math.max(0, at - 1), -1);
+  return /^(String|LineComment|BlockComment)$/.test(node.name);
+}
+
+function inSoundArgument(source: string, at: number) {
+  if (!isStringOrComment(source, at)) return false;
+  return /^(s|sound)$/.test(enclosingCall(source, at) ?? "");
 }
 
 /** One analysis core for worker and stdio transports. It never executes source. */
@@ -175,7 +197,8 @@ export class StrudelLanguageService {
       return [response(id, null)];
     const at = offset(source, params?.position ?? { line: 0, character: 0 });
     if (method === "textDocument/completion") {
-      const sampleContext = /\b(?:s|sound)\s*\(\s*["'][^"']*$/.test(source.slice(0, at));
+      const sampleContext =
+        inSoundArgument(source, at) || /\b(?:s|sound)\s*\(\s*["'][^"']*$/.test(source.slice(0, at));
       const locals = this.symbols(source).map((symbol) => symbol.name);
       const candidates = sampleContext ? samples : [...new Set([...locals, ...names])];
       const prefix = wordAt(source.slice(0, at), at).toLowerCase();
@@ -199,6 +222,7 @@ export class StrudelLanguageService {
       ];
     }
     if (method === "textDocument/hover") {
+      if (isStringOrComment(source, at)) return [response(id, null)];
       const name = wordAt(source, at);
       const found = docs[name];
       const local = this.symbols(source).find((symbol) => symbol.name === name);

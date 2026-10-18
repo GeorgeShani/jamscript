@@ -2,6 +2,7 @@ import type { PlaybackRange } from "../src/components/jam/playback-highlights";
 import { dbToLevel } from "../src/lib/decibels";
 import { createFrameEmitter } from "../src/lib/frame-source";
 import { appendHistory } from "../src/lib/history";
+import { loadDesktopAsset } from "./asset-cache";
 import type { MeterFrame, VisualFrame } from "../src/lib/types";
 
 let frame: HTMLIFrameElement | null = null;
@@ -9,6 +10,7 @@ let ready: Promise<void> | null = null;
 let nextId = 0;
 let errorCallback: ((message: string) => void) | null = null;
 let highlightCallback: ((ranges: PlaybackRange[]) => void) | null = null;
+let inFlightAssets = 0;
 const pending = new Map<number, (ok: boolean) => void>();
 const meter = createFrameEmitter<MeterFrame>();
 const visualFrame: VisualFrame = {
@@ -68,8 +70,51 @@ function ensureFrame() {
         ok?: boolean;
         detail?: string;
         ranges?: PlaybackRange[];
+        url?: string;
       };
       if (data.channel !== "jamscript-audio") return;
+      if (data.type === "asset-request" && Number.isSafeInteger(data.id)) {
+        const id = data.id as number;
+        if (typeof data.url !== "string" || inFlightAssets >= 8) {
+          iframe.contentWindow?.postMessage(
+            { channel: "jamscript-audio", type: "asset-response", id, ok: false },
+            "*",
+          );
+          return;
+        }
+        inFlightAssets += 1;
+        void loadDesktopAsset(data.url)
+          .then((asset) => {
+            iframe.contentWindow?.postMessage(
+              {
+                channel: "jamscript-audio",
+                type: "asset-response",
+                id,
+                ok: true,
+                bytes: asset.bytes,
+                contentType: asset.contentType,
+              },
+              "*",
+              [asset.bytes],
+            );
+          })
+          .catch((cause: unknown) => {
+            iframe.contentWindow?.postMessage(
+              {
+                channel: "jamscript-audio",
+                type: "asset-response",
+                id,
+                ok: false,
+                detail: cause instanceof Error ? cause.message : "Sample unavailable",
+              },
+              "*",
+            );
+          })
+          .finally(() => {
+            inFlightAssets -= 1;
+          });
+        return;
+      }
       if (
         data.type === "levels" &&
         Array.isArray((data as { bands?: unknown }).bands) &&

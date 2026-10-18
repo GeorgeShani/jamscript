@@ -10,6 +10,7 @@ import {
   workspaces,
 } from "@/db/schema";
 import { canWrite, type CollaborationRole } from "./shared-document";
+import { shareableDocumentName } from "./shareable";
 
 export type CollaborationDb = Pick<PostgresJsDatabase, "insert" | "select" | "update" | "delete">;
 
@@ -25,11 +26,27 @@ export function normalizeEmail(email: string) {
 
 export async function createSharedProject(
   db: CollaborationDb,
-  input: { name: string; ownerId: string; documentName: string; source: string },
+  input: {
+    name: string;
+    ownerId: string;
+    documentName: string;
+    source: string;
+    additionalDocuments?: { name: string; source: string }[];
+  },
 ) {
   const name = input.name.trim();
   const documentName = input.documentName.trim();
   if (!name || !documentName) throw new Error("Workspace and document names are required");
+  const files = [
+    { name: documentName, source: input.source },
+    ...(input.additionalDocuments ?? []),
+  ];
+  if (
+    files.length > 32 ||
+    files.some((file) => !shareableDocumentName(file.name) || file.source.length > 1_000_000) ||
+    new Set(files.map((file) => file.name.toLowerCase())).size !== files.length
+  )
+    throw new Error("Choose distinct music source files up to 1 MB each");
   const [workspace] = await db
     .insert(workspaces)
     .values({ name, createdByClerkUserId: input.ownerId })
@@ -40,18 +57,29 @@ export async function createSharedProject(
     clerkUserId: input.ownerId,
     role: "owner",
   });
-  const [document] = await db
+  const created = await db
     .insert(documents)
-    .values({ workspaceId: workspace.id, name: documentName, source: input.source })
+    .values(files.map((file) => ({ workspaceId: workspace.id, ...file })))
     .returning();
-  if (!document) throw new Error("Document was not created");
-  await db.insert(documentRevisions).values({
-    documentId: document.id,
-    version: 1,
-    source: input.source,
-    savedByClerkUserId: input.ownerId,
-  });
-  return { workspaceId: workspace.id, documentId: document.id, role: "owner" as const };
+  if (created.length !== files.length) throw new Error("Documents were not created");
+  await db.insert(documentRevisions).values(
+    created.map((document) => ({
+      documentId: document.id,
+      version: 1,
+      source: document.source,
+      savedByClerkUserId: input.ownerId,
+    })),
+  );
+  return {
+    workspaceId: workspace.id,
+    documentId: created[0]!.id,
+    documents: created.map((document) => ({
+      id: document.id,
+      name: document.name,
+      source: document.source,
+    })),
+    role: "owner" as const,
+  };
 }
 
 export async function memberRole(db: CollaborationDb, workspaceId: string, userId: string) {
@@ -96,6 +124,36 @@ export async function roleForDocument(db: CollaborationDb, documentId: string, u
   return { ...document, role };
 }
 
+export async function listWorkspaceDocuments(
+  db: CollaborationDb,
+  workspaceId: string,
+  userId: string,
+) {
+  const role = await memberRole(db, workspaceId, userId);
+  if (!role) return null;
+  return db
+    .select({ id: documents.id, name: documents.name, source: documents.source })
+    .from(documents)
+    .where(eq(documents.workspaceId, workspaceId));
+}
+
+export async function renameSharedDocument(
+  db: CollaborationDb,
+  input: { documentId: string; actorId: string; name: string },
+) {
+  const name = input.name.trim();
+  if (!shareableDocumentName(name)) throw new Error("Choose a .js or .strudel music source name");
+  const document = await roleForDocument(db, input.documentId, input.actorId);
+  if (!document || !canWrite(document.role)) throw new Error("No permission to rename this file");
+  const [updated] = await db
+    .update(documents)
+    .set({ name, updatedAt: new Date() })
+    .where(eq(documents.id, input.documentId))
+    .returning({ id: documents.id, name: documents.name });
+  if (!updated) throw new Error("Shared file was not found");
+  return updated;
+}
+
 export async function createInvitation(
   db: CollaborationDb,
   input: { workspaceId: string; actorId: string; email: string; role: "editor" | "viewer" },
@@ -120,6 +178,30 @@ export async function createInvitation(
     .returning({ id: workspaceInvitations.id });
   if (!invitation) throw new Error("Invitation was not created");
   return { invitationId: invitation.id, token, email, role: input.role };
+}
+
+export async function listActiveInvitations(
+  db: CollaborationDb,
+  workspaceId: string,
+  actorId: string,
+) {
+  if ((await memberRole(db, workspaceId, actorId)) !== "owner")
+    throw new Error("Only the owner can view invitations");
+  return db
+    .select({
+      id: workspaceInvitations.id,
+      email: workspaceInvitations.invitedEmail,
+      role: workspaceInvitations.role,
+      expiresAt: workspaceInvitations.expiresAt,
+    })
+    .from(workspaceInvitations)
+    .where(
+      and(
+        eq(workspaceInvitations.workspaceId, workspaceId),
+        isNull(workspaceInvitations.revokedAt),
+        isNull(workspaceInvitations.acceptedAt),
+      ),
+    );
 }
 
 export async function revokeInvitation(

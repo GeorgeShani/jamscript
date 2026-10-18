@@ -2,7 +2,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import {
@@ -11,8 +11,10 @@ import {
   createSharedProject,
   hashInviteToken,
   listVisibleDocuments,
+  listWorkspaceDocuments,
   memberRole,
   roleForDocument,
+  renameSharedDocument,
   revokeInvitation,
   type CollaborationDb,
 } from "@/features/collaboration/membership";
@@ -41,6 +43,7 @@ describe("shared project membership", () => {
       ownerId: "user_owner",
       documentName: "coastline.strudel",
       source: "setcps(0.75)",
+      additionalDocuments: [{ name: "bass.js", source: 'note("c2").s("gm_acoustic_bass")' }],
     });
     expect(await memberRole(db, project.workspaceId, "user_owner")).toBe("owner");
     expect(await roleForDocument(db, project.documentId, "user_owner")).toMatchObject({
@@ -77,7 +80,32 @@ describe("shared project membership", () => {
     });
     expect(accepted.role).toBe("editor");
     const visible = await listVisibleDocuments(db, "user_editor");
-    expect(visible.map((item) => item.documentName)).toEqual(["coastline.strudel"]);
+    expect(visible.map((item) => item.documentName).sort()).toEqual([
+      "bass.js",
+      "coastline.strudel",
+    ]);
+    expect(
+      (await listWorkspaceDocuments(db, project.workspaceId, "user_editor"))
+        ?.map((item) => item.name)
+        .sort(),
+    ).toEqual(["bass.js", "coastline.strudel"]);
+    expect(await listWorkspaceDocuments(db, project.workspaceId, "user_listener")).toBeNull();
+    await expect(
+      renameSharedDocument(db, {
+        documentId: project.documentId,
+        actorId: "user_listener",
+        name: "forbidden.js",
+      }),
+    ).rejects.toThrow(/permission/);
+    const renamed = await renameSharedDocument(db, {
+      documentId: project.documentId,
+      actorId: "user_editor",
+      name: "coastline-remix.strudel",
+    });
+    expect(renamed.id).toBe(project.documentId);
+    expect((await roleForDocument(db, project.documentId, "user_owner"))?.name).toBe(
+      "coastline-remix.strudel",
+    );
     expect(await listVisibleDocuments(db, "user_listener")).toEqual([]);
     expect(hashInviteToken(editorInvite.token)).toHaveLength(64);
     await expect(
@@ -121,18 +149,29 @@ describe("shared source", () => {
     expect(documentIdFromRoom("jamscript:../secret")).toBeNull();
   });
 
-  it("does not claim an in-memory rename is a persisted shared metadata change", async () => {
+  it("updates shared metadata only after the server confirms the rename", async () => {
     const workspace = { id: "shared", name: "Coastline", createdAt: 0, updatedAt: 0 };
     const document = {
       id: "song",
       workspaceId: workspace.id,
       name: "coastline.strudel",
       source: 's("bd")',
+      shared: { workspaceId: workspace.id, documentId: "song", role: "editor" as const },
       createdAt: 0,
       updatedAt: 0,
     };
-    const storage = sharedDocumentStorage({ workspace, document });
-    await expect(storage.renameDocument(document, "renamed.js")).rejects.toThrow(/not available/);
+    const storage = sharedDocumentStorage({ workspace, documents: [document] });
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Unavailable" }), { status: 503 }),
+      );
+    vi.stubGlobal("fetch", request);
+    await expect(storage.renameDocument(document, "renamed.js")).rejects.toThrow(/Unavailable/);
     expect((await storage.listDocuments(workspace.id))[0]?.name).toBe(document.name);
+    request.mockResolvedValueOnce(Response.json({ id: "song", name: "renamed.js" }));
+    expect((await storage.renameDocument(document, "renamed.js")).name).toBe("renamed.js");
+    expect((await storage.listDocuments(workspace.id))[0]?.name).toBe("renamed.js");
+    vi.unstubAllGlobals();
   });
 });

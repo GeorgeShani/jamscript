@@ -1021,6 +1021,58 @@
   position: relative;
   flex: none;
 }
+.jam-share-control {
+  position: relative;
+  flex: none;
+  font-size: 12px;
+}
+.jam-share-control > summary {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  list-style: none;
+}
+.jam-share-control > summary::-webkit-details-marker {
+  display: none;
+}
+.jam-share-control > form {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  gap: 10px;
+  width: min(320px, calc(100vw - 24px));
+  max-height: min(460px, 70vh);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  box-shadow: 0 12px 32px #0007;
+}
+.jam-share-control fieldset,
+.jam-share-control label {
+  display: grid;
+  gap: 4px;
+}
+.jam-share-control fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.jam-share-control input[type="email"],
+.jam-share-control select {
+  width: 100%;
+  min-height: 30px;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+}
 .jam-export-control summary {
   display: flex;
   align-items: center;

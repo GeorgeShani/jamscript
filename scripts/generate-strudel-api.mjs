@@ -8,10 +8,12 @@ const exports = bundle.slice(bundle.lastIndexOf("\nexport {"));
 const names = [...exports.matchAll(/\b(?:as\s+)?([A-Za-z_$][\w$]*)\s*,?\s*(?=\n)/g)]
   .map((match) => match[1])
   .filter((name) => /^[a-z][a-zA-Z0-9]*$/.test(name));
+const gm = (await import("@strudel/soundfonts/gm.mjs")).default;
 const output = {
   package: "@strudel/web",
   version: pkg.version,
   names: [...new Set([...names, "setcps", "setcpm", "setbpm", "hush"])].sort(),
+  sounds: Object.keys(gm).sort(),
 };
 writeFileSync(
   fileURLToPath(new URL("../src/features/language/strudel-api.generated.json", import.meta.url)),
