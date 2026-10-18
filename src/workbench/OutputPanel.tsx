@@ -108,9 +108,9 @@ export function OutputPanel({
         onPointerCancel={resizeHandle.onPointerEnd}
         onKeyDown={resizeHandle.onKeyDown}
       >
-        <span className="jam-output-heading-label">OUTPUT</span>
+        <span className="jam-output-heading-label">Output</span>
         <span className="jam-output-resize-cue" aria-hidden="true">
-          <GripHorizontal size={15} /> DRAG TO RESIZE
+          <GripHorizontal size={15} /> Drag to resize
         </span>
         <span className="jam-output-state">{playing ? "LIVE" : "IDLE"}</span>
       </div>

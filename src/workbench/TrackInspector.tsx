@@ -84,7 +84,7 @@ export function TrackInspector({
 
   return (
     <aside className="jam-inspector" aria-label="Track inspector">
-      <div className="jam-panel-heading">INSPECTOR</div>
+      <div className="jam-panel-heading">Inspector</div>
       <MixerPanel
         tracks={mixTracks}
         levels={mixLevels}

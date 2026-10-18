@@ -88,7 +88,7 @@ export function MixerPanel({
 
   return (
     <section className="jam-inspector-section jam-mixer" aria-label="Mixer">
-      <h2>MIXER</h2>
+      <h2>Mixer</h2>
       <Level label="Master" value={master} onChange={onMaster} />
       {tracks.length > 0 ? (
         <div className="jam-mix-tracks">

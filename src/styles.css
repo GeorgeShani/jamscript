@@ -1401,9 +1401,10 @@
   padding: 0 14px;
   border-bottom: 1px solid var(--border);
   color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.13em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
 }
 .jam-panel-heading button {
   display: grid;
@@ -1706,10 +1707,10 @@
 }
 .jam-chat-message > header {
   color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
 }
 .jam-chat-message.is-user {
   border-left: 2px solid var(--primary);
@@ -1837,9 +1838,10 @@
 .jam-inspector-section h2 {
   margin-bottom: 12px;
   color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
 }
 .jam-inspector-empty {
   padding: 16px 14px;
@@ -2074,10 +2076,18 @@
   gap: 5px;
   transform: translateX(-50%);
   color: var(--muted-foreground);
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
   opacity: 0.7;
   pointer-events: none;
+}
+.jam-output-heading-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
 }
 .jam-output-resizer:hover,
 .jam-output-resizer:focus-visible,

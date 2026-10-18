@@ -1702,7 +1702,7 @@ export function SessionWorkbench({
         {sidebarOpen && (
           <aside className="jam-file-sidebar">
             <div className="jam-panel-heading">
-              <span>FILES</span>
+              <span>Files</span>
               {!sharedOnly && (
                 <button
                   onClick={() => document.getElementById("new-document-name")?.focus()}
@@ -2047,7 +2047,7 @@ export function SessionWorkbench({
           workspace && (
             <aside className="jam-assistant-pane" aria-label="Assistant">
               <div className="jam-panel-heading">
-                <span>ASSISTANT</span>
+                <span>Assistant</span>
                 <button
                   type="button"
                   aria-label="Close assistant"
