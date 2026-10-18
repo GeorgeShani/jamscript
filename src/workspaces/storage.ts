@@ -140,7 +140,7 @@ export function listDocuments(workspaceId: string) {
   });
 }
 
-export function createWorkspace(name: string, templateSource?: string) {
+export function createWorkspace(name: string, templateSource?: string, templateFileName?: string) {
   const now = Date.now();
   const workspace: WorkspaceRecord = {
     id: crypto.randomUUID(),
@@ -151,7 +151,7 @@ export function createWorkspace(name: string, templateSource?: string) {
   const document: DocumentRecord = {
     id: crypto.randomUUID(),
     workspaceId: workspace.id,
-    name: templateSource === undefined ? "untitled.js" : "night-bus.js",
+    name: templateFileName ?? (templateSource === undefined ? "untitled.js" : "night-bus.js"),
     source: templateSource ?? "",
     beatsPerCycle: 4,
     createdAt: now,

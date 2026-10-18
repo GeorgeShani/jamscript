@@ -105,16 +105,15 @@ export function DesktopDownloads() {
             );
           })}
         </div>
-        {release ? (
-          <a
-            className="jam-site-downloads-release-link"
-            href={RELEASES_PAGE}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Release notes and all formats <ArrowUpRight size={14} />
-          </a>
-        ) : null}
+        <a
+          className="jam-site-downloads-release-link"
+          href={RELEASES_PAGE}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {release ? "Release notes and all formats" : "View the release archive"}
+          <ArrowUpRight size={14} aria-hidden="true" />
+        </a>
       </div>
     </section>
   );

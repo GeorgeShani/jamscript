@@ -12,7 +12,13 @@ import {
   saveChatThread,
   trimChatMessages,
 } from "./chat-store";
-import { expandSlashPrompt, parseSlashCommand, STARTER_PROMPTS } from "./chat-slash";
+import {
+  EDIT_STARTER_PROMPTS,
+  expandSlashPrompt,
+  NEW_SONG_PROMPTS,
+  parseSlashCommand,
+  STARTER_PROMPTS,
+} from "./chat-slash";
 import { ProposalCard } from "./ProposalCard";
 import { applyReviewedProposal } from "./apply-proposal";
 import type { ChangeProposal } from "./proposal";
@@ -436,12 +442,25 @@ export function ChatPanel({
         {thread.messages.length === 0 ? (
           <div className="jam-chat-empty">
             <p className="jam-chat-empty-lead">
-              Ask about this Strudel file, or switch to Edit for a reviewed change.
+              {mode === "edit"
+                ? "Describe a change. The assistant proposes a diff for you to review before it touches the code."
+                : "Ask about this Strudel file, or switch to Edit for a reviewed change."}
             </p>
             <ul>
-              {STARTER_PROMPTS.map((prompt) => (
+              {(mode === "ask"
+                ? STARTER_PROMPTS
+                : sources.find((file) => file.id === documentId)?.source.trim()
+                  ? EDIT_STARTER_PROMPTS
+                  : NEW_SONG_PROMPTS
+              ).map((prompt) => (
                 <li key={prompt}>
-                  <button type="button" onClick={() => void send(prompt)}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(prompt);
+                      composerRef.current?.focus();
+                    }}
+                  >
                     {prompt}
                   </button>
                 </li>

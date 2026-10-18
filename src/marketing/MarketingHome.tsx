@@ -4,6 +4,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   AudioLines,
+  Bot,
   FolderOpen,
   Play,
   RotateCcw,
@@ -103,6 +104,9 @@ export function MarketingHome() {
   return (
     <div className="jam-site" ref={site}>
       <div className="jam-site-scroll-progress" aria-hidden="true" />
+      <a className="jam-site-skip" href="#site-main">
+        Skip to content
+      </a>
       <header className="jam-site-header">
         <Link to="/" aria-label="JamScript home" className="jam-site-logo">
           <img src="/brand/logo.svg" alt="JamScript" width="162" height="32" />
@@ -119,7 +123,7 @@ export function MarketingHome() {
         </Link>
       </header>
 
-      <main>
+      <main id="site-main">
         <section className="jam-site-hero" aria-labelledby="site-title">
           <div className="jam-site-hero-copy">
             <p className="jam-site-kicker">
@@ -322,15 +326,44 @@ export function MarketingHome() {
           </div>
         </section>
 
+        <section
+          className="jam-site-section jam-site-assistance"
+          aria-labelledby="assistance-title"
+        >
+          <div data-reveal>
+            <h2 id="assistance-title">A second set of ears for the code.</h2>
+            <p>
+              Ask what a Strudel pattern does, explore a variation, or request a code edit. When the
+              assistant is configured, edits arrive as a diff you review before applying.
+            </p>
+            <Link to="/app" className="jam-site-text-link">
+              Open a workspace <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="jam-site-assistance-flow" data-reveal>
+            <div>
+              <Bot size={20} aria-hidden="true" />
+              <span>ASK</span>
+              <strong>“What does this groove play?”</strong>
+            </div>
+            <div>
+              <SlidersHorizontal size={20} aria-hidden="true" />
+              <span>EDIT</span>
+              <strong>“Make the hats busier. Keep the kick.”</strong>
+            </div>
+            <p>Review the proposed source change, then apply or reject it.</p>
+          </div>
+        </section>
+
         <DesktopDownloads />
 
         <section className="jam-site-section jam-site-roadmap" id="roadmap">
           <div data-reveal>
-            <p className="jam-site-kicker">WHAT COMES NEXT</p>
-            <h2>Growing into a full music IDE.</h2>
+            <p className="jam-site-kicker">PRODUCT STATUS</p>
+            <h2>What is ready, and what is next.</h2>
             <p>
-              The browser workbench is available now. Desktop builds and connected services are
-              being tested before their public release.
+              The browser workbench is available now. Desktop installers await a public release;
+              connected features depend on their configured services.
             </p>
           </div>
           <ul data-reveal>
@@ -348,14 +381,14 @@ export function MarketingHome() {
               <span>02</span>
               <div>
                 <strong>Shared workspaces</strong>
-                <p>Invitations and shared source are being integrated and tested together.</p>
+                <p>Invitations and shared source are available for signed-in projects.</p>
               </div>
             </li>
             <li>
               <span>03</span>
               <div>
                 <strong>Music-aware assistance</strong>
-                <p>Offline Strudel IntelliSense and reviewed, service-backed AI proposals.</p>
+                <p>Strudel IntelliSense and reviewed AI edits are available in the workbench.</p>
               </div>
             </li>
           </ul>

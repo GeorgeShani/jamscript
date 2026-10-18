@@ -28,3 +28,14 @@ export const STARTER_PROMPTS = [
   "Suggest a quieter variation of the hats without changing the kick",
   "What Problems should I fix first in this source?",
 ] as const;
+
+export const EDIT_STARTER_PROMPTS = [
+  "Make the hats busier while keeping the kick unchanged",
+  "Add a bass part that fits this groove",
+  "Simplify the pattern without changing its tempo",
+] as const;
+
+export const NEW_SONG_PROMPTS = [
+  "Create a simple drum groove at 120 BPM with labeled tracks",
+  "Start a mellow bass and chord sketch at 90 BPM",
+] as const;

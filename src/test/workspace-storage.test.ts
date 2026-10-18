@@ -12,6 +12,24 @@ import {
 } from "@/workspaces/storage";
 
 describe("browser workspace storage", () => {
+  it("stores a named starter song as its own document", async () => {
+    const created = await createWorkspace(
+      `First beat ${crypto.randomUUID()}`,
+      'setcps(0.5);\ndrums: s("bd ~ sd ~");',
+      "first-beat.js",
+    );
+    try {
+      expect(await listDocuments(created.workspace.id)).toEqual([
+        expect.objectContaining({
+          name: "first-beat.js",
+          source: 'setcps(0.5);\ndrums: s("bd ~ sd ~");',
+        }),
+      ]);
+    } finally {
+      await deleteWorkspace(created.workspace.id);
+    }
+  });
+
   it("persists workspace and document CRUD across database reads", async () => {
     const created = await createWorkspace(`Workspace ${crypto.randomUUID()}`, "setcps(0.5)");
     const id = created.workspace.id;

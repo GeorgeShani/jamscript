@@ -13,6 +13,8 @@ describe("stage presentation", () => {
     render(<PresentationPage />);
 
     expect(screen.getByRole("heading", { name: /the beat is good/i })).toBeTruthy();
+    const nestedBeatLine = screen.getByText(/bd ~ sd ~ bd bd sd ~/).closest("code");
+    expect(nestedBeatLine?.style.paddingInlineStart).toBe("2ch");
     fireEvent.keyDown(window, { key: "ArrowRight" });
     await waitFor(() => expect(window.location.hash).toBe("#slide-2"));
     await waitFor(() =>

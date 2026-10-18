@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/GeorgeShani/jamscript",
+  "releasesPage": "https://github.com/GeorgeShani/jamscript/releases",
+  "latestReleaseApi": "https://api.github.com/repos/GeorgeShani/jamscript/releases/latest",
+  "assetBase": "https://github.com/GeorgeShani/jamscript/releases/download/"
+}

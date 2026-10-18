@@ -57,11 +57,19 @@ function CodeCard({
   );
 }
 
-function Line({ number, children }: { number: number; children: React.ReactNode }) {
+function Line({
+  number,
+  indent = 0,
+  children,
+}: {
+  number: number;
+  indent?: number;
+  children: React.ReactNode;
+}) {
   return (
     <div className="pitch-code-line">
       <span className="pitch-line-number">{number}</span>
-      <code>{children}</code>
+      <code style={{ paddingInlineStart: `${indent}ch` }}>{children}</code>
     </div>
   );
 }
@@ -92,17 +100,14 @@ function ProblemScene({ reduced }: { reduced: boolean }) {
           setcps(<span className="pitch-syn-number">0.6</span>)
         </Line>
         <Line number={3}>stack(</Line>
-        <Line number={4}>
-          {" "}
+        <Line number={4} indent={2}>
           s(<span className="pitch-syn-string">"bd ~ sd ~ bd bd sd ~"</span>),
         </Line>
-        <Line number={5}>
-          {" "}
+        <Line number={5} indent={2}>
           s(<span className="pitch-syn-string">"hh hh hh hh"</span>).gain(
           <span className="pitch-syn-number">0.6</span>),
         </Line>
-        <Line number={6}>
-          {" "}
+        <Line number={6} indent={2}>
           note(<span className="pitch-syn-string">"c2 ~ eb2 g1"</span>).lpf(
           <span className="pitch-syn-number">1200</span>)
         </Line>
@@ -129,8 +134,7 @@ function QuestionScene({ reduced }: { reduced: boolean }) {
           <Line number={1}>
             drums: s(<span className="pitch-syn-string">"bd ~ sd ~"</span>)
           </Line>
-          <Line number={2}>
-            {" "}
+          <Line number={2} indent={2}>
             .gain(<span className="pitch-syn-number">0.50</span>)
           </Line>
         </CodeCard>
@@ -239,8 +243,7 @@ function SolutionScene({ reduced }: { reduced: boolean }) {
         <Line number={1}>
           drums: s(<span className="pitch-syn-string">"bd {shifted ? "bd" : "~"} sd ~"</span>)
         </Line>
-        <Line number={2}>
-          {" "}
+        <Line number={2} indent={2}>
           .gain(
           <motion.span
             className="pitch-syn-number pitch-changing-value"

@@ -2,7 +2,7 @@
 
 Code is the source. Lenses are how you play it.
 
-JamScript serves a public product site at `/` and a browser music workbench at `/app`. Create an app-managed workspace, edit multiple documents, set BPM, play the active source, and inspect supported track parameters and actual output. Workspaces autosave in this browser's IndexedDB. Desktop folder editing and initial shared projects are implemented; AI proposals remain a later milestone.
+JamScript serves a public product site at `/` and a browser music workbench at `/app`. Create an app-managed workspace, edit multiple documents, set BPM, play the active source, and inspect supported track parameters and actual output. Workspaces autosave in this browser's IndexedDB. Desktop folder editing, initial shared projects, and reviewed assistant edits are implemented; assistant availability requires server configuration.
 
 ## Development
 
@@ -27,7 +27,7 @@ Open the URL printed by Vite; `/app` opens the workspace chooser directly. Brows
 
 The [Desktop workflow](.github/workflows/desktop.yml) verifies the project and builds Windows, macOS (Apple Silicon), and Linux installers on pull requests and pushes to `main`. These builds are retained as GitHub Actions artifacts for maintainers. A push of a `v*` tag publishes the installers to **this repository's** GitHub Release after all platform builds pass. The tag must match `v` plus `src-tauri/tauri.conf.json`'s version (for example, `v0.1.0`). Ordinary pushes and pull requests never publish a release.
 
-The workflow uses the repository-scoped `GITHUB_TOKEN`; only the tag-triggered release job receives `contents: write`. No release PAT or `RELEASES_TOKEN` is needed. The marketing site's Download section checks this repository's published release assets and offers only installers that exist. Since this source repository is currently private, anonymous visitors cannot access its releases. Make the repository public before using the marketing page for public installer downloads, or design a separate authenticated distribution path. Neither code signing nor macOS notarization is configured yet; complete those before presenting installers as production-ready.
+The workflow uses the repository-scoped `GITHUB_TOKEN`; only the tag-triggered release job receives `contents: write`. No release PAT or `RELEASES_TOKEN` is needed. The canonical repository, release archive, API, and asset URL base are stored in [`src/marketing/desktop-release-config.json`](src/marketing/desktop-release-config.json). The marketing site's Download section reads that configuration, checks the latest published release, and offers only installers that exist. The repository is public, but no release is published yet; the page links to the archive and shows installers only after a tagged release includes them. Neither code signing nor macOS notarization is configured yet; complete those before presenting installers as production-ready.
 
 To publish a version, update `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` to the same version, refresh and commit `src-tauri/Cargo.lock`, push to `main`, then create and push its matching `v` tag (for example, `v0.2.0`). Wait for all three desktop package jobs and the release job to pass. Do not tag a commit before its installers have been validated.
 

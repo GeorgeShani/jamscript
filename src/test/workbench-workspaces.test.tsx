@@ -25,6 +25,22 @@ vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
 afterEach(cleanup);
 
 describe("browser workbench", () => {
+  it("starts a blank document with editable Strudel code", async () => {
+    const { workspace } = await createWorkspace(`Starter ${crypto.randomUUID()}`);
+    const { container } = render(
+      <TooltipProvider>
+        <SessionWorkbench workspaceId={workspace.id} />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Insert a beat" }));
+    await waitFor(() =>
+      expect(container.querySelector(".cm-content")?.textContent).toContain(
+        'drums: s("bd ~ sd ~")',
+      ),
+    );
+    expect(screen.queryByText("Your song starts here.")).not.toBeInTheDocument();
+  });
+
   it("opens files and commands from one keyboard driven palette", async () => {
     render(
       <TooltipProvider>

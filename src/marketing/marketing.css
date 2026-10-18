@@ -3,6 +3,25 @@
   overflow: clip;
   background: var(--background);
 }
+.jam-site-skip {
+  position: fixed;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  padding: 9px 12px;
+  transform: translateY(-150%);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 4px;
+}
+.jam-site-skip:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+.jam-site [id] {
+  scroll-margin-top: 24px;
+}
 .jam-site-header {
   height: 70px;
   display: flex;
@@ -446,6 +465,58 @@
   color: var(--foreground);
   font-weight: 500;
 }
+.jam-site-assistance {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(36px, 6vw, 90px);
+  align-items: center;
+  border-top: 1px solid var(--border);
+}
+.jam-site-assistance h2 {
+  max-width: 510px;
+  font-size: clamp(32px, 3.5vw, 52px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.jam-site-assistance > div:first-child > p {
+  max-width: 510px;
+  margin-top: 20px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+  line-height: 1.65;
+}
+.jam-site-assistance-flow {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.jam-site-assistance-flow > div {
+  display: grid;
+  grid-template-columns: 24px 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 82px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-site-assistance-flow svg {
+  color: var(--primary);
+}
+.jam-site-assistance-flow span {
+  color: var(--muted-foreground);
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.08em;
+}
+.jam-site-assistance-flow strong {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.jam-site-assistance-flow > p {
+  padding: 18px 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
 .jam-site-roadmap {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -841,6 +912,7 @@
   }
   .jam-site-feature-grid,
   .jam-site-mix,
+  .jam-site-assistance,
   .jam-site-roadmap,
   .jam-site-downloads,
   .jam-site-faq {

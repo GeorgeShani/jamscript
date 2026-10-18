@@ -67,6 +67,9 @@ type PaneSide = "files" | "inspector";
 const PANE_LIMITS = { files: { min: 170, max: 340 }, inspector: { min: 190, max: 360 } } as const;
 const OUTPUT_LIMITS = { min: 110, max: 500 } as const;
 const EMPTY_LEVELS: Record<string, number> = {};
+const FIRST_BEAT_CODE = `setcps(0.5);
+drums: s("bd ~ sd ~");
+hats: s("hh hh hh hh").gain(0.35);`;
 
 function storedPaneWidth(side: PaneSide, fallback: number) {
   if (typeof window === "undefined") return fallback;
@@ -447,12 +450,21 @@ export function SessionWorkbench({
     }
   };
 
-  const create = async (example: boolean) => {
+  const create = async (template: "blank" | "night-bus" | "first-beat") => {
     try {
       setError(null);
       const result = await createWorkspace(
-        example ? "Night bus" : workspaceName,
-        example ? SAMPLE_CODE : undefined,
+        template === "night-bus"
+          ? "Night bus"
+          : template === "first-beat"
+            ? "First beat"
+            : workspaceName,
+        template === "night-bus"
+          ? SAMPLE_CODE
+          : template === "first-beat"
+            ? FIRST_BEAT_CODE
+            : undefined,
+        template === "first-beat" ? "first-beat.js" : undefined,
       );
       setWorkspaceName("");
       setWorkspaces(await listWorkspaces());
@@ -788,6 +800,17 @@ export function SessionWorkbench({
     } catch (cause) {
       setError(message(cause));
     }
+  };
+
+  const startBeatInDocument = (id: string) => {
+    const view = views.current.get(id);
+    if (!view || !view.state.facet(CodeMirrorView.editable) || view.state.doc.toString().trim())
+      return;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: FIRST_BEAT_CODE },
+      annotations: [Transaction.userEvent.of("input.starter"), isolateHistory.of("full")],
+    });
+    view.focus();
   };
 
   const applyRename = async (id: string, isWorkspace: boolean) => {
@@ -1281,13 +1304,15 @@ export function SessionWorkbench({
               className="jam-create-form"
               onSubmit={(event) => {
                 event.preventDefault();
-                void create(false);
+                void create("blank");
               }}
             >
               <label htmlFor="workspace-name">CREATE A WORKSPACE</label>
               <div>
                 <input
                   id="workspace-name"
+                  name="workspaceName"
+                  autoComplete="off"
                   value={workspaceName}
                   onChange={(event) => setWorkspaceName(event.target.value)}
                   placeholder="Your next project name"
@@ -1408,13 +1433,21 @@ export function SessionWorkbench({
             </section>
             <section className="jam-chooser-section" aria-labelledby="example-heading">
               <h2 id="example-heading">Or start with a song</h2>
-              <button className="jam-example" onClick={() => void create(true)}>
+              <button className="jam-example" onClick={() => void create("night-bus")}>
                 <FileCode2 size={22} />
                 <span>
                   <strong>Night bus</strong>
                   <small>A Strudel session you can edit, play and make your own.</small>
                 </span>
                 <span aria-hidden>↗</span>
+              </button>
+              <button className="jam-example" onClick={() => void create("first-beat")}>
+                <Play size={22} aria-hidden="true" />
+                <span>
+                  <strong>Start with a beat</strong>
+                  <small>A kick, snare and hats at 120 BPM. Change a step, then press Play.</small>
+                </span>
+                <span aria-hidden="true">↗</span>
               </button>
             </section>
           </div>
@@ -1703,6 +1736,7 @@ export function SessionWorkbench({
           {agentAvailable && (
             <button
               className={assistantOpen ? "is-active" : ""}
+              title="Assistant: ask questions or review code edits"
               onClick={() => {
                 setAssistantOpen(!assistantOpen);
                 if (!assistantOpen) {
@@ -1743,6 +1777,8 @@ export function SessionWorkbench({
               >
                 <input
                   id="new-document-name"
+                  name="documentName"
+                  autoComplete="off"
                   aria-label="New document name"
                   placeholder="new-file.js"
                   value={newDocumentName}
@@ -1946,6 +1982,29 @@ export function SessionWorkbench({
                           if (activeIdRef.current === id) void evaluateCurrent();
                         }}
                       />
+                      {id === activeId && !item.source.trim() && item.shared?.role !== "viewer" && (
+                        <div className="jam-editor-welcome">
+                          <strong>Your song starts here.</strong>
+                          <p>Write Strudel directly, or begin with a beat you can change.</p>
+                          <div>
+                            <button type="button" onClick={() => startBeatInDocument(id)}>
+                              <Play size={14} aria-hidden="true" /> Insert a beat
+                            </button>
+                            {agentAvailable && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAssistantOpen(true);
+                                  setInspectorOpen(false);
+                                  if (window.innerWidth < 900) setSidebarOpen(false);
+                                }}
+                              >
+                                <Bot size={14} aria-hidden="true" /> Ask Assistant
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 );

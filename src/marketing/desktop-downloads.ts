@@ -1,3 +1,5 @@
+import releaseConfig from "./desktop-release-config.json";
+
 export type DesktopPlatform = "windows" | "macos" | "linux";
 
 export interface ReleaseAsset {
@@ -10,8 +12,8 @@ export interface PublicRelease {
   assets: ReleaseAsset[];
 }
 
-export const RELEASE_API = "https://api.github.com/repos/GeorgeShani/jamscript/releases/latest";
-export const RELEASES_PAGE = "https://github.com/GeorgeShani/jamscript/releases";
+export const RELEASE_API = releaseConfig.latestReleaseApi;
+export const RELEASES_PAGE = releaseConfig.releasesPage;
 
 export function detectDesktopPlatform(userAgent: string): DesktopPlatform | null {
   if (/Windows/i.test(userAgent)) return "windows";
@@ -34,9 +36,7 @@ export function selectInstaller(
     release.assets.find(
       (asset) =>
         extension.test(asset.name) &&
-        asset.browser_download_url.startsWith(
-          "https://github.com/GeorgeShani/jamscript/releases/download/",
-        ),
+        asset.browser_download_url.startsWith(releaseConfig.assetBase),
     ) ?? null
   );
 }
