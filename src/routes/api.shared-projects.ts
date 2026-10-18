@@ -37,24 +37,23 @@ async function invite(
   );
   const url = `${origin}/app/invitations/${invitation.token}`;
   try {
-    const { sendInvitationEmail } =
-      await import("@/features/collaboration/invitation-email.server");
-    const sent = await sendInvitationEmail({
-      to: invitation.email,
-      workspaceName,
-      role,
-      url,
-    });
-    return sent
-      ? { invitationId: invitation.invitationId, delivery: "email" as const }
-      : { invitationId: invitation.invitationId, delivery: "link" as const, url };
+    const { deliverInvitation } = await import("@/features/collaboration/invitation-email.server");
+    return {
+      invitationId: invitation.invitationId,
+      ...(await deliverInvitation({
+        to: invitation.email,
+        workspaceName,
+        role,
+        url,
+      })),
+    };
   } catch {
-    await withCollaborationDb((db) =>
-      revokeInvitation(db, { invitationId: invitation.invitationId, actorId }),
-    );
-    throw new Error(
-      "Invitation email could not be sent. Check the server SMTP settings and retry.",
-    );
+    return {
+      invitationId: invitation.invitationId,
+      delivery: "link" as const,
+      url,
+      invitationError: "Email delivery is unavailable. Share the invitation link instead.",
+    };
   }
 }
 

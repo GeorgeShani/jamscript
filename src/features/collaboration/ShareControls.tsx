@@ -96,6 +96,7 @@ export function ShareControls({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"editor" | "viewer">("editor");
   const [notice, setNotice] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [invitations, setInvitations] = useState<
@@ -142,6 +143,7 @@ export function ShareControls({
   const share = async () => {
     setPending(true);
     setNotice(null);
+    setInviteUrl(null);
     try {
       const selected = document.shared
         ? [document]
@@ -176,6 +178,7 @@ export function ShareControls({
         documents?: { id: string; name: string }[];
       };
       if (!response.ok) throw new Error(body.error ?? "Could not share this document");
+      setInviteUrl(body.url ?? null);
       if (body.workspaceId && body.documentId && body.role) {
         const remote = new Map((body.documents ?? []).map((item) => [item.name, item.id]));
         onShared(
@@ -195,14 +198,14 @@ export function ShareControls({
       }
       setNotice(
         body.invitationError
-          ? `Workspace shared, but ${body.invitationError}`
+          ? `${body.invitationError} Share the invitation link below.`
           : body.delivery === "email"
             ? `Invitation email sent to ${email.trim()}`
             : body.url
-              ? `Invite link: ${body.url}`
+              ? "Email delivery is not configured. Share the invitation link below."
               : "Shared document is ready",
       );
-      if (body.delivery) setEmail("");
+      if (body.delivery === "email") setEmail("");
       if (document.shared) setInviteVersion((version) => version + 1);
     } catch (cause) {
       setNotice(cause instanceof Error ? cause.message : "Could not share this document");
@@ -343,6 +346,17 @@ export function ShareControls({
           </ul>
         )}
         {notice && <span role="status">{notice}</span>}
+        {inviteUrl && (
+          <label>
+            Invitation link
+            <input
+              aria-label="Invitation link"
+              value={inviteUrl}
+              readOnly
+              onFocus={(event) => event.currentTarget.select()}
+            />
+          </label>
+        )}
       </form>
     </details>
   );
