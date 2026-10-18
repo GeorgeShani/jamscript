@@ -43,7 +43,7 @@ export function ChatPanel({
   onReveal: (documentIds: string[]) => void;
   onStopPlayback: () => void;
 }) {
-  const [available, setAvailable] = useState(false);
+  const [available, setAvailable] = useState<"checking" | boolean>("checking");
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [draft, setDraft] = useState("");
@@ -82,7 +82,7 @@ export function ChatPanel({
   }, []);
 
   useEffect(() => {
-    if (!available) return;
+    if (available !== true) return;
     let current = true;
     void listChatThreads(workspaceId)
       .then((items) => {
@@ -116,7 +116,22 @@ export function ChatPanel({
       });
   }, [thread]);
 
-  if (!available || !thread) return null;
+  if (available === "checking" || (available && !thread)) {
+    return (
+      <div className="jam-chat-panel jam-chat-empty" role="status">
+        Checking assistant availability…
+      </div>
+    );
+  }
+  if (!available) {
+    return (
+      <div className="jam-chat-panel jam-chat-empty" role="status">
+        Assistant needs a signed-in editor and a configured workspace agent. It stays hidden until
+        those checks pass.
+      </div>
+    );
+  }
+  if (!thread) return null;
 
   const scrollToLatest = () => {
     const node = logRef.current;
