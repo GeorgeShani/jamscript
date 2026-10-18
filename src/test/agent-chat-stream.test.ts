@@ -85,6 +85,21 @@ describe("agent chat request bounds", () => {
       }),
     ).toThrow(/latest message/);
   });
+
+  it("accepts client-owned file payloads for local workspaces", () => {
+    expect(
+      parseAgentChatRequest({
+        threadId: "t1",
+        documentId: "doc",
+        mode: "ask",
+        scope: "active",
+        messages: [{ role: "user", content: "Explain" }],
+        files: [{ id: "doc", name: "song.js", source: 's("bd")' }],
+      }),
+    ).toMatchObject({
+      files: [{ id: "doc", name: "song.js", source: 's("bd")' }],
+    });
+  });
 });
 
 describe("trailing proposal JSON extraction", () => {

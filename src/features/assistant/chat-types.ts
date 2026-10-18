@@ -39,6 +39,12 @@ export type AgentChatEvent =
   | { type: "done"; seenDocumentIds?: string[] }
   | { type: "error"; message: string };
 
+export interface AgentChatFile {
+  id: string;
+  name: string;
+  source: string;
+}
+
 export interface AgentChatRequest {
   threadId: string;
   messages: { role: ChatRole; content: string }[];
@@ -47,6 +53,8 @@ export interface AgentChatRequest {
   documentId: string;
   selection?: string;
   attachedDocumentIds?: string[];
+  /** Client-owned sources for local (non-shared) workspaces. */
+  files?: AgentChatFile[];
 }
 
 export const CHAT_LIMITS = {

@@ -5,14 +5,13 @@ import { proposalSyntaxCheck } from "@/features/assistant/agent-context";
 import { extractTrailingJson } from "@/features/assistant/chat-stream";
 
 describe("agent chat authorization and proposal safety", () => {
-  it("documents that viewers are rejected by the route (membership gate)", () => {
-    // The /api/agent-chat handler mirrors /api/agent-proposal: roleForDocument must
-    // return a non-viewer role before any model call. This unit keeps the contract visible.
-    const viewerRejected = (role: string | null) => !role || role === "viewer";
-    expect(viewerRejected("viewer")).toBe(true);
-    expect(viewerRejected(null)).toBe(true);
-    expect(viewerRejected("editor")).toBe(false);
-    expect(viewerRejected("owner")).toBe(false);
+  it("documents that shared viewers are rejected while local files may proceed", () => {
+    // Shared membership: viewers stay blocked. Missing membership falls through to client files.
+    const sharedViewerRejected = (role: string | null | undefined) => role === "viewer";
+    expect(sharedViewerRejected("viewer")).toBe(true);
+    expect(sharedViewerRejected(null)).toBe(false);
+    expect(sharedViewerRejected("editor")).toBe(false);
+    expect(sharedViewerRejected("owner")).toBe(false);
   });
 
   it("validates edit-mode trailing JSON with the shared proposal checker", () => {

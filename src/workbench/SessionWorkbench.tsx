@@ -208,7 +208,8 @@ export function SessionWorkbench({
   const activeDocument = documents.find((item) => item.id === activeId) ?? null;
   const agentRole = activeDocument?.shared?.role;
   useEffect(() => {
-    if (!collaboration || !agentRole || agentRole === "viewer") {
+    // Viewers of shared docs stay read-only; everyone else can open Assistant when Gemini is up.
+    if (agentRole === "viewer") {
       setAgentAvailable(false);
       setAssistantOpen(false);
       return;
@@ -227,7 +228,7 @@ export function SessionWorkbench({
     return () => {
       current = false;
     };
-  }, [collaboration, agentRole]);
+  }, [agentRole]);
   const nativeWorkspace = !!workspace && !!storage.isNativeWorkspace?.(workspace.id);
   const diskDirty = !!activeDocument && !!storage.isDirty?.(activeDocument);
   const beatsPerCycle = activeDocument?.beatsPerCycle ?? 4;
@@ -2058,60 +2059,56 @@ export function SessionWorkbench({
             onRenameTrack={renameTrack}
           />
         )}
-        {assistantOpen &&
-          agentAvailable &&
-          activeDocument?.shared &&
-          activeDocument.shared.role !== "viewer" &&
-          workspace && (
-            <aside className="jam-assistant-pane" aria-label="Assistant">
-              <div className="jam-panel-heading">
-                <span>Assistant</span>
-                <button
-                  type="button"
-                  aria-label="Close assistant"
-                  onClick={() => setAssistantOpen(false)}
-                >
-                  <X size={15} />
-                </button>
-              </div>
-              <ChatPanel
-                workspaceId={activeDocument.shared.workspaceId || workspace.id}
-                documentId={activeDocument.id}
-                documentName={activeDocument.name}
-                documents={documents.map((document) => ({
-                  id: document.id,
-                  name: document.name,
-                }))}
-                selection={(() => {
-                  const view = views.current.get(activeDocument.id);
-                  if (!view) return "";
-                  const range = view.state.selection.main;
-                  if (range.empty) return "";
-                  return view.state.doc.sliceString(range.from, range.to);
-                })()}
-                problemsText={problems
-                  .map((problem) => `Line ${problem.line}: ${problem.message}`)
-                  .join("\n")}
-                sources={documents.map((document) => ({
-                  id: document.id,
-                  source: document.source,
-                }))}
-                views={views.current}
-                canEdit={(documentId) => {
-                  const shared = drafts.current.get(documentId)?.shared;
-                  return (
-                    !!shared &&
-                    shared.role !== "viewer" &&
-                    shared.workspaceId === activeDocument.shared?.workspaceId
-                  );
-                }}
-                onReveal={(documentIds) => {
-                  setOpenIds((current) => [...new Set([...current, ...documentIds])]);
-                }}
-                onStopPlayback={() => void stopPlayback()}
-              />
-            </aside>
-          )}
+        {assistantOpen && agentAvailable && activeDocument && workspace && (
+          <aside className="jam-assistant-pane" aria-label="Assistant">
+            <div className="jam-panel-heading">
+              <span>Assistant</span>
+              <button
+                type="button"
+                aria-label="Close assistant"
+                onClick={() => setAssistantOpen(false)}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <ChatPanel
+              workspaceId={activeDocument.shared?.workspaceId || workspace.id}
+              documentId={activeDocument.id}
+              documentName={activeDocument.name}
+              documents={documents.map((document) => ({
+                id: document.id,
+                name: document.name,
+              }))}
+              selection={(() => {
+                const view = views.current.get(activeDocument.id);
+                if (!view) return "";
+                const range = view.state.selection.main;
+                if (range.empty) return "";
+                return view.state.doc.sliceString(range.from, range.to);
+              })()}
+              problemsText={problems
+                .map((problem) => `Line ${problem.line}: ${problem.message}`)
+                .join("\n")}
+              sources={documents.map((document) => ({
+                id: document.id,
+                source: document.source,
+              }))}
+              views={views.current}
+              canEdit={(documentId) => {
+                const shared = drafts.current.get(documentId)?.shared;
+                if (!shared) return true;
+                return (
+                  shared.role !== "viewer" &&
+                  shared.workspaceId === activeDocument.shared?.workspaceId
+                );
+              }}
+              onReveal={(documentIds) => {
+                setOpenIds((current) => [...new Set([...current, ...documentIds])]);
+              }}
+              onStopPlayback={() => void stopPlayback()}
+            />
+          </aside>
+        )}
       </div>
       <footer className="jam-statusbar">
         <span>{playing ? "● Playing" : "○ Stopped"}</span>

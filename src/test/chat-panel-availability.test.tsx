@@ -33,7 +33,7 @@ describe("ChatPanel availability (G / AGENTS honesty)", () => {
       />,
     );
     expect(screen.getByRole("status")).toHaveTextContent(/Checking assistant/i);
-    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/signed-in editor/i));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/GEMINI_API_KEY/i));
     expect(screen.queryByLabelText("Chat history")).toBeNull();
     expect(screen.queryByRole("log")).toBeNull();
   });

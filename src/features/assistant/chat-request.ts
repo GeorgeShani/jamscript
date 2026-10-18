@@ -54,6 +54,26 @@ export function parseAgentChatRequest(body: unknown): AgentChatRequest {
       throw new Error("Too many attached files");
     attachedDocumentIds = [...new Set(rawAttached as string[])];
   }
+  let files: { id: string; name: string; source: string }[] | undefined;
+  const rawFiles = value["files"];
+  if (rawFiles !== undefined) {
+    if (!Array.isArray(rawFiles) || rawFiles.length > CHAT_LIMITS.maxAttachedFiles)
+      throw new Error("Too many attached files");
+    files = [];
+    for (const item of rawFiles) {
+      if (!item || typeof item !== "object") throw new Error("Invalid file payload");
+      const file = item as Record<string, unknown>;
+      const id = file["id"];
+      const name = file["name"];
+      const source = file["source"];
+      if (typeof id !== "string" || !id.trim()) throw new Error("Invalid file payload");
+      if (typeof name !== "string" || !name.trim() || name.length > 120)
+        throw new Error("Invalid file payload");
+      if (typeof source !== "string" || source.length > CHAT_LIMITS.maxFileChars)
+        throw new Error("A file is too large for chat");
+      files.push({ id, name, source });
+    }
+  }
   return {
     threadId: threadId.trim(),
     documentId,
@@ -62,5 +82,6 @@ export function parseAgentChatRequest(body: unknown): AgentChatRequest {
     messages,
     ...(selection ? { selection } : {}),
     ...(attachedDocumentIds?.length ? { attachedDocumentIds } : {}),
+    ...(files?.length ? { files } : {}),
   };
 }

@@ -126,8 +126,7 @@ export function ChatPanel({
   if (!available) {
     return (
       <div className="jam-chat-panel jam-chat-empty" role="status">
-        Assistant needs a signed-in editor and a configured workspace agent. It stays hidden until
-        those checks pass.
+        Assistant needs a Gemini API key on the server (`GEMINI_API_KEY`). Set it and reload.
       </div>
     );
   }
@@ -244,6 +243,21 @@ export function ChatPanel({
         ...(includeActive ? [documentId] : []),
         ...attachedIds.filter((id) => id !== documentId),
       ];
+      const fileIds =
+        scope === "workspace"
+          ? documents.map((file) => file.id)
+          : attachedDocumentIds.length
+            ? attachedDocumentIds
+            : [documentId];
+      const files = fileIds
+        .map((id) => {
+          const meta = documents.find((file) => file.id === id);
+          const source = sources.find((file) => file.id === id)?.source;
+          if (!meta || source === undefined) return null;
+          return { id, name: meta.name, source };
+        })
+        .filter((file): file is { id: string; name: string; source: string } => !!file)
+        .slice(0, 8);
       const response = await fetch("/api/agent-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
@@ -258,6 +272,7 @@ export function ChatPanel({
             .map(({ role, content: body }) => ({ role, content: body })),
           ...(includeSelection && selection ? { selection } : {}),
           ...(attachedDocumentIds.length ? { attachedDocumentIds } : {}),
+          files,
         }),
       });
       if (!response.ok) {
@@ -265,11 +280,9 @@ export function ChatPanel({
         const message =
           response.status === 429
             ? (body?.error ?? "Chat limit reached. Try again in a minute.")
-            : response.status === 401
-              ? "Sign in required"
-              : response.status === 403
-                ? "Editing access required"
-                : (body?.error ?? "The assistant is unavailable");
+            : response.status === 403
+              ? "Editing access required"
+              : (body?.error ?? "The assistant is unavailable");
         throw new Error(message);
       }
       if (!response.body) throw new Error("The assistant returned an empty stream");
