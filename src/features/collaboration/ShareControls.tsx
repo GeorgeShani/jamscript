@@ -374,13 +374,15 @@ export function SharedSession({
   onPresence: (people: SharedPresence[]) => void;
 }) {
   const { user } = useUser();
+  const userId = user?.id ?? "";
   const name = user?.fullName || user?.username || user?.firstName || "Musician";
   const shared = document.shared;
   useEffect(() => {
-    if (!view || !shared) return;
+    if (!view || !shared || !userId) return;
     return attachSharedDocument(view, {
       documentId: shared.documentId,
       role: shared.role,
+      userId,
       name,
       onStatus,
       onPresence,
@@ -388,6 +390,6 @@ export function SharedSession({
     // Callback identities change on workbench renders; a room only reattaches
     // when its identity, role, editor or displayed name changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shared?.documentId, shared?.role, view, name]);
+  }, [shared?.documentId, shared?.role, view, userId, name]);
   return null;
 }

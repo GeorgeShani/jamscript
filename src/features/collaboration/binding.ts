@@ -5,13 +5,11 @@ import { LiveblocksYjsProvider } from "@liveblocks/yjs";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 
+import { presenceUserField, readSharedPresence, type SharedPresence } from "./presence";
 import { canWrite, createLocalUndo, roomId } from "./shared-document";
 import type { CollaborationRole } from "./shared-document";
 
-export interface SharedPresence {
-  id: string;
-  name: string;
-}
+export type { SharedPresence };
 
 let client: ReturnType<typeof createClient> | null = null;
 const bindings = new WeakMap<EditorView, Compartment>();
@@ -53,6 +51,7 @@ export function attachSharedDocument(
   input: {
     documentId: string;
     role: CollaborationRole;
+    userId: string;
     name: string;
     onStatus: (status: string) => void;
     onPresence: (people: SharedPresence[]) => void;
@@ -63,6 +62,16 @@ export function attachSharedDocument(
     initialPresence: { name: input.name },
   });
   const provider = new LiveblocksYjsProvider(room, doc, { offlineSupport_experimental: true });
+  // y-codemirror only publishes cursors when local awareness is non-null, and
+  // paints remote carets from awareness.user { name, color, colorLight }.
+  const user = presenceUserField(input);
+  provider.awareness.setLocalStateField("user", {
+    id: user.id,
+    name: user.name,
+    color: user.color,
+    colorLight: user.colorLight,
+    track: user.track,
+  });
   const undo = createLocalUndo(doc);
   const previous = bindings.get(view);
   const binding = previous ?? new Compartment();
@@ -86,16 +95,15 @@ export function attachSharedDocument(
   meta.observe(bindWhenReady);
 
   const publishPresence = () => {
-    const people: SharedPresence[] = [];
-    provider.awareness.getStates().forEach((state, clientId) => {
-      if (clientId === doc.clientID) return;
-      const person = state as { user?: { name?: string }; name?: string };
-      const name = person.user?.name || person.name;
-      people.push({ id: String(clientId), name: name || "Collaborator" });
-    });
-    input.onPresence(people);
+    input.onPresence(
+      readSharedPresence(
+        provider.awareness.getStates() as Map<number, Record<string, unknown>>,
+        doc.clientID,
+      ),
+    );
   };
   provider.awareness.on("change", publishPresence);
+  publishPresence();
   provider.on("sync", (synced: boolean) => {
     if (synced) bindWhenReady();
     input.onStatus(synced && bound ? "connected" : provider.getStatus());
@@ -106,6 +114,7 @@ export function attachSharedDocument(
   return () => {
     meta.unobserve(bindWhenReady);
     provider.awareness.off("change", publishPresence);
+    input.onPresence([]);
     if (view.dom.isConnected) view.dispatch({ effects: binding.reconfigure([]) });
     undo.destroy();
     provider.destroy();

@@ -47,6 +47,8 @@ import {
   SharedProjectList,
   SharedSession,
 } from "@/features/collaboration/ShareControls";
+import { PresenceAvatars, PresenceTabDots } from "@/features/collaboration/PresenceAvatars";
+import { aggregatePresence, type SharedPresence } from "@/features/collaboration/presence";
 import { ExportControl } from "./ExportControl";
 import { ChatPanel } from "@/features/assistant/ChatPanel";
 import { GitPanel } from "./GitPanel";
@@ -164,9 +166,20 @@ export function SessionWorkbench({
     visual: FrameSource<VisualFrame>;
   } | null>(null);
   const [collabStatus, setCollabStatus] = useState("offline");
-  const [presence, setPresence] = useState<{ id: string; name: string }[]>([]);
+  const [presence, setPresence] = useState<SharedPresence[]>([]);
+  const [presenceVersion, setPresenceVersion] = useState(0);
   const collabStatusByDocument = useRef(new Map<string, string>());
-  const presenceByDocument = useRef(new Map<string, { id: string; name: string }[]>());
+  const presenceByDocument = useRef(new Map<string, SharedPresence[]>());
+  const workspacePresence = useMemo(
+    () =>
+      aggregatePresence(
+        presenceByDocument.current,
+        (documentId) => documents.find((item) => item.id === documentId)?.name,
+      ),
+    // presenceVersion bumps whenever any document room publishes peers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [presenceVersion, documents],
+  );
   const [takes, setTakes] = useState<TakeRecord[]>([]);
   const [auditionTakeId, setAuditionTakeId] = useState<string | null>(null);
   const [tempo, setTempo] = useState(() => readTempo(""));
@@ -1500,6 +1513,9 @@ export function SessionWorkbench({
           >
             <Square size={14} />
           </Button>
+          {collaboration && workspacePresence.length > 0 && (
+            <PresenceAvatars people={workspacePresence} />
+          )}
           {collaboration && (
             <ShareControls
               document={activeDocument}
@@ -1848,6 +1864,7 @@ export function SessionWorkbench({
                       <FileCode2 size={14} />
                       {item.name}
                       {storage.isDirty?.(item) ? " •" : ""}
+                      <PresenceTabDots people={presenceByDocument.current.get(id) ?? []} />
                     </button>
                     <button
                       className="jam-tab-close"
@@ -1877,6 +1894,7 @@ export function SessionWorkbench({
                   onPresence={(people) => {
                     presenceByDocument.current.set(id, people);
                     if (activeIdRef.current === id) setPresence(people);
+                    setPresenceVersion((value) => value + 1);
                   }}
                 />
               ) : null;
@@ -2100,7 +2118,11 @@ export function SessionWorkbench({
         {activeDocument?.shared && (
           <span>
             {collabStatus === "connected" ? "● Shared" : "○ Shared offline"}
-            {presence.length ? ` · ${presence.map((person) => person.name).join(", ")}` : ""}
+            {presence.length
+              ? ` · ${presence.map((person) => person.name).join(", ")} here`
+              : collabStatus === "connected"
+                ? " · only you"
+                : ""}
           </span>
         )}
         <span>

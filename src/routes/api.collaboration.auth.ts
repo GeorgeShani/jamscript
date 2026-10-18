@@ -3,6 +3,7 @@ import { Liveblocks } from "@liveblocks/node";
 
 import { withCollaborationDb } from "@/features/collaboration/database";
 import { liveblocksAccess, roleForDocument } from "@/features/collaboration/membership";
+import { presenceUserField } from "@/features/collaboration/presence";
 import { documentIdFromRoom } from "@/features/collaboration/shared-document";
 
 const headers = { "Cache-Control": "private, no-store" };
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/api/collaboration/auth")({
             { error: "Collaboration is not configured" },
             { status: 503, headers },
           );
-        const { auth } = await import("@clerk/tanstack-react-start/server");
+        const { auth, clerkClient } = await import("@clerk/tanstack-react-start/server");
         const { userId, isAuthenticated } = await auth();
         if (!isAuthenticated || !userId)
           return Response.json({ error: "Sign in required" }, { status: 401, headers });
@@ -27,8 +28,18 @@ export const Route = createFileRoute("/api/collaboration/auth")({
         const access = await withCollaborationDb((db) => roleForDocument(db, documentId, userId));
         if (!access)
           return Response.json({ error: "No access to this document" }, { status: 403, headers });
+        const user = await clerkClient().users.getUser(userId);
+        const name =
+          user.fullName || user.username || user.firstName || user.lastName || "Musician";
+        const info = presenceUserField({ userId, name });
         const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"] });
-        const session = liveblocks.prepareSession(userId, { userInfo: { name: access.role } });
+        const session = liveblocks.prepareSession(userId, {
+          userInfo: {
+            name: info.name,
+            color: info.color,
+            colorLight: info.colorLight,
+          },
+        });
         session.allow(room, liveblocksAccess(access.role));
         const authorized = await session.authorize();
         return new Response(authorized.body, {

@@ -210,7 +210,7 @@ Source and lenses share exact range highlights. Keep pointer capture and focused
 
 Use one active review and retain its launcher's focus target. Covered editor content is inert. Repo and Share share one popover state; close outgoing layers without stealing focus from the incoming layer. Escape closes the topmost layer first.
 
-Takes, Repo, avatars, Share and Rework are hidden in the working browser UI until their real capability is implemented. Static fixtures remain separate from document and playback state.
+Takes, Repo and Rework are hidden in the working browser UI until their real capability is implemented. Share and live presence avatars appear for signed-in shared workspaces. Static fixtures remain separate from document and playback state.
 
 Real assistant changes use a versioned diff with review before apply. A stale proposal cannot apply. A check is shown as passed only after the corresponding real check succeeds.
 

@@ -1577,6 +1577,69 @@
   white-space: nowrap;
   font-size: 12px;
 }
+.jam-tab-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 2px;
+}
+.jam-tab-presence-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--card);
+}
+.jam-tab-presence-more {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.jam-workbench-presence {
+  display: flex;
+  align-items: center;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jam-workbench-presence li + li {
+  margin-left: -6px;
+}
+.jam-presence-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: var(--text-badge);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--background);
+  background: var(--jam-presence-color, var(--track-1));
+  box-shadow: 0 0 0 2px var(--card);
+  cursor: default;
+}
+.jam-presence-avatar:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.jam-presence-track-1 {
+  background: var(--track-1);
+}
+.jam-presence-track-2 {
+  background: var(--track-2);
+}
+.jam-presence-track-3 {
+  background: var(--track-3);
+}
+.jam-presence-track-4 {
+  background: var(--track-4);
+}
+.jam-presence-track-5 {
+  background: var(--track-5);
+}
+.jam-presence-track-6 {
+  background: var(--track-6);
+}
 .jam-tab-close {
   display: grid;
   place-items: center;

@@ -48,7 +48,7 @@ Musicians work primarily in BPM. Documents default to four beats per cycle: 120 
 | Git and Rework                            | Desktop folders expose Git initialization, clone into an empty folder, music-file status, selected-file commits, non-force push and fast-forward pull. GitHub device authentication remains planned. |
 | Desktop files and IntelliSense            | Desktop opens a selected folder, saves, recovers unsaved buffers, and compares disk conflicts. An offline Strudel language service attaches in the editor                                          |
 | Workspace agent                           | Server-only Gemini chat for shared editors (Ask/Edit) with streamed replies, IndexedDB history, cancellation and reviewed multi-file apply when `GEMINI_API_KEY` is configured; Git tools remain planned |
-| Collaborators                             | Owners invite by email, list members and pending invites, and can remove non-owner members. Presence names appear in the status bar when Liveblocks is connected                                   |
+| Collaborators                             | Owners invite by email, list members and pending invites, and can remove non-owner members. Connected peers show coloured avatars, tab dots for which file they have open, named cursors in the editor, and names in the status bar                                   |
 
 The track mixer routes independently mixable patterns. A stack with effects applied after it keeps its original Strudel audio routing; source controls remain available, and individual track faders are omitted to avoid changing the sound.
 
