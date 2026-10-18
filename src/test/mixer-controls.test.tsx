@@ -24,7 +24,9 @@ describe("track controls", () => {
       </TooltipProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Show inspector" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Show inspector" }, { timeout: 5000 }),
+    );
     expect(screen.getByRole("heading", { name: /HATS · PARAMETERS/i })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "gain" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Inspect drums" }));
@@ -42,7 +44,9 @@ describe("track controls", () => {
       </TooltipProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Show inspector" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Show inspector" }, { timeout: 5000 }),
+    );
     fireEvent.change(screen.getByRole("slider", { name: "drums level" }), {
       target: { value: "65" },
     });

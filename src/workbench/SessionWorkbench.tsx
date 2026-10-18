@@ -6,6 +6,7 @@ import {
   Bot,
   ChevronLeft,
   FileCode2,
+  FileSearch,
   Folder,
   FolderPlus,
   ArrowUpRight,
@@ -21,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { EditorSlot } from "@/components/jam/EditorSlot";
-import { musicModel } from "@/components/jam/code-editor";
+import { musicModel, openMusicFind } from "@/components/jam/code-editor";
 import { SAMPLE_CODE } from "@/components/jam/session";
 import { Button } from "@/components/ui/button";
 import { TempoControl } from "@/features/tempo/TempoControl";
@@ -689,12 +690,15 @@ export function SessionWorkbench({
   useEffect(() => {
     if (!workspace) return;
     const onShortcut = (event: KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        !(event.metaKey || event.ctrlKey) ||
-        event.key.toLowerCase() !== "p"
-      )
+      if (event.defaultPrevented || !(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() === "f" && !event.shiftKey && !event.altKey) {
+        const view = views.current.get(activeIdRef.current ?? "");
+        if (!view) return;
+        event.preventDefault();
+        openMusicFind(view);
         return;
+      }
+      if (event.key.toLowerCase() !== "p") return;
       event.preventDefault();
       openPalette(event.shiftKey ? "commands" : "files");
     };
@@ -1630,6 +1634,17 @@ export function SessionWorkbench({
         }
       >
         <nav className="jam-activity-bar" aria-label="Workbench views">
+          <button
+            onClick={() => {
+              const view = views.current.get(activeIdRef.current ?? "");
+              if (view) openMusicFind(view);
+            }}
+            aria-label="Find in document"
+            title="Find in document (Ctrl/Cmd+F)"
+            disabled={!activeDocument}
+          >
+            <FileSearch size={20} aria-hidden="true" />
+          </button>
           <button
             onClick={() => openPalette("files")}
             aria-label="Quick Open"

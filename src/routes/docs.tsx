@@ -132,6 +132,10 @@ function DocsPage() {
             <h2>Keyboard shortcuts</h2>
             <dl>
               <div>
+                <dt>Ctrl/⌘ F</dt>
+                <dd>Find in the active music document; Enter moves to the next match</dd>
+              </div>
+              <div>
                 <dt>Ctrl/⌘ P</dt>
                 <dd>Quick Open in the current workspace</dd>
               </div>

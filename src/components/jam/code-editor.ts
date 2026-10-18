@@ -20,6 +20,7 @@ import {
 } from "@codemirror/commands";
 import { HighlightStyle, bracketMatching, syntaxHighlighting } from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
+import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { ySyncFacet, yUndoManagerKeymap } from "y-codemirror.next";
 import { tags } from "@lezer/highlight";
 import {
@@ -68,6 +69,13 @@ export function dispatchMusicHistory(view: EditorView, forward: boolean) {
   if (view.state.facet(ySyncFacet))
     return yUndoManagerKeymap[forward ? 1 : 0]?.run?.(view) ?? false;
   return (forward ? redo : undo)(view);
+}
+export function openMusicFind(view: EditorView) {
+  openSearchPanel(view);
+  const field = view.dom.querySelector<HTMLInputElement>(".cm-panel.cm-search [main-field]");
+  field?.focus();
+  field?.select();
+  return true;
 }
 function link(view: EditorView, id: string | null) {
   if (view.state.field(linkedLens) !== id) view.dispatch({ effects: linkedEffect.of(id) });
@@ -171,6 +179,7 @@ export function createMusicEditor(
         highlightActiveLine(),
         bracketMatching(),
         javascript(),
+        search({ top: true }),
         syntaxHighlighting(highlighting),
         keymap.of([
           {
@@ -180,6 +189,8 @@ export function createMusicEditor(
               return true;
             },
           },
+          { key: "Mod-f", run: openMusicFind },
+          ...searchKeymap,
           ...defaultKeymap,
           ...historyKeymap,
           indentWithTab,
@@ -250,6 +261,26 @@ export function createMusicEditor(
             },
             "&.cm-focused": { outline: "none" },
             ".cm-content:focus-visible": { outline: "none" },
+            ".cm-panels": {
+              backgroundColor: "var(--card)",
+              color: "var(--foreground)",
+              borderColor: "var(--border)",
+            },
+            ".cm-panel.cm-search": { padding: "8px 32px 8px 12px" },
+            ".cm-search .cm-textfield": {
+              backgroundColor: "var(--background)",
+              color: "var(--foreground)",
+              border: "1px solid var(--border)",
+              borderRadius: "4px",
+              padding: "4px 7px",
+            },
+            ".cm-search .cm-button": {
+              backgroundColor: "var(--background)",
+              color: "var(--foreground)",
+              border: "1px solid var(--border)",
+              borderRadius: "4px",
+              padding: "4px 7px",
+            },
           },
           { dark: true },
         ),

@@ -1,4 +1,4 @@
-import { Compartment, Prec, StateEffect, Transaction } from "@codemirror/state";
+import { Compartment, EditorState, Prec, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { createClient } from "@liveblocks/client";
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
@@ -42,7 +42,7 @@ export function bindSharedEditor(
       yCollab(doc.getText("source"), awareness, { undoManager: writable ? undo : false }),
       writable
         ? Prec.highest(keymap.of(yUndoManagerKeymap))
-        : Prec.highest(EditorView.editable.of(false)),
+        : [Prec.highest(EditorView.editable.of(false)), EditorState.readOnly.of(true)],
     ]),
   });
 }
@@ -69,8 +69,10 @@ export function attachSharedDocument(
   if (!previous) bindings.set(view, binding);
   view.dispatch({
     effects: previous
-      ? binding.reconfigure(EditorView.editable.of(false))
-      : StateEffect.appendConfig.of(binding.of(EditorView.editable.of(false))),
+      ? binding.reconfigure([EditorView.editable.of(false), EditorState.readOnly.of(true)])
+      : StateEffect.appendConfig.of(
+          binding.of([EditorView.editable.of(false), EditorState.readOnly.of(true)]),
+        ),
   });
 
   let bound = false;

@@ -8,6 +8,7 @@ import {
   dispatchLensEdit,
   dispatchMusicHistory,
   musicModel,
+  openMusicFind,
 } from "@/components/jam/code-editor";
 import { bindSharedEditor } from "@/features/collaboration/binding";
 import { createLocalUndo, seedSharedText } from "@/features/collaboration/shared-document";
@@ -70,6 +71,9 @@ describe("shared source controls", () => {
     expect(peer.view.state.doc.toString()).toContain('s("bd bd sd ~")');
     const viewer = editor(peer.view.state.doc.toString(), peerDoc, "viewer");
     expect(dispatchLensEdit(viewer.view, { target: "drums/param/gain", value: 0.9 })).toBe(false);
+    openMusicFind(viewer.view);
+    expect(viewer.view.dom.querySelector('input[aria-label="Find"]')).not.toBeNull();
+    expect(viewer.view.dom.querySelector('input[aria-label="Replace"]')).toBeNull();
 
     ownerDoc.off("update", sendOwner);
     peerDoc.off("update", sendPeer);
