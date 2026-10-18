@@ -12,7 +12,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-it("shows a selectable link and a safe reason when SMTP cannot deliver an invite", async () => {
+it("shows a selectable link and a safe reason when Resend cannot deliver an invite", async () => {
   vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", "pk_test_share_controls");
   const url = "https://jamscript.example/app/invitations/test-token";
   const fetcher = vi.fn(async (input: string, init?: RequestInit) => {
@@ -21,7 +21,8 @@ it("shows a selectable link and a safe reason when SMTP cannot deliver an invite
       invitationId: "invite",
       delivery: "link",
       url,
-      invitationError: "Email delivery is not configured. Set SMTP_PASS, SMTP_FROM on the server.",
+      invitationError:
+        "Email delivery is not configured. Set RESEND_API_KEY, MAIL_FROM on the server.",
     });
   });
   vi.stubGlobal("fetch", fetcher);
@@ -47,7 +48,7 @@ it("shows a selectable link and a safe reason when SMTP cannot deliver an invite
     target: { value: "editor@example.com" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
-  expect(await screen.findByRole("status")).toHaveTextContent("Set SMTP_PASS, SMTP_FROM");
+  expect(await screen.findByRole("status")).toHaveTextContent("Set RESEND_API_KEY, MAIL_FROM");
   expect(screen.getByLabelText("Invitation link")).toHaveValue(url);
   expect(screen.getByLabelText("Collaborator email")).toHaveValue("editor@example.com");
   await waitFor(() =>

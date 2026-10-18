@@ -1,10 +1,17 @@
-import nodemailer from "nodemailer";
-
 export interface InvitationMessage {
   to: string;
   workspaceName: string;
   role: "editor" | "viewer";
   url: string;
+}
+
+/** Trim and drop wrapping quotes so `.env` values like `"re_…"` still resolve. */
+function mailEnv(name: string) {
+  const raw = process.env[name]?.trim();
+  if (!raw) return undefined;
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))
+    return raw.slice(1, -1).trim() || undefined;
+  return raw;
 }
 
 export function invitationEmailText(input: InvitationMessage) {
@@ -18,63 +25,54 @@ export function invitationEmailText(input: InvitationMessage) {
   ].join("\n");
 }
 
-/** Safe for an owner-facing response. Never return raw SMTP server text or credentials. */
+/** Safe for an owner-facing response. Never return raw provider text or credentials. */
 export function invitationEmailFailure(cause: unknown): string {
-  const missing = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER"].filter((name) => !process.env[name]);
-  if (!(process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"]))
-    missing.push("SMTP_PASSWORD (or SMTP_PASS)");
-  if (!(process.env["MAIL_FROM"] || process.env["SMTP_FROM"]))
-    missing.push("MAIL_FROM (or SMTP_FROM)");
+  const missing: string[] = [];
+  if (!mailEnv("RESEND_API_KEY")) missing.push("RESEND_API_KEY");
+  if (!(mailEnv("MAIL_FROM") || mailEnv("RESEND_FROM"))) missing.push("MAIL_FROM (or RESEND_FROM)");
   if (missing.length)
     return `Email delivery is not configured. Set ${missing.join(", ")} on the server.`;
-  if (cause instanceof Error && cause.message.startsWith("SMTP_PORT must be"))
-    return "SMTP_PORT must be 465 or 587.";
-  const smtp = cause as { code?: unknown; responseCode?: unknown } | null;
-  if (smtp?.code === "EAUTH" || smtp?.responseCode === 535)
-    return "SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD (or SMTP_PASS).";
-  if (["ETIMEDOUT", "ECONNECTION", "ECONNREFUSED", "ESOCKET"].includes(String(smtp?.code)))
-    return "Could not connect to the SMTP server. Check SMTP_HOST, SMTP_PORT and network access.";
-  if (smtp?.code === "EENVELOPE" || smtp?.responseCode === 550 || smtp?.responseCode === 553)
-    return "The SMTP server rejected the sender or recipient. Check MAIL_FROM (or SMTP_FROM) and sender verification.";
-  return "SMTP delivery failed. Check the server email settings.";
+  if (cause instanceof Error && cause.message.startsWith("Resend rejected")) return cause.message;
+  if (cause instanceof Error && /fetch failed|network|ECONNREFUSED|ETIMEDOUT/i.test(cause.message))
+    return "Could not reach Resend. Check network access and try again, or share the invitation link below.";
+  return "Email delivery failed. Check RESEND_API_KEY and MAIL_FROM on the server.";
 }
 
-/** Returns false when SMTP is entirely unconfigured so the caller can show a manual link. */
+/**
+ * Sends through Resend's HTTP API (Worker-safe). Returns false when mail is
+ * entirely unconfigured so the caller can show a manual invite link.
+ */
 export async function sendInvitationEmail(input: InvitationMessage): Promise<boolean> {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER } = process.env;
-  const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"];
-  const from = process.env["MAIL_FROM"] || process.env["SMTP_FROM"];
-  if (![SMTP_HOST, SMTP_PORT, SMTP_USER, password, from].some(Boolean)) return false;
-  if (![SMTP_HOST, SMTP_PORT, SMTP_USER, password, from].every(Boolean))
-    throw new Error("SMTP configuration is incomplete");
-  const port = Number(SMTP_PORT);
-  if (port !== 465 && port !== 587)
-    throw new Error("SMTP_PORT must be 465 or 587 for this Cloudflare deployment");
-  const transport = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port,
-    secure: port === 465,
-    requireTLS: port === 587,
-    auth: { user: SMTP_USER!, pass: password! },
-    connectionTimeout: 15_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 20_000,
-    disableFileAccess: true,
-    disableUrlAccess: true,
-  });
-  try {
-    const result = await transport.sendMail({
+  const apiKey = mailEnv("RESEND_API_KEY");
+  const from = mailEnv("MAIL_FROM") || mailEnv("RESEND_FROM");
+  if (!apiKey && !from) return false;
+  if (!apiKey || !from) throw new Error("Email configuration is incomplete");
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
       from,
-      to: input.to,
+      to: [input.to],
       subject: `Invitation to ${input.workspaceName} on JamScript`,
       text: invitationEmailText(input),
-    });
-    if (!result.accepted.includes(input.to))
-      throw new Error("SMTP did not accept the invitation recipient");
-    return true;
-  } finally {
-    transport.close();
-  }
+    }),
+  });
+  if (response.ok) return true;
+  const body = (await response.json().catch(() => null)) as {
+    message?: unknown;
+    name?: unknown;
+  } | null;
+  const detail = typeof body?.message === "string" ? body.message : `HTTP ${response.status}`;
+  if (response.status === 401 || response.status === 403)
+    throw new Error("Resend rejected the API key. Check RESEND_API_KEY on the server.");
+  if (response.status === 422 || /from|domain|verified/i.test(detail))
+    throw new Error(
+      "Resend rejected the sender. Verify MAIL_FROM on a Resend domain (or use onboarding@resend.dev while testing).",
+    );
+  throw new Error(`Resend rejected the invitation email (${detail}).`);
 }
 
 /** Preserve the invite when mail is unavailable; only the authenticated owner sees its link. */

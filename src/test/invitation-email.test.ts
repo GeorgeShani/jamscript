@@ -1,15 +1,6 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
 
-const mailer = vi.hoisted(() => ({
-  sendMail: vi.fn(),
-  close: vi.fn(),
-  createTransport: vi.fn(),
-}));
-vi.mock("nodemailer", () => ({
-  default: { createTransport: mailer.createTransport },
-}));
-
 import {
   deliverInvitation,
   invitationEmailText,
@@ -23,102 +14,113 @@ const invitation = {
   url: "https://jamscript.example/app/invitations/token",
 };
 
-const smtpNames = [
-  "SMTP_HOST",
-  "SMTP_PORT",
-  "SMTP_USER",
-  "SMTP_PASSWORD",
-  "SMTP_PASS",
-  "MAIL_FROM",
-  "SMTP_FROM",
-];
+const mailNames = ["RESEND_API_KEY", "MAIL_FROM", "RESEND_FROM"];
 
-function clearSmtp() {
-  for (const name of smtpNames) vi.stubEnv(name, "");
+function clearMail() {
+  for (const name of mailNames) vi.stubEnv(name, "");
 }
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
-it("keeps a manual invite link when SMTP is not configured", async () => {
-  clearSmtp();
+it("keeps a manual invite link when Resend is not configured", async () => {
+  clearMail();
   expect(await sendInvitationEmail(invitation)).toBe(false);
-  expect(mailer.createTransport).not.toHaveBeenCalled();
   expect(invitationEmailText(invitation)).toContain(invitation.url);
 });
 
-it("sends through authenticated TLS SMTP and closes the transport", async () => {
-  clearSmtp();
-  vi.stubEnv("SMTP_HOST", "smtp.example.com");
-  vi.stubEnv("SMTP_PORT", "587");
-  vi.stubEnv("SMTP_USER", "user");
-  vi.stubEnv("SMTP_PASS", "test-password");
-  vi.stubEnv("SMTP_FROM", "JamScript <invite@example.com>");
-  mailer.createTransport.mockReturnValue({ sendMail: mailer.sendMail, close: mailer.close });
-  mailer.sendMail.mockResolvedValue({ accepted: [invitation.to] });
+it("sends through the Resend HTTP API", async () => {
+  clearMail();
+  vi.stubEnv("RESEND_API_KEY", "re_test");
+  vi.stubEnv("MAIL_FROM", "JamScript <onboarding@resend.dev>");
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify({ id: "email_123" }), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
   expect(await sendInvitationEmail(invitation)).toBe(true);
-  expect(mailer.createTransport).toHaveBeenCalledWith(
-    expect.objectContaining({ host: "smtp.example.com", port: 587, requireTLS: true }),
-  );
-  expect(mailer.sendMail).toHaveBeenCalledWith(
-    expect.objectContaining({ to: invitation.to, text: expect.stringContaining(invitation.url) }),
-  );
-  expect(mailer.close).toHaveBeenCalled();
-});
-
-it("accepts SMTP_PASSWORD and MAIL_FROM for the deployed configuration", async () => {
-  clearSmtp();
-  vi.stubEnv("SMTP_HOST", "smtp.example.com");
-  vi.stubEnv("SMTP_PORT", "465");
-  vi.stubEnv("SMTP_USER", "user");
-  vi.stubEnv("SMTP_PASSWORD", "configured-password");
-  vi.stubEnv("MAIL_FROM", "JamScript <invite@example.com>");
-  mailer.createTransport.mockReturnValue({ sendMail: mailer.sendMail, close: mailer.close });
-  mailer.sendMail.mockResolvedValue({ accepted: [invitation.to] });
-  expect(await sendInvitationEmail(invitation)).toBe(true);
-  expect(mailer.createTransport).toHaveBeenCalledWith(
+  expect(fetchMock).toHaveBeenCalledWith(
+    "https://api.resend.com/emails",
     expect.objectContaining({
-      port: 465,
-      secure: true,
-      auth: { user: "user", pass: "configured-password" },
+      method: "POST",
+      headers: expect.objectContaining({ Authorization: "Bearer re_test" }),
     }),
   );
-  expect(mailer.sendMail).toHaveBeenCalledWith(
-    expect.objectContaining({ from: "JamScript <invite@example.com>" }),
+  const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string) as {
+    to: string[];
+    text: string;
+    from: string;
+  };
+  expect(body).toMatchObject({
+    from: "JamScript <onboarding@resend.dev>",
+    to: [invitation.to],
+  });
+  expect(body.text).toContain(invitation.url);
+});
+
+it("accepts RESEND_FROM and quoted env values", async () => {
+  clearMail();
+  vi.stubEnv("RESEND_API_KEY", '"re_quoted"');
+  vi.stubEnv("RESEND_FROM", "JamScript <invite@example.com>");
+  const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  expect(await sendInvitationEmail(invitation)).toBe(true);
+  expect(fetchMock.mock.calls[0]?.[1]).toEqual(
+    expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: "Bearer re_quoted" }),
+    }),
   );
 });
 
 it("rejects partial configuration before trying to send", async () => {
-  clearSmtp();
-  vi.stubEnv("SMTP_HOST", "smtp.example.com");
+  clearMail();
+  vi.stubEnv("RESEND_API_KEY", "re_test");
   await expect(sendInvitationEmail(invitation)).rejects.toThrow(/incomplete/);
   expect(await deliverInvitation(invitation)).toEqual({
     delivery: "link",
     url: invitation.url,
-    invitationError: expect.stringContaining(
-      "SMTP_PORT, SMTP_USER, SMTP_PASSWORD (or SMTP_PASS), MAIL_FROM (or SMTP_FROM)",
-    ),
+    invitationError: expect.stringContaining("MAIL_FROM (or RESEND_FROM)"),
   });
 });
 
-it("keeps a usable link and reports a safe reason after SMTP authentication fails", async () => {
-  clearSmtp();
-  vi.stubEnv("SMTP_HOST", "smtp.example.com");
-  vi.stubEnv("SMTP_PORT", "587");
-  vi.stubEnv("SMTP_USER", "user");
-  vi.stubEnv("SMTP_PASS", "test-password");
-  vi.stubEnv("SMTP_FROM", "invite@example.com");
-  mailer.createTransport.mockReturnValue({ sendMail: mailer.sendMail, close: mailer.close });
-  mailer.sendMail.mockRejectedValue({ code: "EAUTH", response: "do not expose raw server text" });
+it("keeps a usable link and reports a safe reason after Resend rejects the key", async () => {
+  clearMail();
+  vi.stubEnv("RESEND_API_KEY", "re_bad");
+  vi.stubEnv("MAIL_FROM", "JamScript <onboarding@resend.dev>");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: "API key is invalid", name: "validation_error" }), {
+        status: 401,
+      }),
+    ),
+  );
   const result = await deliverInvitation(invitation);
   expect(result).toEqual({
     delivery: "link",
     url: invitation.url,
-    invitationError:
-      "SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD (or SMTP_PASS).",
+    invitationError: "Resend rejected the API key. Check RESEND_API_KEY on the server.",
   });
-  expect(JSON.stringify(result)).not.toContain("do not expose raw server text");
-  expect(mailer.close).toHaveBeenCalled();
+  expect(JSON.stringify(result)).not.toContain("API key is invalid");
+});
+
+it("explains unverified sender domains without exposing raw provider text", async () => {
+  clearMail();
+  vi.stubEnv("RESEND_API_KEY", "re_test");
+  vi.stubEnv("MAIL_FROM", "JamScript <no-reply@jamscript.dev>");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: "The jamscript.dev domain is not verified" }), {
+        status: 422,
+      }),
+    ),
+  );
+  expect(await deliverInvitation(invitation)).toEqual({
+    delivery: "link",
+    url: invitation.url,
+    invitationError: expect.stringContaining("Verify MAIL_FROM on a Resend domain"),
+  });
 });
