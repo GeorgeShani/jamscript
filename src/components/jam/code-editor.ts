@@ -20,6 +20,7 @@ import {
 } from "@codemirror/commands";
 import { HighlightStyle, bracketMatching, syntaxHighlighting } from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
+import { ySyncFacet, yUndoManagerKeymap } from "y-codemirror.next";
 import { tags } from "@lezer/highlight";
 import {
   deriveMusic,
@@ -62,6 +63,12 @@ export function dispatchLensEdit(view: EditorView, edit: LensEdit, gestureTime?:
   });
   return true;
 }
+export function dispatchMusicHistory(view: EditorView, forward: boolean) {
+  if (!view.state.facet(EditorView.editable)) return false;
+  if (view.state.facet(ySyncFacet))
+    return yUndoManagerKeymap[forward ? 1 : 0]?.run?.(view) ?? false;
+  return (forward ? redo : undo)(view);
+}
 function link(view: EditorView, id: string | null) {
   if (view.state.field(linkedLens) !== id) view.dispatch({ effects: linkedEffect.of(id) });
   view.dom
@@ -86,7 +93,7 @@ class TrackWidget extends WidgetType {
       link: (id) => link(view, id),
       finishGesture: () => view.dispatch({ annotations: isolateHistory.of("after") }),
       history: (forward) => {
-        (forward ? redo : undo)(view);
+        dispatchMusicHistory(view, forward);
       },
     });
   }

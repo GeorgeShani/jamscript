@@ -1,4 +1,4 @@
-import { useAuth } from "@clerk/tanstack-react-start";
+import { useAuth, useUser } from "@clerk/tanstack-react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { EditorView } from "@codemirror/view";
@@ -373,18 +373,21 @@ export function SharedSession({
   onStatus: (status: string) => void;
   onPresence: (people: SharedPresence[]) => void;
 }) {
+  const { user } = useUser();
+  const name = user?.fullName || user?.username || user?.firstName || "Musician";
   const shared = document.shared;
   useEffect(() => {
     if (!view || !shared) return;
     return attachSharedDocument(view, {
       documentId: shared.documentId,
       role: shared.role,
-      initialSource: document.source,
+      name,
       onStatus,
       onPresence,
     });
-    // The source captured here is the pre-sync snapshot. Later keystrokes stay in the Yjs document.
+    // Callback identities change on workbench renders; a room only reattaches
+    // when its identity, role, editor or displayed name changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shared?.documentId, shared?.role, view]);
+  }, [shared?.documentId, shared?.role, view, name]);
   return null;
 }
