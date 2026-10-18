@@ -48,15 +48,17 @@ function collectRoomPresence(
     const infoName =
       typeof other.info?.["name"] === "string" ? (other.info["name"] as string) : undefined;
     // Ignore role-shaped leftovers from older auth tokens ("owner" / "editor" / "viewer").
-    const safeInfo =
-      infoName && !/^(owner|editor|viewer)$/i.test(infoName) ? infoName : undefined;
+    const safeInfo = infoName && !/^(owner|editor|viewer)$/i.test(infoName) ? infoName : undefined;
     const presenceName =
       typeof other.presence["name"] === "string" ? (other.presence["name"] as string) : undefined;
     const presenceUserId =
-      typeof other.presence["userId"] === "string" ? (other.presence["userId"] as string) : undefined;
-    const name = existing?.name && existing.name !== "Collaborator"
-      ? existing.name
-      : safeInfo || presenceName || existing?.name || "Collaborator";
+      typeof other.presence["userId"] === "string"
+        ? (other.presence["userId"] as string)
+        : undefined;
+    const name =
+      existing?.name && existing.name !== "Collaborator"
+        ? existing.name
+        : safeInfo || presenceName || existing?.name || "Collaborator";
     if (existing) {
       byId.set(key, {
         ...existing,

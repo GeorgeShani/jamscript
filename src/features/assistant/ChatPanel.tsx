@@ -559,9 +559,7 @@ export function ChatPanel({
                   key={id}
                   type="button"
                   className="jam-chat-chip"
-                  onClick={() =>
-                    setAttachedIds((current) => current.filter((item) => item !== id))
-                  }
+                  onClick={() => setAttachedIds((current) => current.filter((item) => item !== id))}
                 >
                   <span className="jam-chat-chip-label">{file.name}</span>
                   <span className="jam-chat-chip-x" aria-hidden="true">

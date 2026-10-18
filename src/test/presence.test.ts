@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  encodeCursor,
-  writeAwarenessState,
-} from "@/features/collaboration/cursor-presence";
+import { encodeCursor, writeAwarenessState } from "@/features/collaboration/cursor-presence";
 import {
   aggregatePresence,
   presenceColorFor,
@@ -64,15 +61,23 @@ describe("collaboration presence", () => {
         if (state) states.push(state);
       },
     };
-    writeAwarenessState(awareness as never, { userId: "user_a", name: "Ada" }, {
-      cursor: { anchor: { tname: "source" }, head: { tname: "source" } },
-    });
+    writeAwarenessState(
+      awareness as never,
+      { userId: "user_a", name: "Ada" },
+      {
+        cursor: { anchor: { tname: "source" }, head: { tname: "source" } },
+      },
+    );
     // Simulate y-codemirror's cursor-only field write path by publishing again
     // with only a cursor patch against an empty local snapshot.
     awareness.getLocalState = () => null;
-    writeAwarenessState(awareness as never, { userId: "user_a", name: "Ada" }, {
-      cursor: { anchor: { tname: "source" }, head: { tname: "source" } },
-    });
+    writeAwarenessState(
+      awareness as never,
+      { userId: "user_a", name: "Ada" },
+      {
+        cursor: { anchor: { tname: "source" }, head: { tname: "source" } },
+      },
+    );
     expect(states.at(-1)).toMatchObject({
       user: { id: "user_a", name: "Ada" },
       cursor: { anchor: { tname: "source" } },

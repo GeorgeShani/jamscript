@@ -241,10 +241,7 @@ export const Route = createFileRoute("/api/agent-proposal")({
             );
           return Response.json(proposal, { headers });
         } catch (cause) {
-          return Response.json(
-            { error: formatAgentModelError(cause) },
-            { status: 502, headers },
-          );
+          return Response.json({ error: formatAgentModelError(cause) }, { status: 502, headers });
         }
       },
     },

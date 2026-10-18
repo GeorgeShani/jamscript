@@ -146,11 +146,7 @@ export async function listWorkspaceDocuments(
  * One DB round-trip for the shared workbench open path.
  * Returns database snapshots only — live Yjs is loaded in the browser room after mount.
  */
-export async function openSharedWorkspace(
-  db: CollaborationDb,
-  documentId: string,
-  userId: string,
-) {
+export async function openSharedWorkspace(db: CollaborationDb, documentId: string, userId: string) {
   const access = await roleForDocument(db, documentId, userId);
   if (!access) return null;
   const files = await db

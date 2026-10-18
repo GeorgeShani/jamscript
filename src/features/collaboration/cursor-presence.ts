@@ -217,7 +217,9 @@ export function remotePeerPresence(awareness: Awareness, ytext: Y.Text): Extensi
             ydoc,
           );
           if (!peer) return;
-          const line = view.state.doc.lineAt(Math.min(Math.max(peer.head, 0), view.state.doc.length));
+          const line = view.state.doc.lineAt(
+            Math.min(Math.max(peer.head, 0), view.state.doc.length),
+          );
           lines.push({
             lineFrom: line.from,
             color: peer.color,
