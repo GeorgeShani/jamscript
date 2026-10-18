@@ -11,6 +11,7 @@ import {
   Folder,
   FolderPlus,
   ArrowUpRight,
+  GitBranch,
   PanelLeftClose,
   PanelLeftOpen,
   Play,
@@ -52,6 +53,7 @@ import { PresenceAvatars, PresenceTabDots } from "@/features/collaboration/Prese
 import { aggregatePresence, type SharedPresence } from "@/features/collaboration/presence";
 import { ExportControl } from "./ExportControl";
 import { ChatPanel } from "@/features/assistant/ChatPanel";
+import { apiUrl } from "@/lib/app-api";
 import { GitPanel } from "./GitPanel";
 import { CommandPalette, type WorkbenchCommand } from "./CommandPalette";
 import { searchWorkspaceDocuments, type WorkspaceSearchHit } from "./workspace-search";
@@ -142,7 +144,7 @@ export function SessionWorkbench({
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
   );
-  const [sidebarView, setSidebarView] = useState<"files" | "search">("files");
+  const [sidebarView, setSidebarView] = useState<"files" | "search" | "git">("files");
   const [workspaceQuery, setWorkspaceQuery] = useState("");
   const [inspectorOpen, setInspectorOpen] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
@@ -228,7 +230,7 @@ export function SessionWorkbench({
       return;
     }
     let current = true;
-    void fetch("/api/agent-chat")
+    void fetch(apiUrl("/api/agent-chat"))
       .then(async (response) =>
         response.ok ? (response.json() as Promise<{ available: boolean }>) : { available: false },
       )
@@ -1223,16 +1225,43 @@ export function SessionWorkbench({
       : []),
     {
       id: "files",
-      label: sidebarOpen ? "Hide Files" : "Show Files",
+      label: sidebarOpen && sidebarView === "files" ? "Hide Files" : "Show Files",
       group: "Commands",
       run: () => {
-        setSidebarOpen(!sidebarOpen);
-        if (!sidebarOpen && window.innerWidth < 900) {
+        if (sidebarOpen && sidebarView === "files") {
+          setSidebarOpen(false);
+          return;
+        }
+        setSidebarView("files");
+        setSidebarOpen(true);
+        if (window.innerWidth < 900) {
           setInspectorOpen(false);
           setAssistantOpen(false);
         }
       },
     },
+    ...(nativeWorkspace && storage.git
+      ? [
+          {
+            id: "git",
+            label: sidebarOpen && sidebarView === "git" ? "Hide Git" : "Show Git",
+            group: "Commands" as const,
+            keywords: "repository commit push pull origin",
+            run: () => {
+              if (sidebarOpen && sidebarView === "git") {
+                setSidebarOpen(false);
+                return;
+              }
+              setSidebarView("git");
+              setSidebarOpen(true);
+              if (window.innerWidth < 900) {
+                setInspectorOpen(false);
+                setAssistantOpen(false);
+              }
+            },
+          },
+        ]
+      : []),
     {
       id: "inspector",
       label: inspectorOpen ? "Hide Inspector" : "Show Inspector",
@@ -1790,6 +1819,29 @@ export function SessionWorkbench({
           >
             <SlidersVertical size={20} aria-hidden="true" />
           </button>
+          {nativeWorkspace && storage.git && (
+            <button
+              className={sidebarOpen && sidebarView === "git" ? "is-active" : ""}
+              title="Git: init, origin, commit, push, pull"
+              onClick={() => {
+                if (sidebarOpen && sidebarView === "git") {
+                  setSidebarOpen(false);
+                  return;
+                }
+                setSidebarView("git");
+                setSidebarOpen(true);
+                if (window.innerWidth < 900) {
+                  setInspectorOpen(false);
+                  setAssistantOpen(false);
+                }
+              }}
+              aria-label={
+                sidebarOpen && sidebarView === "git" ? "Hide Git" : "Show Git"
+              }
+            >
+              <GitBranch size={20} aria-hidden="true" />
+            </button>
+          )}
           {agentAvailable && (
             <button
               className={assistantOpen ? "is-active" : ""}
@@ -1809,7 +1861,25 @@ export function SessionWorkbench({
         </nav>
         {sidebarOpen && (
           <aside className="jam-file-sidebar">
-            {sidebarView === "search" ? (
+            {sidebarView === "git" && nativeWorkspace && storage.git && workspace ? (
+              <>
+                <div className="jam-panel-heading">
+                  <span>Git</span>
+                  <button onClick={() => setSidebarOpen(false)} aria-label="Close Git">
+                    <X size={16} />
+                  </button>
+                </div>
+                <GitPanel
+                  workspaceId={workspace.id}
+                  documents={documents}
+                  git={storage.git}
+                  isDirty={(document) => !!storage.isDirty?.(document)}
+                  onFilesChanged={() =>
+                    void reloadNativeFiles().catch((cause: unknown) => setError(message(cause)))
+                  }
+                />
+              </>
+            ) : sidebarView === "search" ? (
               <>
                 <div className="jam-panel-heading">
                   <span>Search</span>
@@ -1978,17 +2048,6 @@ export function SessionWorkbench({
                     </li>
                   ))}
                 </ul>
-                {nativeWorkspace && storage.git && (
-                  <GitPanel
-                    workspaceId={workspace.id}
-                    documents={documents}
-                    git={storage.git}
-                    isDirty={(document) => !!storage.isDirty?.(document)}
-                    onFilesChanged={() =>
-                      void reloadNativeFiles().catch((cause: unknown) => setError(message(cause)))
-                    }
-                  />
-                )}
               </>
             )}
           </aside>

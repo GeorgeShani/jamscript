@@ -33,7 +33,12 @@ struct GitFileStatus { name: String, status: String }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct GitStatus { branch: Option<String>, files: Vec<GitFileStatus> }
+struct GitStatus {
+    branch: Option<String>,
+    files: Vec<GitFileStatus>,
+    has_origin: bool,
+    origin_url: Option<String>,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -125,7 +130,33 @@ fn read_git_status(repo: &Repository) -> Result<GitStatus, String> {
         Some(GitFileStatus { name: name.to_string(), status: status.into() })
     }).collect();
     let branch = repo.head().ok().and_then(|head| head.shorthand().ok().map(str::to_string));
-    Ok(GitStatus { branch, files })
+    let origin = repo.find_remote("origin").ok();
+    let has_origin = origin.is_some();
+    let origin_url = origin
+        .as_ref()
+        .and_then(|remote| remote.url().ok().map(str::to_string));
+    Ok(GitStatus { branch, files, has_origin, origin_url })
+}
+
+fn validate_https_remote(url: &str) -> Result<(), String> {
+    if !url.starts_with("https://") || url.contains('@') || url.len() > 2048 {
+        return Err("Enter an HTTPS repository URL without embedded credentials".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn git_set_origin(state: State<'_, Folders>, folder_id: String, url: String) -> Result<GitStatus, String> {
+    validate_https_remote(&url)?;
+    let selected = folder(&state, &folder_id)?;
+    let repo = selected_repository(&selected)?;
+    match repo.find_remote("origin") {
+        Ok(_) => repo.remote_set_url("origin", &url).map_err(|e| e.to_string())?,
+        Err(_) => {
+            repo.remote("origin", &url).map_err(|e| e.to_string())?;
+        }
+    }
+    read_git_status(&repo)
 }
 
 #[tauri::command]
@@ -181,9 +212,7 @@ fn clone_into_selected_folder(selected: &Folder, url: &str) -> Result<GitStatus,
 
 #[tauri::command]
 fn git_clone(state: State<'_, Folders>, folder_id: String, url: String) -> Result<GitStatus, String> {
-    if !url.starts_with("https://") || url.contains('@') || url.len() > 2048 {
-        return Err("Enter an HTTPS repository URL without embedded credentials".into());
-    }
+    validate_https_remote(&url)?;
     clone_into_selected_folder(&folder(&state, &folder_id)?, &url)
 }
 
@@ -540,8 +569,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![list_folders, open_folder, list_folder_documents,
             read_folder_document, create_folder_document, rename_folder_document,
             delete_folder_document, write_folder_document, git_status, git_init, git_commit_files,
-            git_clone, git_push, git_pull_fast_forward, github_auth_status, github_auth_begin_device,
-            github_auth_poll_device, github_auth_store_token, github_auth_sign_out])
+            git_clone, git_set_origin, git_push, git_pull_fast_forward, github_auth_status,
+            github_auth_begin_device, github_auth_poll_device, github_auth_store_token,
+            github_auth_sign_out])
         .run(tauri::generate_context!())
         .expect("JamScript failed to start");
 }

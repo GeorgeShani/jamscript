@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Check,
+  GitBranch,
+  Link2,
+  LoaderCircle,
+  RefreshCw,
+} from "lucide-react";
 import type { DocumentRecord, WorkspaceStorage } from "@/workspaces/storage";
 
 type GitService = NonNullable<WorkspaceStorage["git"]>;
 type GitState = Awaited<ReturnType<GitService["status"]>>;
 type AuthState = Awaited<ReturnType<GitService["githubAuthStatus"]>>;
 
-/** Local Git is an explicit desktop capability, independent of workspace identity. */
+/** Compact desktop Git sidebar — essential actions without terminal chrome. */
 export function GitPanel({
   workspaceId,
   documents,
@@ -27,37 +35,46 @@ export function GitPanel({
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [cloneUrl, setCloneUrl] = useState("");
+  const [originUrl, setOriginUrl] = useState("");
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [tokenDraft, setTokenDraft] = useState("");
   const [deviceCode, setDeviceCode] = useState<string | null>(null);
   const [deviceUri, setDeviceUri] = useState<string | null>(null);
 
-  useEffect(() => {
-    let current = true;
-    setStatus(null);
-    setMissing(false);
+  const refresh = () => {
+    setError(null);
     void git
       .status(workspaceId)
       .then((value) => {
-        if (current) setStatus(value);
+        setStatus(value);
+        setMissing(false);
+        setOriginUrl(value.originUrl ?? "");
+        const names = value.files
+          .filter(
+            (file) =>
+              file.status === "deleted" ||
+              documents.some((document) => document.name === file.name),
+          )
+          .map((file) => file.name);
+        setSelected((current) =>
+          current.length ? current.filter((name) => names.includes(name)) : names,
+        );
       })
       .catch((cause: unknown) => {
-        if (!current) return;
         const text = cause instanceof Error ? cause.message : String(cause);
-        if (text.includes("No Git repository")) setMissing(true);
-        else setError(text);
+        if (text.includes("No Git repository")) {
+          setMissing(true);
+          setStatus(null);
+        } else setError(text);
       });
     void git
       .githubAuthStatus()
-      .then((value) => {
-        if (current) setAuth(value);
-      })
-      .catch(() => {
-        if (current) setAuth({ signedIn: false, deviceFlowAvailable: false });
-      });
-    return () => {
-      current = false;
-    };
+      .then(setAuth)
+      .catch(() => setAuth({ signedIn: false, deviceFlowAvailable: false }));
+  };
+
+  useEffect(() => {
+    refresh();
   }, [workspaceId, git]);
 
   useEffect(() => {
@@ -91,10 +108,19 @@ export function GitPanel({
     setBusy(true);
     setError(null);
     try {
-      setStatus(await action());
+      const next = await action();
+      setStatus(next);
       setMissing(false);
-      setSelected([]);
       setMessage("");
+      setOriginUrl(next.originUrl ?? "");
+      const names = next.files
+        .filter(
+          (file) =>
+            file.status === "deleted" ||
+            documents.some((document) => document.name === file.name),
+        )
+        .map((file) => file.name);
+      setSelected(names);
       if (filesChanged) onFilesChanged?.();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -102,224 +128,160 @@ export function GitPanel({
       setBusy(false);
     }
   };
+
   const eligible =
     status?.files.filter(
       (file) =>
         file.status === "deleted" || documents.some((document) => document.name === file.name),
     ) ?? [];
+  const dirtyOpen = documents.some(isDirty);
+  const canCommit = selected.length > 0 && !!message.trim() && !busy;
 
   return (
-    <details className="jam-git-control">
-      <summary>Git</summary>
-      <div className="jam-git-popup">
-        <section className="jam-git-auth" aria-label="GitHub credentials">
-          <p>
-            {auth?.signedIn
-              ? "GitHub credentials are stored in this computer’s keychain."
-              : "Sign in for private clone, push and pull. Local commit works without GitHub."}
-          </p>
-          {auth?.signedIn ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                setError(null);
-                void git
-                  .signOutGitHub()
-                  .then(setAuth)
-                  .catch((cause: unknown) =>
-                    setError(cause instanceof Error ? cause.message : String(cause)),
-                  )
-                  .finally(() => setBusy(false));
-              }}
-            >
-              Sign out of GitHub
-            </Button>
-          ) : (
-            <>
-              {auth?.deviceFlowAvailable && (
-                <Button
-                  size="sm"
-                  type="button"
-                  disabled={busy || !!deviceCode}
-                  onClick={() => {
-                    setBusy(true);
-                    setError(null);
-                    void git
-                      .beginGitHubDeviceFlow()
-                      .then((begin) => {
-                        setDeviceCode(begin.userCode);
-                        setDeviceUri(begin.verificationUri);
-                      })
-                      .catch((cause: unknown) =>
-                        setError(cause instanceof Error ? cause.message : String(cause)),
-                      )
-                      .finally(() => setBusy(false));
-                  }}
-                >
-                  Sign in with GitHub
-                </Button>
-              )}
-              {deviceCode && (
-                <p>
-                  Enter code <strong className="code-face">{deviceCode}</strong>
-                  {deviceUri ? (
-                    <>
-                      {" "}
-                      at{" "}
-                      <a href={deviceUri} target="_blank" rel="noreferrer">
-                        {deviceUri}
-                      </a>
-                    </>
-                  ) : null}
-                  . Waiting for approval…
-                </p>
-              )}
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  setBusy(true);
-                  setError(null);
-                  void git
-                    .storeGitHubToken(tokenDraft)
-                    .then((next) => {
-                      setAuth(next);
-                      setTokenDraft("");
-                    })
-                    .catch((cause: unknown) =>
-                      setError(cause instanceof Error ? cause.message : String(cause)),
-                    )
-                    .finally(() => setBusy(false));
-                }}
-              >
-                <label>
-                  Or paste a fine-grained GitHub token
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    value={tokenDraft}
-                    placeholder="github_pat_…"
-                    onChange={(event) => setTokenDraft(event.target.value)}
-                    required
-                  />
-                </label>
-                <p className="jam-git-pat-help">
-                  Create one at GitHub → Settings → Developer settings → Personal access tokens →
-                  Fine-grained tokens. Resource owner: your user. Repository access: only the song
-                  repos you need. Permissions → Repository permissions →{" "}
-                  <strong>Contents: Read and write</strong>. Metadata stays Read-only. No other
-                  permissions. JamScript stores the token in this computer’s keychain and never
-                  force-pushes.
-                </p>
-                <Button size="sm" type="submit" disabled={busy || !tokenDraft.trim()}>
-                  Store token
-                </Button>
-              </form>
-            </>
-          )}
-        </section>
+    <div className="jam-git-sidebar">
+      <header className="jam-git-status">
+        <GitBranch size={14} aria-hidden="true" />
+        <span className="jam-git-status-text">
+          {missing
+            ? "No repo yet"
+            : `${status?.branch ?? "unborn"} · ${status?.files.length ?? 0}`}
+        </span>
+        <button
+          type="button"
+          className="jam-git-icon-btn"
+          disabled={busy}
+          aria-label="Refresh"
+          title="Refresh status"
+          onClick={() => refresh()}
+        >
+          {busy ? <LoaderCircle size={14} className="jam-git-spin" /> : <RefreshCw size={14} />}
+        </button>
+      </header>
 
-        {missing ? (
-          <>
-            <p>This folder has no Git repository.</p>
-            <Button
-              size="sm"
-              type="button"
-              disabled={busy}
-              onClick={() => void run(() => git.initialize(workspaceId))}
+      {missing ? (
+        <div className="jam-git-stack">
+          <button
+            type="button"
+            className="jam-git-primary"
+            disabled={busy}
+            onClick={() => void run(() => git.initialize(workspaceId))}
+          >
+            Init repository
+          </button>
+          <form
+            className="jam-git-inline"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void run(() => git.cloneInto(workspaceId, cloneUrl), true);
+            }}
+          >
+            <input
+              type="url"
+              value={cloneUrl}
+              aria-label="Clone URL"
+              placeholder="Clone HTTPS URL…"
+              onChange={(event) => setCloneUrl(event.target.value)}
+              required
+            />
+            <button
+              type="submit"
+              className="jam-git-secondary"
+              disabled={busy || !cloneUrl.startsWith("https://") || documents.length > 0}
             >
-              Initialize Git
-            </Button>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void run(() => git.cloneInto(workspaceId, cloneUrl), true);
+              Clone
+            </button>
+          </form>
+          {documents.length > 0 && <p className="jam-git-hint">Empty folder required to clone.</p>}
+        </div>
+      ) : (
+        <>
+          <div className="jam-git-toolbar" role="group" aria-label="Git actions">
+            <button
+              type="button"
+              className="jam-git-tool"
+              disabled={busy || dirtyOpen || !status?.hasOrigin}
+              title={
+                dirtyOpen
+                  ? "Save open files first"
+                  : !status?.hasOrigin
+                    ? "Add origin first"
+                    : "Pull (fast-forward)"
+              }
+              onClick={() => void run(() => git.pull(workspaceId, documents), true)}
+            >
+              <ArrowDownToLine size={15} aria-hidden="true" />
+              Pull
+            </button>
+            <button
+              type="button"
+              className="jam-git-tool"
+              disabled={busy || !status?.hasOrigin}
+              title={!status?.hasOrigin ? "Add origin first" : "Push (never force)"}
+              onClick={() => void run(() => git.push(workspaceId))}
+            >
+              <ArrowUpFromLine size={15} aria-hidden="true" />
+              Push
+            </button>
+            <button
+              type="button"
+              className="jam-git-tool is-accent"
+              disabled={!canCommit}
+              title="Commit selected files"
+              onClick={() => {
+                const files = documents.filter(
+                  (document) =>
+                    selected.includes(document.name) &&
+                    eligible.some(
+                      (file) => file.name === document.name && file.status !== "deleted",
+                    ),
+                );
+                const deleted = eligible
+                  .filter((file) => file.status === "deleted" && selected.includes(file.name))
+                  .map((file) => file.name);
+                void run(() => git.commit(workspaceId, files, deleted, message));
               }}
             >
-              <label>
-                Clone HTTPS repository into this empty folder
-                <input
-                  type="url"
-                  value={cloneUrl}
-                  placeholder="https://github.com/owner/repository.git"
-                  onChange={(event) => setCloneUrl(event.target.value)}
-                  required
-                />
-              </label>
-              <Button
-                size="sm"
-                type="submit"
-                disabled={busy || !cloneUrl.startsWith("https://") || documents.length > 0}
-              >
-                Clone into folder
-              </Button>
-              {documents.length > 0 && <p>Choose an empty folder to clone a repository.</p>}
-            </form>
-          </>
-        ) : status ? (
-          <>
-            <p>
-              {status.branch ?? "New repository"} · {status.files.length} changed music files
-            </p>
-            <Button
-              size="sm"
-              variant="ghost"
-              type="button"
-              disabled={busy}
-              onClick={() => void run(() => git.status(workspaceId))}
+              <Check size={15} aria-hidden="true" />
+              Commit
+            </button>
+          </div>
+
+          <form
+            className="jam-git-inline"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void run(() => git.setOrigin(workspaceId, originUrl));
+            }}
+          >
+            <Link2 size={14} className="jam-git-inline-icon" aria-hidden="true" />
+            <input
+              type="url"
+              value={originUrl}
+              aria-label="Remote origin"
+              placeholder="origin HTTPS…"
+              onChange={(event) => setOriginUrl(event.target.value)}
+              required
+            />
+            <button
+              type="submit"
+              className="jam-git-secondary"
+              disabled={busy || !originUrl.startsWith("https://")}
             >
-              Refresh status
-            </Button>
-            <div className="jam-git-sync-actions">
-              <Button
-                size="sm"
-                variant="outline"
-                type="button"
-                disabled={busy}
-                onClick={() => void run(() => git.push(workspaceId))}
-              >
-                Push commits
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                type="button"
-                disabled={busy || documents.some(isDirty)}
-                onClick={() => void run(() => git.pull(workspaceId, documents), true)}
-              >
-                Pull fast-forward
-              </Button>
-            </div>
-            <p>
-              Push never forces. Pull only fast-forwards and refuses dirty or divergent folders.
-            </p>
-            {eligible.length > 0 && (
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const files = documents.filter(
-                    (document) =>
-                      selected.includes(document.name) &&
-                      eligible.some(
-                        (file) => file.name === document.name && file.status !== "deleted",
-                      ),
-                  );
-                  const deleted = eligible
-                    .filter((file) => file.status === "deleted" && selected.includes(file.name))
-                    .map((file) => file.name);
-                  void run(() => git.commit(workspaceId, files, deleted, message));
-                }}
-              >
-                <fieldset>
-                  <legend>Saved music files to commit</legend>
-                  {eligible.map((file) => {
-                    const document = documents.find((item) => item.name === file.name);
-                    const dirty = document ? isDirty(document) : false;
-                    return (
-                      <label key={file.name}>
+              {status?.hasOrigin ? "Set" : "Add"}
+            </button>
+          </form>
+
+          <div className="jam-git-files">
+            {eligible.length === 0 ? (
+              <p className="jam-git-hint">Working tree clean.</p>
+            ) : (
+              <ul>
+                {eligible.map((file) => {
+                  const document = documents.find((item) => item.name === file.name);
+                  const dirty = document ? isDirty(document) : false;
+                  return (
+                    <li key={file.name}>
+                      <label className={dirty ? "is-blocked" : undefined}>
                         <input
                           type="checkbox"
                           disabled={dirty || busy}
@@ -332,34 +294,143 @@ export function GitPanel({
                             )
                           }
                         />
-                        {file.name} · {dirty ? "Save first" : file.status}
+                        <span className="jam-git-file-name">{file.name}</span>
+                        <span className="jam-git-file-flag">
+                          {dirty ? "save" : file.status.slice(0, 1)}
+                        </span>
                       </label>
-                    );
-                  })}
-                </fieldset>
-                <label>
-                  Commit message
-                  <input
-                    value={message}
-                    maxLength={500}
-                    onChange={(event) => setMessage(event.target.value)}
-                  />
-                </label>
-                <Button
-                  size="sm"
-                  type="submit"
-                  disabled={busy || !selected.length || !message.trim()}
-                >
-                  Commit selected files
-                </Button>
-              </form>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
-          </>
+          </div>
+
+          <input
+            className="jam-git-message"
+            value={message}
+            maxLength={500}
+            aria-label="Commit message"
+            placeholder="Commit message…"
+            onChange={(event) => setMessage(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && canCommit) {
+                event.preventDefault();
+                const files = documents.filter(
+                  (document) =>
+                    selected.includes(document.name) &&
+                    eligible.some(
+                      (file) => file.name === document.name && file.status !== "deleted",
+                    ),
+                );
+                const deleted = eligible
+                  .filter((file) => file.status === "deleted" && selected.includes(file.name))
+                  .map((file) => file.name);
+                void run(() => git.commit(workspaceId, files, deleted, message));
+              }
+            }}
+          />
+        </>
+      )}
+
+      <details className="jam-git-auth">
+        <summary>{auth?.signedIn ? "GitHub · connected" : "GitHub · sign in"}</summary>
+        {auth?.signedIn ? (
+          <button
+            type="button"
+            className="jam-git-link"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void git
+                .signOutGitHub()
+                .then(setAuth)
+                .catch((cause: unknown) =>
+                  setError(cause instanceof Error ? cause.message : String(cause)),
+                )
+                .finally(() => setBusy(false));
+            }}
+          >
+            Sign out
+          </button>
         ) : (
-          <p>Loading repository status…</p>
+          <div className="jam-git-stack">
+            {auth?.deviceFlowAvailable && (
+              <button
+                type="button"
+                className="jam-git-secondary"
+                disabled={busy || !!deviceCode}
+                onClick={() => {
+                  setBusy(true);
+                  void git
+                    .beginGitHubDeviceFlow()
+                    .then((begin) => {
+                      setDeviceCode(begin.userCode);
+                      setDeviceUri(begin.verificationUri);
+                    })
+                    .catch((cause: unknown) =>
+                      setError(cause instanceof Error ? cause.message : String(cause)),
+                    )
+                    .finally(() => setBusy(false));
+                }}
+              >
+                Device sign-in
+              </button>
+            )}
+            {deviceCode && (
+              <p className="jam-git-hint">
+                Code <strong className="code-face">{deviceCode}</strong>
+                {deviceUri ? (
+                  <>
+                    {" "}
+                    →{" "}
+                    <a href={deviceUri} target="_blank" rel="noreferrer">
+                      GitHub
+                    </a>
+                  </>
+                ) : null}
+              </p>
+            )}
+            <form
+              className="jam-git-inline"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setBusy(true);
+                void git
+                  .storeGitHubToken(tokenDraft)
+                  .then((next) => {
+                    setAuth(next);
+                    setTokenDraft("");
+                  })
+                  .catch((cause: unknown) =>
+                    setError(cause instanceof Error ? cause.message : String(cause)),
+                  )
+                  .finally(() => setBusy(false));
+              }}
+            >
+              <input
+                type="password"
+                autoComplete="off"
+                value={tokenDraft}
+                aria-label="GitHub token"
+                placeholder="github_pat_…"
+                onChange={(event) => setTokenDraft(event.target.value)}
+                required
+              />
+              <button type="submit" className="jam-git-secondary" disabled={busy || !tokenDraft.trim()}>
+                Store
+              </button>
+            </form>
+            <p className="jam-git-hint">PAT needs Contents: Read and write.</p>
+          </div>
         )}
-        {error && <p role="alert">{error}</p>}
-      </div>
-    </details>
+      </details>
+
+      {error && (
+        <p role="alert" className="jam-git-error">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

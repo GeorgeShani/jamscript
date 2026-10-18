@@ -6,6 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 // Static workbench assets are served by the Tauri webview.
 export default defineConfig({
   root: "desktop",
+  envDir: fileURLToPath(new URL(".", import.meta.url)),
   publicDir: fileURLToPath(new URL("./public", import.meta.url)),
   envPrefix: "JAMSCRIPT_DESKTOP_PUBLIC_",
   resolve: {

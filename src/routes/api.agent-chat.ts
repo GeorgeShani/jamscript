@@ -16,7 +16,13 @@ import { readLiveblocksDocuments } from "@/features/collaboration/liveblocks-doc
 import { listWorkspaceDocuments, roleForDocument } from "@/features/collaboration/membership";
 import { shareableDocumentName } from "@/features/collaboration/shareable";
 
-const headers = { "Cache-Control": "private, no-store" };
+const headers = {
+  "Cache-Control": "private, no-store",
+  // Desktop Tauri calls this Worker cross-origin; no cookies are required for local Ask/Edit.
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Accept",
+};
 
 async function agentRateLimiter() {
   const { env } = await import("cloudflare:workers");
@@ -60,6 +66,7 @@ function selectClientFiles(
 export const Route = createFileRoute("/api/agent-chat")({
   server: {
     handlers: {
+      OPTIONS: async () => new Response(null, { status: 204, headers }),
       GET: async () => {
         // Chat is available whenever Gemini is configured — shared or local workspace.
         if (!geminiConfigured()) return Response.json({ available: false }, { headers });

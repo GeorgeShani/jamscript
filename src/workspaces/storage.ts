@@ -22,6 +22,13 @@ export interface DocumentRecord {
   updatedAt: number;
 }
 
+export interface GitWorkspaceStatus {
+  branch: string | null;
+  files: { name: string; status: string }[];
+  hasOrigin: boolean;
+  originUrl: string | null;
+}
+
 export interface WorkspaceStorage {
   listWorkspaces: typeof listWorkspaces;
   listDocuments: typeof listDocuments;
@@ -46,29 +53,18 @@ export interface WorkspaceStorage {
   isNativeWorkspace?: (id: string) => boolean;
   isDirty?: (document: DocumentRecord) => boolean;
   git?: {
-    status(
-      workspaceId: string,
-    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
-    initialize(
-      workspaceId: string,
-    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+    status(workspaceId: string): Promise<GitWorkspaceStatus>;
+    initialize(workspaceId: string): Promise<GitWorkspaceStatus>;
     commit(
       workspaceId: string,
       documents: DocumentRecord[],
       deletedNames: string[],
       message: string,
-    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
-    cloneInto(
-      workspaceId: string,
-      url: string,
-    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
-    push(
-      workspaceId: string,
-    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
-    pull(
-      workspaceId: string,
-      documents: DocumentRecord[],
-    ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+    ): Promise<GitWorkspaceStatus>;
+    cloneInto(workspaceId: string, url: string): Promise<GitWorkspaceStatus>;
+    setOrigin(workspaceId: string, url: string): Promise<GitWorkspaceStatus>;
+    push(workspaceId: string): Promise<GitWorkspaceStatus>;
+    pull(workspaceId: string, documents: DocumentRecord[]): Promise<GitWorkspaceStatus>;
     githubAuthStatus(): Promise<{ signedIn: boolean; deviceFlowAvailable: boolean }>;
     beginGitHubDeviceFlow(): Promise<{
       userCode: string;

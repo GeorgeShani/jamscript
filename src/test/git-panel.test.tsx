@@ -1,18 +1,29 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GitPanel } from "@/workbench/GitPanel";
-import type { DocumentRecord, WorkspaceStorage } from "@/workspaces/storage";
+import type { DocumentRecord, GitWorkspaceStatus, WorkspaceStorage } from "@/workspaces/storage";
 
 afterEach(cleanup);
+
+function status(partial: Partial<GitWorkspaceStatus> = {}): GitWorkspaceStatus {
+  return {
+    branch: "main",
+    files: [],
+    hasOrigin: true,
+    originUrl: "https://github.com/example/songs.git",
+    ...partial,
+  };
+}
 
 function authStubs(
   overrides: Partial<NonNullable<WorkspaceStorage["git"]>> = {},
 ): NonNullable<WorkspaceStorage["git"]> {
   return {
-    status: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
+    status: vi.fn().mockResolvedValue(status()),
     initialize: vi.fn(),
     commit: vi.fn(),
     cloneInto: vi.fn(),
+    setOrigin: vi.fn().mockResolvedValue(status()),
     push: vi.fn(),
     pull: vi.fn(),
     githubAuthStatus: vi.fn().mockResolvedValue({ signedIn: false, deviceFlowAvailable: false }),
@@ -25,12 +36,14 @@ function authStubs(
 }
 
 describe("optional desktop Git panel", () => {
-  it("initializes explicitly and commits only selected saved music files", async () => {
+  it("initializes and commits only selected saved music files", async () => {
     const files = [{ name: "song.js", status: "untracked" }];
     const git = authStubs({
       status: vi.fn().mockRejectedValue(new Error("No Git repository in this selected folder")),
-      initialize: vi.fn().mockResolvedValue({ branch: null, files }),
-      commit: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
+      initialize: vi
+        .fn()
+        .mockResolvedValue(status({ branch: null, files, hasOrigin: false, originUrl: null })),
+      commit: vi.fn().mockResolvedValue(status({ files: [] })),
     });
     const document = {
       id: "song",
@@ -48,14 +61,12 @@ describe("optional desktop Git panel", () => {
         isDirty={() => false}
       />,
     );
-    fireEvent.click(screen.getByText("Git"));
-    fireEvent.click(await screen.findByRole("button", { name: "Initialize Git" }));
-    await screen.findByText(/1 changed music files/);
-    fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.change(screen.getByRole("textbox", { name: "Commit message" }), {
+    fireEvent.click(await screen.findByRole("button", { name: "Init repository" }));
+    await screen.findByText(/song\.js/);
+    fireEvent.change(screen.getByLabelText("Commit message"), {
       target: { value: "Add kick pattern" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Commit selected files" }));
+    fireEvent.click(screen.getByRole("button", { name: "Commit" }));
     await waitFor(() =>
       expect(git.commit).toHaveBeenCalledWith("native:folder", [document], [], "Add kick pattern"),
     );
@@ -63,7 +74,7 @@ describe("optional desktop Git panel", () => {
 
   it("refuses pull while any file has unsaved changes", async () => {
     const git = authStubs({
-      push: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
+      push: vi.fn().mockResolvedValue(status()),
     });
     const document = {
       id: "song",
@@ -81,42 +92,42 @@ describe("optional desktop Git panel", () => {
         isDirty={() => true}
       />,
     );
-    fireEvent.click(screen.getByText("Git"));
-    expect(await screen.findByRole("button", { name: "Pull fast-forward" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Push commits" }));
+    expect(await screen.findByRole("button", { name: "Pull" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Push" }));
     await waitFor(() => expect(git.push).toHaveBeenCalledWith("native:folder"));
   });
 
-  it("commits an explicitly selected deleted music file", async () => {
+  it("adds a remote origin from the sidebar", async () => {
     const git = authStubs({
-      status: vi
+      status: vi.fn().mockResolvedValue(status({ hasOrigin: false, originUrl: null })),
+      setOrigin: vi
         .fn()
-        .mockResolvedValue({ branch: "main", files: [{ name: "old.js", status: "deleted" }] }),
-      commit: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
+        .mockResolvedValue(status({ originUrl: "https://github.com/owner/songs.git" })),
     });
     render(<GitPanel workspaceId="native:folder" documents={[]} git={git} isDirty={() => false} />);
-    fireEvent.click(screen.getByText("Git"));
-    fireEvent.click(await screen.findByRole("checkbox"));
-    fireEvent.change(screen.getByRole("textbox", { name: "Commit message" }), {
-      target: { value: "Remove old song" },
+    fireEvent.change(await screen.findByLabelText("Remote origin"), {
+      target: { value: "https://github.com/owner/songs.git" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Commit selected files" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() =>
-      expect(git.commit).toHaveBeenCalledWith("native:folder", [], ["old.js"], "Remove old song"),
+      expect(git.setOrigin).toHaveBeenCalledWith(
+        "native:folder",
+        "https://github.com/owner/songs.git",
+      ),
     );
   });
 
-  it("stores a pasted GitHub token in the OS credential path", async () => {
+  it("stores a pasted GitHub token", async () => {
     const git = authStubs();
     render(<GitPanel workspaceId="native:folder" documents={[]} git={git} isDirty={() => false} />);
-    fireEvent.click(screen.getByText("Git"));
-    fireEvent.change(await screen.findByPlaceholderText("github_pat_…"), {
+    fireEvent.click(await screen.findByText("GitHub · sign in"));
+    fireEvent.change(screen.getByLabelText("GitHub token"), {
       target: { value: "github_pat_exampletoken" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Store token" }));
+    fireEvent.click(screen.getByRole("button", { name: "Store" }));
     await waitFor(() =>
       expect(git.storeGitHubToken).toHaveBeenCalledWith("github_pat_exampletoken"),
     );
-    expect(await screen.findByRole("button", { name: "Sign out of GitHub" })).toBeInTheDocument();
+    expect(await screen.findByText("GitHub · connected")).toBeInTheDocument();
   });
 });

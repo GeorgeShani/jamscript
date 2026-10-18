@@ -145,6 +145,11 @@ export const desktopStorage: WorkspaceStorage = {
         throw new Error("Git is available for desktop folders only");
       return invoke("git_clone", { folderId: folderId(workspaceId), url });
     },
+    async setOrigin(workspaceId, url) {
+      if (!isNativeWorkspace(workspaceId))
+        throw new Error("Git is available for desktop folders only");
+      return invoke("git_set_origin", { folderId: folderId(workspaceId), url });
+    },
     async push(workspaceId) {
       if (!isNativeWorkspace(workspaceId))
         throw new Error("Git is available for desktop folders only");

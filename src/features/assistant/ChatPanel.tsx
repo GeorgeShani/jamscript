@@ -3,6 +3,7 @@ import { isolateHistory } from "@codemirror/commands";
 import { Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { Button } from "@/components/ui/button";
+import { apiUrl } from "@/lib/app-api";
 import { ChatMarkdown } from "./chat-markdown";
 import { createNdjsonParser } from "./chat-stream";
 import {
@@ -71,7 +72,7 @@ export function ChatPanel({
 
   useEffect(() => {
     let current = true;
-    void fetch("/api/agent-chat")
+    void fetch(apiUrl("/api/agent-chat"))
       .then(async (response) =>
         response.ok ? ((await response.json()) as { available: boolean }) : { available: false },
       )
@@ -264,7 +265,7 @@ export function ChatPanel({
         })
         .filter((file): file is { id: string; name: string; source: string } => !!file)
         .slice(0, 8);
-      const response = await fetch("/api/agent-chat", {
+      const response = await fetch(apiUrl("/api/agent-chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
         signal: controller.signal,

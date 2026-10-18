@@ -1264,81 +1264,246 @@
   max-height: 250px;
   overflow: auto;
 }
-.jam-git-control {
-  position: relative;
-  flex: none;
+.jam-git-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 8px 10px 12px;
   font-size: 12px;
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
 }
-.jam-git-control > summary {
+.jam-git-status {
   display: flex;
   align-items: center;
-  height: 32px;
-  padding: 0 9px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  cursor: pointer;
-  list-style: none;
-}
-.jam-git-control > summary::-webkit-details-marker {
-  display: none;
-}
-.jam-git-popup {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 7px);
-  right: 0;
-  display: grid;
-  gap: 10px;
-  width: min(340px, calc(100vw - 24px));
-  max-height: min(500px, 70vh);
-  overflow: auto;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--card);
-  box-shadow: 0 12px 32px #0007;
-}
-.jam-git-auth {
-  display: grid;
-  gap: 8px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-}
-.jam-git-auth p,
-.jam-git-pat-help {
-  margin: 0;
+  gap: 6px;
+  min-height: 24px;
   color: var(--muted-foreground);
-  font-size: 12px;
-  line-height: 1.45;
 }
-.jam-git-pat-help strong {
+.jam-git-status-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--foreground);
   font-weight: 500;
 }
-.jam-git-popup form,
-.jam-git-popup fieldset,
-.jam-git-popup form > label {
+.jam-git-icon-btn {
   display: grid;
-  gap: 8px;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
 }
-.jam-git-popup fieldset label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.jam-git-popup input:not([type="checkbox"]) {
-  width: 100%;
-  min-height: 30px;
-  padding: 0 8px;
+.jam-git-icon-btn:hover:not(:disabled) {
   color: var(--foreground);
-  background: var(--background);
-  border: 1px solid var(--border);
+  background: var(--muted);
 }
-.jam-file-sidebar .jam-git-control,
+.jam-git-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.jam-git-spin {
+  animation: jam-git-spin 0.8s linear infinite;
+}
+@keyframes jam-git-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jam-git-spin {
+    animation: none;
+  }
+}
+.jam-git-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+.jam-git-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.jam-git-tool:hover:not(:disabled) {
+  background: var(--muted);
+}
+.jam-git-tool:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.jam-git-tool.is-accent {
+  border-color: color-mix(in oklch, var(--primary) 45%, var(--border));
+  background: color-mix(in oklch, var(--primary) 16%, var(--background));
+  color: var(--foreground);
+}
+.jam-git-tool.is-accent:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--primary) 26%, var(--background));
+}
+.jam-git-inline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+}
+.jam-git-inline:not(:has(.jam-git-inline-icon)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.jam-git-inline-icon {
+  color: var(--muted-foreground);
+}
+.jam-git-sidebar input:not([type="checkbox"]) {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 11px;
+}
+.jam-git-message {
+  height: 28px;
+}
+.jam-git-secondary,
+.jam-git-primary {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.jam-git-secondary {
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+}
+.jam-git-primary {
+  width: 100%;
+  border: 1px solid color-mix(in oklch, var(--primary) 45%, var(--border));
+  background: color-mix(in oklch, var(--primary) 18%, var(--background));
+  color: var(--foreground);
+}
+.jam-git-secondary:disabled,
+.jam-git-primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.jam-git-stack {
+  display: grid;
+  gap: 6px;
+}
+.jam-git-files {
+  max-height: 140px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--background);
+}
+.jam-git-files ul {
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+}
+.jam-git-files label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.jam-git-files label:hover {
+  background: var(--muted);
+}
+.jam-git-files label.is-blocked {
+  opacity: 0.55;
+  cursor: default;
+}
+.jam-git-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+}
+.jam-git-file-flag {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  text-transform: lowercase;
+}
+.jam-git-hint {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.jam-git-auth {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.jam-git-auth > summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  list-style: none;
+}
+.jam-git-auth > summary:hover {
+  color: var(--foreground);
+}
+.jam-git-auth > summary::-webkit-details-marker {
+  display: none;
+}
+.jam-git-link {
+  justify-self: start;
+  border: 0;
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.jam-git-link:hover {
+  color: var(--foreground);
+}
+.jam-git-error {
+  margin: 0;
+  color: var(--destructive);
+  font-size: 11px;
+  line-height: 1.35;
+}
 .jam-assistant-pane .jam-agent-control {
   margin: 10px;
 }
-.jam-file-sidebar .jam-git-control > summary,
 .jam-assistant-pane .jam-agent-control > summary {
   justify-content: space-between;
   background: var(--muted);
@@ -1469,11 +1634,19 @@
   border-left-color: var(--primary);
 }
 .jam-file-sidebar {
+  display: flex;
+  flex-direction: column;
   flex: 0 0 var(--jam-files-width, 232px);
   min-width: 0;
-  overflow: auto;
+  overflow: hidden;
   border-right: 1px solid var(--border);
   background: var(--card);
+}
+.jam-file-sidebar > ul,
+.jam-file-sidebar > .jam-workspace-search {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
 }
 .jam-workspace-search {
   padding: 10px 9px;
