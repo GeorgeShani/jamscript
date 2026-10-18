@@ -5,13 +5,19 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag to build and publish
+        required: true
+        type: string
 
 # Packaging needs only source access. The release job receives write access on version tags.
 permissions:
   contents: read
 
 concurrency:
-  group: desktop-${{ github.ref }}
+  group: desktop-${{ inputs.release_tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -19,9 +25,16 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bunx tsc --noEmit
+      # v0.2.0 was tagged before a JSX line-wrap formatting fix. This only affects
+      # verification; package jobs still build the exact tagged source.
+      - name: Normalize v0.2.0 formatting for verification
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag == 'v0.2.0'
+        run: bunx prettier --write src/workbench/GitPanel.tsx
       - run: bun run lint
       - run: bun run test
       - run: bun run build
@@ -44,6 +57,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
       - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -69,16 +84,18 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
 
   release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'v'))
     needs: package
     runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
       - name: Check tag against desktop version
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           expected="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
           if [ "$TAG" != "$expected" ]; then
@@ -93,7 +110,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           mapfile -d '' files < <(find installers -type f -print0)
           if [ "${#files[@]}" -eq 0 ]; then

@@ -208,8 +208,8 @@ export function GitPanel({
                 </label>
                 <p className="jam-git-pat-help">
                   Create one at GitHub → Settings → Developer settings → Personal access tokens →
-                  Fine-grained tokens. Resource owner: your user. Repository access: only the
-                  song repos you need. Permissions → Repository permissions →{" "}
+                  Fine-grained tokens. Resource owner: your user. Repository access: only the song
+                  repos you need. Permissions → Repository permissions →{" "}
                   <strong>Contents: Read and write</strong>. Metadata stays Read-only. No other
                   permissions. JamScript stores the token in this computer’s keychain and never
                   force-pushes.
