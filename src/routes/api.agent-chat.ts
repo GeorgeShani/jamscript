@@ -118,7 +118,10 @@ export const Route = createFileRoute("/api/agent-chat")({
         const selected = selectedIds
           .map((id) => byId.get(id)!)
           .slice(0, input.scope === "active" && !input.attachedDocumentIds?.length ? 1 : 8);
-        if (!selected.length || selected.some((file) => file.source.length > CHAT_LIMITS.maxFileChars))
+        if (
+          !selected.length ||
+          selected.some((file) => file.source.length > CHAT_LIMITS.maxFileChars)
+        )
           return Response.json({ error: "No eligible source files" }, { status: 400, headers });
 
         const abort = new AbortController();

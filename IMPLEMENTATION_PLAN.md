@@ -138,9 +138,9 @@ Acceptance: save without Git; then complete a real optional clone/edit/commit/pu
 ### G. Gemini workspace agent
 
 - [x] Keep the supplied Gemini key in private backend configuration. Use @google/genai with a configurable model, authenticated requests, limits and server-side authorization.
-- [ ] Let the agent read/search authorized project files, consult Strudel docs/diagnostics, propose coordinated edits and request explicit Git tools. General terminal execution is outside this release.
-- [ ] Show streamed progress, tool events, cancellation and actual failures. Exclude secrets/ignored files from context and logs.
-- [ ] Review versioned multi-file proposals before apply. Prefer semantic patch operations for supported music edits; invalidate proposals after source changes. Git actions need their own explicit approval.
+- [x] Let the agent read authorized project files, consult Strudel docs/diagnostics and propose coordinated edits through Ask/Edit chat. Explicit Git tools and general terminal execution remain outside this release.
+- [x] Show streamed text, cancellation and actual failures in the assistant pane. Exclude secrets from context and logs (operation IDs only).
+- [x] Review versioned multi-file proposals before apply; invalidate proposals after source changes. Git actions need their own explicit approval.
 - [ ] Perform preservation checks only for the supported deterministic subset; do not execute arbitrary music as validation or substitute fixtures for real check results.
 
 Acceptance: explain and propose a useful change to "coastline," review/apply a fresh proposal, reject stale/unauthorized edits, cancel pending work and keep credentials out of client assets and logs.

@@ -1,52 +1,64 @@
-import { CHAT_LIMITS, type AgentChatRequest, type ChatMode, type ChatScope } from "./chat-types";
+import {
+  CHAT_LIMITS,
+  type AgentChatRequest,
+  type ChatMode,
+  type ChatRole,
+  type ChatScope,
+} from "./chat-types";
 
 export function parseAgentChatRequest(body: unknown): AgentChatRequest {
   if (!body || typeof body !== "object") throw new Error("Invalid request");
   const value = body as Record<string, unknown>;
-  if (typeof value.threadId !== "string" || !value.threadId.trim())
-    throw new Error("Choose a chat thread");
-  if (typeof value.documentId !== "string" || !value.documentId.trim())
-    throw new Error("Choose a document");
-  if (value.mode !== "ask" && value.mode !== "edit") throw new Error("Choose Ask or Edit mode");
-  if (value.scope !== "active" && value.scope !== "workspace")
-    throw new Error("Choose an Edit scope");
-  if (!Array.isArray(value.messages) || !value.messages.length)
+  const threadId = value["threadId"];
+  const documentId = value["documentId"];
+  const mode = value["mode"];
+  const scope = value["scope"];
+  const rawMessages = value["messages"];
+  if (typeof threadId !== "string" || !threadId.trim()) throw new Error("Choose a chat thread");
+  if (typeof documentId !== "string" || !documentId.trim()) throw new Error("Choose a document");
+  if (mode !== "ask" && mode !== "edit") throw new Error("Choose Ask or Edit mode");
+  if (scope !== "active" && scope !== "workspace") throw new Error("Choose an Edit scope");
+  if (!Array.isArray(rawMessages) || !rawMessages.length)
     throw new Error("Send at least one message");
-  if (value.messages.length > CHAT_LIMITS.maxMessages) throw new Error("Chat history is too long");
-  const messages = value.messages.map((item) => {
+  if (rawMessages.length > CHAT_LIMITS.maxMessages) throw new Error("Chat history is too long");
+  const messages: { role: ChatRole; content: string }[] = rawMessages.map((item) => {
     if (!item || typeof item !== "object") throw new Error("Invalid chat message");
-    const message = item as { role?: unknown; content?: unknown };
+    const message = item as Record<string, unknown>;
+    const role = message["role"];
+    const content = message["content"];
     if (
-      (message.role !== "user" && message.role !== "assistant") ||
-      typeof message.content !== "string" ||
-      !message.content.trim() ||
-      message.content.length > CHAT_LIMITS.maxMessageChars
+      (role !== "user" && role !== "assistant") ||
+      typeof content !== "string" ||
+      !content.trim() ||
+      content.length > CHAT_LIMITS.maxMessageChars
     )
       throw new Error("Invalid chat message");
-    return { role: message.role, content: message.content };
+    return { role, content };
   });
   if (messages.at(-1)?.role !== "user") throw new Error("The latest message must be from you");
   let selection: string | undefined;
-  if (value.selection !== undefined) {
-    if (typeof value.selection !== "string" || value.selection.length > CHAT_LIMITS.maxSelectionChars)
+  const rawSelection = value["selection"];
+  if (rawSelection !== undefined) {
+    if (typeof rawSelection !== "string" || rawSelection.length > CHAT_LIMITS.maxSelectionChars)
       throw new Error("Selection is too large");
-    selection = value.selection;
+    selection = rawSelection;
   }
   let attachedDocumentIds: string[] | undefined;
-  if (value.attachedDocumentIds !== undefined) {
+  const rawAttached = value["attachedDocumentIds"];
+  if (rawAttached !== undefined) {
     if (
-      !Array.isArray(value.attachedDocumentIds) ||
-      value.attachedDocumentIds.length > CHAT_LIMITS.maxAttachedFiles ||
-      value.attachedDocumentIds.some((id) => typeof id !== "string" || !id)
+      !Array.isArray(rawAttached) ||
+      rawAttached.length > CHAT_LIMITS.maxAttachedFiles ||
+      rawAttached.some((id) => typeof id !== "string" || !id)
     )
       throw new Error("Too many attached files");
-    attachedDocumentIds = [...new Set(value.attachedDocumentIds as string[])];
+    attachedDocumentIds = [...new Set(rawAttached as string[])];
   }
   return {
-    threadId: value.threadId.trim(),
-    documentId: value.documentId,
-    mode: value.mode as ChatMode,
-    scope: value.scope as ChatScope,
+    threadId: threadId.trim(),
+    documentId,
+    mode: mode as ChatMode,
+    scope: scope as ChatScope,
     messages,
     ...(selection ? { selection } : {}),
     ...(attachedDocumentIds?.length ? { attachedDocumentIds } : {}),

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as DocsRouteImport } from './routes/docs'
+import { Route as ApiAgentChatRouteImport } from './routes/api.agent-chat'
 import { Route as ApiAgentProposalRouteImport } from './routes/api.agent-proposal'
 import { Route as ApiSharedProjectsRouteImport } from './routes/api.shared-projects'
 import { Route as ApiSharedWorkspacesRouteImport } from './routes/api.shared-workspaces'
@@ -36,6 +37,11 @@ const AppRoute = AppRouteImport.update({
 const DocsRoute = DocsRouteImport.update({
   id: '/docs',
   path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentChatRoute = ApiAgentChatRouteImport.update({
+  id: '/api/agent-chat',
+  path: '/api/agent-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAgentProposalRoute = ApiAgentProposalRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/docs': typeof DocsRoute
+  '/api/agent-chat': typeof ApiAgentChatRoute
   '/api/agent-proposal': typeof ApiAgentProposalRoute
   '/api/shared-projects': typeof ApiSharedProjectsRoute
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
+  '/api/agent-chat': typeof ApiAgentChatRoute
   '/api/agent-proposal': typeof ApiAgentProposalRoute
   '/api/shared-projects': typeof ApiSharedProjectsRoute
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/docs': typeof DocsRoute
+  '/api/agent-chat': typeof ApiAgentChatRoute
   '/api/agent-proposal': typeof ApiAgentProposalRoute
   '/api/shared-projects': typeof ApiSharedProjectsRoute
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/docs'
+    | '/api/agent-chat'
     | '/api/agent-proposal'
     | '/api/shared-projects'
     | '/api/shared-workspaces'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/docs'
+    | '/api/agent-chat'
     | '/api/agent-proposal'
     | '/api/shared-projects'
     | '/api/shared-workspaces'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/docs'
+    | '/api/agent-chat'
     | '/api/agent-proposal'
     | '/api/shared-projects'
     | '/api/shared-workspaces'
@@ -186,6 +198,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   DocsRoute: typeof DocsRoute
+  ApiAgentChatRoute: typeof ApiAgentChatRoute
   ApiAgentProposalRoute: typeof ApiAgentProposalRoute
   ApiSharedProjectsRoute: typeof ApiSharedProjectsRoute
   ApiSharedWorkspacesRoute: typeof ApiSharedWorkspacesRoute
@@ -213,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agent-chat': {
+      id: '/api/agent-chat'
+      path: '/api/agent-chat'
+      fullPath: '/api/agent-chat'
+      preLoaderRoute: typeof ApiAgentChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/agent-proposal': {
@@ -312,6 +332,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   DocsRoute: DocsRoute,
+  ApiAgentChatRoute: ApiAgentChatRoute,
   ApiAgentProposalRoute: ApiAgentProposalRoute,
   ApiSharedProjectsRoute: ApiSharedProjectsRoute,
   ApiSharedWorkspacesRoute: ApiSharedWorkspacesRoute,

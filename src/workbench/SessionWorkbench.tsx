@@ -48,9 +48,7 @@ import {
   SharedSession,
 } from "@/features/collaboration/ShareControls";
 import { ExportControl } from "./ExportControl";
-import { AgentProposalControl } from "@/features/assistant/AgentProposalControl";
-import { applyReviewedProposal } from "@/features/assistant/apply-proposal";
-import type { ChangeProposal } from "@/features/assistant/proposal";
+import { ChatPanel } from "@/features/assistant/ChatPanel";
 import { GitPanel } from "./GitPanel";
 import { CommandPalette, type WorkbenchCommand } from "./CommandPalette";
 import { syntaxProblems } from "@/features/language/syntax-problems";
@@ -203,7 +201,7 @@ export function SessionWorkbench({
       return;
     }
     let current = true;
-    void fetch("/api/agent-proposal")
+    void fetch("/api/agent-chat")
       .then(async (response) =>
         response.ok ? (response.json() as Promise<{ available: boolean }>) : { available: false },
       )
@@ -2045,7 +2043,8 @@ export function SessionWorkbench({
         {assistantOpen &&
           agentAvailable &&
           activeDocument?.shared &&
-          activeDocument.shared.role !== "viewer" && (
+          activeDocument.shared.role !== "viewer" &&
+          workspace && (
             <aside className="jam-assistant-pane" aria-label="Assistant">
               <div className="jam-panel-heading">
                 <span>ASSISTANT</span>
@@ -2057,29 +2056,41 @@ export function SessionWorkbench({
                   <X size={15} />
                 </button>
               </div>
-              <AgentProposalControl
+              <ChatPanel
+                workspaceId={activeDocument.shared.workspaceId || workspace.id}
                 documentId={activeDocument.id}
+                documentName={activeDocument.name}
+                documents={documents.map((document) => ({
+                  id: document.id,
+                  name: document.name,
+                }))}
+                selection={(() => {
+                  const view = views.current.get(activeDocument.id);
+                  if (!view) return "";
+                  const range = view.state.selection.main;
+                  if (range.empty) return "";
+                  return view.state.doc.sliceString(range.from, range.to);
+                })()}
+                problemsText={problems
+                  .map((problem) => `Line ${problem.line}: ${problem.message}`)
+                  .join("\n")}
                 sources={documents.map((document) => ({
                   id: document.id,
                   source: document.source,
                 }))}
+                views={views.current}
+                canEdit={(documentId) => {
+                  const shared = drafts.current.get(documentId)?.shared;
+                  return (
+                    !!shared &&
+                    shared.role !== "viewer" &&
+                    shared.workspaceId === activeDocument.shared?.workspaceId
+                  );
+                }}
                 onReveal={(documentIds) => {
                   setOpenIds((current) => [...new Set([...current, ...documentIds])]);
                 }}
-                onApply={(proposal: ChangeProposal) => {
-                  const applied = applyReviewedProposal(proposal, views.current, (documentId) => {
-                    const shared = drafts.current.get(documentId)?.shared;
-                    return (
-                      !!shared &&
-                      shared.role !== "viewer" &&
-                      shared.workspaceId === activeDocument.shared?.workspaceId
-                    );
-                  });
-                  if (!applied) return false;
-                  void stopPlayback();
-                  views.current.get(activeIdRef.current ?? "")?.focus();
-                  return true;
-                }}
+                onStopPlayback={() => void stopPlayback()}
               />
             </aside>
           )}

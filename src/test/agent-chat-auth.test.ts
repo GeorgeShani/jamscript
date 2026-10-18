@@ -36,9 +36,7 @@ describe("agent chat authorization and proposal safety", () => {
     expect(proposal.files).toHaveLength(1);
     expect(proposalSyntaxCheck(files, proposal.files)).toBe(true);
     expect(
-      proposalSyntaxCheck(files, [
-        { documentId: "hats", proposedSource: "s(\"hh\").gain(" },
-      ]),
+      proposalSyntaxCheck(files, [{ documentId: "hats", proposedSource: 's("hh").gain(' }]),
     ).toBe(false);
   });
 
