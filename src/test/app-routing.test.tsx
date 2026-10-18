@@ -13,6 +13,7 @@ describe("App routing", () => {
     const matches = router.matchRoutes("/");
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
+    expect(router.matchRoutes("/docs").at(-1)?.routeId).toBe("/docs");
   });
 
   it("matches workspace, library and help pages under /app", () => {

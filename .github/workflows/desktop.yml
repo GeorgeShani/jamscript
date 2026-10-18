@@ -6,63 +6,101 @@ on:
     tags: ["v*"]
   pull_request:
 
+# Packaging needs only source access. The release job receives write access on version tags.
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
+
   package:
+    needs: verify
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
+            bundles: dmg
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            bundles: msi,nsis
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install Linux webkit dependencies
-        if: matrix.os == 'ubuntu-22.04'
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install Linux WebKit dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       - run: bun install --frozen-lockfile
       - name: Build the desktop app
-        run: bun run desktop:build
+        run: bunx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --ci
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
           name: jamscript-${{ matrix.os }}
           if-no-files-found: error
           path: |
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*-setup.exe
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.rpm
-            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*-setup.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
 
-  # Installers are published to a separate public repo so anyone can download
-  # them while the source repo stays private. RELEASES_TOKEN is a fine-grained
-  # PAT with Contents: read/write on GeorgeShani/jamscript-releases only.
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
+      - uses: actions/checkout@v4
+      - name: Check tag against desktop version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          expected="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [ "$TAG" != "$expected" ]; then
+            echo "Tag $TAG does not match desktop version $expected" >&2
+            exit 1
+          fi
       - uses: actions/download-artifact@v4
         with:
           path: installers
           merge-multiple: true
-      - name: Publish release
+      - name: Publish installers to this repository's release
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
-          mapfile -t files < <(find installers -type f)
+          mapfile -d '' files < <(find installers -type f -print0)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No installers were produced" >&2
+            exit 1
+          fi
           gh release create "$TAG" "${files[@]}" \
-            --repo GeorgeShani/jamscript-releases \
+            --verify-tag \
             --title "JamScript $TAG" \
             --generate-notes

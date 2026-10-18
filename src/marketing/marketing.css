@@ -688,6 +688,103 @@
   color: var(--foreground);
   text-decoration: underline;
 }
+.jam-site-downloads {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(36px, 6vw, 90px);
+  align-items: start;
+  border-top: 1px solid var(--border);
+}
+.jam-site-downloads-heading > p:last-child {
+  max-width: 460px;
+  margin-top: 16px;
+  color: var(--muted-foreground);
+  font-size: 15px;
+  line-height: 1.65;
+}
+.jam-site-downloads-panel {
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.jam-site-downloads-spotlight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 17px;
+  padding: 25px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-site-downloads-spotlight > svg {
+  color: var(--primary);
+  flex: none;
+}
+.jam-site-downloads-spotlight > div {
+  flex: 1 1 220px;
+}
+.jam-site-downloads-spotlight span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--primary);
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.1em;
+}
+.jam-site-downloads-spotlight strong {
+  display: block;
+  font-size: 21px;
+  line-height: 1.2;
+}
+.jam-site-downloads-spotlight p {
+  margin-top: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.jam-site-downloads-spotlight .jam-site-primary {
+  flex: 0 0 auto;
+  gap: 9px;
+}
+.jam-site-platform {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 17px 25px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-site-platform > div {
+  display: grid;
+  gap: 4px;
+}
+.jam-site-platform strong {
+  font-size: 14px;
+}
+.jam-site-platform span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-site-platform > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.jam-site-platform-unavailable {
+  white-space: nowrap;
+}
+.jam-site-downloads-release-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 16px 25px 19px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-site-downloads-release-link:hover {
+  color: var(--primary);
+}
 @media (max-width: 1100px) {
   .jam-site-hero {
     grid-template-columns: 1fr;
@@ -745,6 +842,7 @@
   .jam-site-feature-grid,
   .jam-site-mix,
   .jam-site-roadmap,
+  .jam-site-downloads,
   .jam-site-faq {
     grid-template-columns: 1fr;
     gap: 24px;

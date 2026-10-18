@@ -9,6 +9,7 @@ import {
   RotateCcw,
   SlidersHorizontal,
 } from "lucide-react";
+import { DesktopDownloads } from "./DesktopDownloads";
 import "./marketing.css";
 
 const code = [
@@ -109,8 +110,9 @@ export function MarketingHome() {
         <nav aria-label="Main navigation">
           <a href="#workbench">Workbench</a>
           <a href="#features">Features</a>
+          <a href="#download">Download</a>
           <a href="#roadmap">Roadmap</a>
-          <a href="#questions">Questions</a>
+          <Link to="/docs">Docs</Link>
         </nav>
         <Link to="/app" className="jam-site-nav-cta">
           Open app <ArrowUpRight size={15} />
@@ -320,13 +322,15 @@ export function MarketingHome() {
           </div>
         </section>
 
+        <DesktopDownloads />
+
         <section className="jam-site-section jam-site-roadmap" id="roadmap">
           <div data-reveal>
             <p className="jam-site-kicker">WHAT COMES NEXT</p>
             <h2>Growing into a full music IDE.</h2>
             <p>
-              The browser workbench is available now. These capabilities are planned and will appear
-              when their underlying services work.
+              The browser workbench is available now. Desktop builds and connected services are
+              being tested before their public release.
             </p>
           </div>
           <ul data-reveal>
@@ -335,8 +339,8 @@ export function MarketingHome() {
               <div>
                 <strong>Desktop edition</strong>
                 <p>
-                  Native workspaces and local files on Windows, macOS and Linux, with Git as an
-                  option.
+                  Native folder workflows are implemented; public installers and cross-platform
+                  verification are next.
                 </p>
               </div>
             </li>
@@ -344,14 +348,14 @@ export function MarketingHome() {
               <span>02</span>
               <div>
                 <strong>Shared workspaces</strong>
-                <p>Invitations, presence and collaborative editing across browser and desktop.</p>
+                <p>Invitations and shared source are being integrated and tested together.</p>
               </div>
             </li>
             <li>
               <span>03</span>
               <div>
                 <strong>Music-aware assistance</strong>
-                <p>Strudel IntelliSense and reviewed AI proposals that respect the source.</p>
+                <p>Offline Strudel IntelliSense and reviewed, service-backed AI proposals.</p>
               </div>
             </li>
           </ul>
@@ -377,8 +381,8 @@ export function MarketingHome() {
                 Do I need an account or Git?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                No. You can create and play local browser workspaces without either. Git is planned
-                as an optional desktop tool.
+                No. You can create and play local browser workspaces without either. Git is an
+                optional desktop tool.
               </p>
             </details>
             <details>
@@ -396,8 +400,8 @@ export function MarketingHome() {
                 Is the desktop app available now?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                The browser workbench is available now. The Windows, macOS and Linux desktop shell
-                and native folder access are planned.
+                The native desktop shell exists, but no public installers have been published yet.
+                The Download section checks for real release files before showing links.
               </p>
             </details>
           </div>
@@ -466,7 +470,7 @@ export function MarketingHome() {
           <a href="https://strudel.cc/" target="_blank" rel="noreferrer">
             Strudel <ArrowUpRight size={12} />
           </a>
-          . <a href="/licenses/THIRD_PARTY_NOTICES.txt">Licenses</a>
+          . <Link to="/docs">Docs</Link>. <a href="/licenses/THIRD_PARTY_NOTICES.txt">Licenses</a>
         </p>
         <span>© {new Date().getFullYear()} JamScript</span>
       </footer>

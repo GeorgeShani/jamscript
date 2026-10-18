@@ -19,7 +19,7 @@ describe("audio asset cache", () => {
       },
     });
     const nativeFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
-    window.fetch = nativeFetch;
+    window.fetch = Object.assign(nativeFetch, { preconnect: vi.fn() });
     const { installAudioCache } = await import("@/engine/audio-cache");
     installAudioCache();
 

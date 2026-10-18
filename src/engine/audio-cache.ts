@@ -36,7 +36,8 @@ export function installAudioCache() {
   } catch {
     // Remote assets can still load; the frame cannot persist them itself.
   }
-  const nativeFetch = window.fetch.bind(window);
+  const originalFetch = window.fetch;
+  const nativeFetch = originalFetch.bind(window);
   const cachedFetch = async (input: Parameters<typeof window.fetch>[0], init?: RequestInit) => {
     const request = new Request(input, init);
     if (request.method !== "GET" || !cacheable(request.url)) return nativeFetch(input, init);
@@ -68,7 +69,10 @@ export function installAudioCache() {
       throw cause;
     }
   };
-  window.fetch = cachedFetch;
+  window.fetch = Object.assign(cachedFetch, {
+    preconnect: (...args: Parameters<typeof originalFetch.preconnect>) =>
+      originalFetch.preconnect?.(...args),
+  });
 }
 
 export function onMissingSample(callback: ((detail: string) => void) | null) {
