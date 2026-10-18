@@ -6,8 +6,9 @@
   "ratelimits": [
     {
       "name": "AGENT_RATE_LIMITER",
+      // Chat turns need a higher ceiling than one-shot proposals.
       "namespace_id": "604211",
-      "simple": { "limit": 3, "period": 60 }
+      "simple": { "limit": 20, "period": 60 }
     }
   ],
   "main": "@tanstack/react-start/server-entry"
