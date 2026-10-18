@@ -1,0 +1,109 @@
+name: macOS Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag to publish as a macOS-only prerelease
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - name: Check release tag and version
+        env:
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          expected="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [ "$TAG" != "$expected" ]; then
+            echo "Tag $TAG does not match desktop version $expected" >&2
+            exit 1
+          fi
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+      - run: bun run test
+      - name: Build ad-hoc signed macOS preview
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: bunx tauri build --target aarch64-apple-darwin --bundles dmg --ci
+      - name: Verify disk image and app signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle=src-tauri/target/aarch64-apple-darwin/release/bundle
+          dmg=$(find "$bundle/dmg" -maxdepth 1 -name '*.dmg' -print -quit)
+          app=$(find "$bundle/macos" -maxdepth 1 -name '*.app' -print -quit)
+          if [ -z "$dmg" ] || [ -z "$app" ]; then
+            echo "::error::The macOS disk image or app bundle is missing"
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$app"
+          hdiutil verify "$dmg"
+          mount="$RUNNER_TEMP/jamscript-preview-mount"
+          mkdir -p "$mount"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$dmg"
+          trap 'hdiutil detach "$mount" -quiet || true' EXIT
+          mounted_app=$(find "$mount" -maxdepth 1 -name '*.app' -print -quit)
+          if [ -z "$mounted_app" ]; then
+            echo "::error::The disk image does not contain the app"
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$mounted_app"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jamscript-macos-preview
+          if-no-files-found: error
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+
+  release:
+    needs: preview
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: jamscript-macos-preview
+          path: installer
+      - name: Publish macOS-only prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists; refusing to replace its assets"
+            exit 1
+          fi
+          dmg=$(find installer -maxdepth 1 -name '*.dmg' -print -quit)
+          if [ -z "$dmg" ]; then
+            echo "::error::The macOS disk image artifact is missing"
+            exit 1
+          fi
+          cat > "$RUNNER_TEMP/release-notes.md" <<'NOTES'
+          macOS Apple Silicon preview. This app is ad-hoc signed and has not been notarized by Apple. macOS may block it on first launch. This is a testing release, not a verified production installer.
+
+          Copy JamScript to Applications before opening it. If macOS blocks it, use System Settings → Privacy & Security → Open Anyway after the first launch attempt. Follow Apple's guidance: https://support.apple.com/en-au/102445
+
+          The normal multi-platform release is deferred until Developer ID signing, notarization, and platform smoke tests are available.
+          NOTES
+          gh release create "$TAG" "$dmg" \
+            --verify-tag \
+            --prerelease \
+            --title "JamScript $TAG — macOS preview" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
