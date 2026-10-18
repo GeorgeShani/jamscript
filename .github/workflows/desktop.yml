@@ -180,7 +180,16 @@ jobs:
             echo "No installers were produced" >&2
             exit 1
           fi
-          gh release create "$TAG" "${files[@]}" \
-            --verify-tag \
-            --title "JamScript $TAG" \
-            --generate-notes
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber
+            gh release edit "$TAG" \
+              --prerelease=false \
+              --latest \
+              --title "JamScript $TAG" \
+              --notes "JamScript $TAG installers for macOS (Developer ID signed and notarized), Windows (unsigned), and Linux."
+          else
+            gh release create "$TAG" "${files[@]}" \
+              --verify-tag \
+              --title "JamScript $TAG" \
+              --generate-notes
+          fi
