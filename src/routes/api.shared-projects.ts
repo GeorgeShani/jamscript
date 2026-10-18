@@ -14,10 +14,46 @@ import {
   renameSharedDocument,
   revokeInvitation,
   roleForDocument,
+  validInvitationEmail,
+  workspaceNameForOwner,
 } from "@/features/collaboration/membership";
 import { roomId, seedSharedText } from "@/features/collaboration/shared-document";
 
 const headers = { "Cache-Control": "private, no-store" };
+
+async function invite(
+  workspaceId: string,
+  workspaceName: string,
+  actorId: string,
+  email: string,
+  role: "editor" | "viewer",
+  origin: string,
+) {
+  const invitation = await withCollaborationDb((db) =>
+    createInvitation(db, { workspaceId, actorId, email, role }),
+  );
+  const url = `${origin}/app/invitations/${invitation.token}`;
+  try {
+    const { sendInvitationEmail } =
+      await import("@/features/collaboration/invitation-email.server");
+    const sent = await sendInvitationEmail({
+      to: invitation.email,
+      workspaceName,
+      role,
+      url,
+    });
+    return sent
+      ? { invitationId: invitation.invitationId, delivery: "email" as const }
+      : { invitationId: invitation.invitationId, delivery: "link" as const, url };
+  } catch {
+    await withCollaborationDb((db) =>
+      revokeInvitation(db, { invitationId: invitation.invitationId, actorId }),
+    );
+    throw new Error(
+      "Invitation email could not be sent. Check the server SMTP settings and retry.",
+    );
+  }
+}
 
 async function actor() {
   if (
@@ -106,6 +142,15 @@ export const Route = createFileRoute("/api/shared-projects")({
         try {
           if (body.action === "create") {
             const source = text("source");
+            const email = text("email").trim();
+            const invitationRole = body["role"];
+            if (email && invitationRole !== "editor" && invitationRole !== "viewer")
+              return Response.json({ error: "Invalid invitation role" }, { status: 400, headers });
+            if (email && !validInvitationEmail(email))
+              return Response.json(
+                { error: "Invitation email is invalid" },
+                { status: 400, headers },
+              );
             const additionalDocuments = Array.isArray(body["files"])
               ? body["files"].map((item) => {
                   const file = item as { name?: unknown; source?: unknown };
@@ -132,12 +177,33 @@ export const Route = createFileRoute("/api/shared-projects")({
                 await liveblocks.sendYjsBinaryUpdate(roomId(file.id), Y.encodeStateAsUpdate(doc));
               }),
             );
+            const origin = process.env["APP_ORIGIN"] ?? new URL(request.url).origin;
+            let delivery:
+              { invitationId: string; delivery: "email" | "link"; url?: string } | undefined;
+            let invitationError: string | undefined;
+            if (email) {
+              try {
+                delivery = await invite(
+                  created.workspaceId,
+                  text("name").trim(),
+                  current.userId,
+                  email,
+                  invitationRole as "editor" | "viewer",
+                  origin,
+                );
+              } catch (cause) {
+                invitationError =
+                  cause instanceof Error ? cause.message : "Invitation could not be sent";
+              }
+            }
             return Response.json(
               {
                 workspaceId: created.workspaceId,
                 documentId: created.documentId,
                 documents: created.documents.map(({ id, name }) => ({ id, name })),
                 role: created.role,
+                ...delivery,
+                ...(invitationError ? { invitationError } : {}),
               },
               { headers },
             );
@@ -146,20 +212,20 @@ export const Route = createFileRoute("/api/shared-projects")({
             const invitationRole = body["role"];
             if (invitationRole !== "editor" && invitationRole !== "viewer")
               return Response.json({ error: "Invalid invitation role" }, { status: 400, headers });
-            const invitation = await withCollaborationDb((db) =>
-              createInvitation(db, {
-                workspaceId: text("workspaceId"),
-                actorId: current.userId,
-                email: text("email"),
-                role: invitationRole,
-              }),
+            const workspaceId = text("workspaceId");
+            const workspaceName = await withCollaborationDb((db) =>
+              workspaceNameForOwner(db, workspaceId, current.userId),
             );
             const origin = process.env["APP_ORIGIN"] ?? new URL(request.url).origin;
             return Response.json(
-              {
-                invitationId: invitation.invitationId,
-                url: `${origin}/app/invitations/${invitation.token}`,
-              },
+              await invite(
+                workspaceId,
+                workspaceName,
+                current.userId,
+                text("email"),
+                invitationRole,
+                origin,
+              ),
               { headers },
             );
           }

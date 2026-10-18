@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prepareMix, renameTrackPatch } from "@/engine/mix-source";
+import { editorOffsetFromPlayback, prepareMix, renameTrackPatch } from "@/engine/mix-source";
 
 describe("playback mix preparation", () => {
   it("routes labeled tracks without editing their source", () => {
@@ -9,6 +9,25 @@ describe("playback mix preparation", () => {
     expect(mix.code).toContain('drums: (s("bd")).orbit(64)');
     expect(mix.code).toContain('hats: (s("hh").gain(.5)).orbit(65)');
     expect(source).not.toContain("orbit");
+  });
+
+  it("returns a labeled song after hoisted track functions without changing editor offsets", () => {
+    const source = `let bpm = 120;
+setcpm(bpm * .25);
+$: stack(trk_0()._punchcard({ vertical: 0 })._scope());
+// piano
+function trk_0() { return note("c4").sound("gm_piano"); }`;
+    const mix = prepareMix(source);
+    expect(mix.code).toMatch(/function trk_0\(\).*\n\$: stack\(/);
+    expect(mix.code).not.toBe(source);
+    expect(mix.tracks).toEqual([]);
+    expect(mix.mixable).toBe(false);
+    const original = source.indexOf('note("c4")');
+    const playback = mix.code.indexOf('note("c4")');
+    expect(editorOffsetFromPlayback(playback, mix.tracks, mix.moved)).toBe(original);
+    const originalPattern = source.indexOf("stack(");
+    const playbackPattern = mix.code.lastIndexOf("stack(");
+    expect(editorOffsetFromPlayback(playbackPattern, mix.tracks, mix.moved)).toBe(originalPattern);
   });
 
   it("preserves original routing when effects follow a named stack", () => {

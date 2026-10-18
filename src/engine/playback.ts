@@ -5,7 +5,12 @@
 
 type StrudelWeb = typeof import("@strudel/web");
 import { installAudioCache, onMissingSample } from "./audio-cache";
-import { editorOffsetFromPlayback, prepareMix, type MixTrack } from "./mix-source";
+import {
+  editorOffsetFromPlayback,
+  prepareMix,
+  type MixTrack,
+  type MovedPattern,
+} from "./mix-source";
 import { registerBundledSoundfonts } from "./register-soundfonts";
 import type { PlaybackRange } from "@/components/jam/playback-highlights";
 
@@ -17,6 +22,7 @@ let allowed = false;
 let work: Promise<boolean> = Promise.resolve(false);
 let activeStrudel: StrudelWeb | null = null;
 let mixTracks: MixTrack[] = [];
+let movedPattern: MovedPattern | undefined;
 let mixLevels: Record<string, number> = {};
 let soloTrack: string | null = null;
 let mutedTracks = new Set<string>();
@@ -41,8 +47,8 @@ function scheduleHighlight(hap: unknown, when: number, context: AudioContext) {
   if (!locations?.length) return;
   const ranges = locations.flatMap(({ start, end }) => {
     if (miniLocations.size && !miniLocations.has(`${start}:${end}`)) return [];
-    const from = editorOffsetFromPlayback(start, mixTracks);
-    const to = editorOffsetFromPlayback(end, mixTracks);
+    const from = editorOffsetFromPlayback(start, mixTracks, movedPattern);
+    const to = editorOffsetFromPlayback(end, mixTracks, movedPattern);
     if (
       from === null ||
       to === null ||
@@ -138,6 +144,18 @@ export function initPlayback(): Promise<StrudelWeb> {
       if (import.meta.env.SSR) throw new Error("playback is browser-only");
       installAudioCache();
       const strudel = await import("@strudel/web");
+      // Strudel REPL snippets can include editor-only visual widgets. They do
+      // not affect the sound; JamScript renders its own output visualization.
+      const patternMethods = strudel.Pattern.prototype as unknown as Record<string, unknown>;
+      for (const name of ["_punchcard", "_scope"]) {
+        if (typeof patternMethods[name] !== "function")
+          Object.defineProperty(patternMethods, name, {
+            value: function (this: unknown) {
+              return this;
+            },
+            configurable: true,
+          });
+      }
       await strudel.initStrudel({
         onEvalError: (error: unknown) => {
           evaluationError = message(error);
@@ -199,6 +217,7 @@ export function play(code: string): Promise<boolean> {
         clearHighlightTimers();
         source = code;
         playbackCode = mix.code;
+        movedPattern = mix.moved;
         miniLocations.clear();
         mixTracks = mix.mixable === false ? [] : mix.tracks;
         await strudel.evaluate(mix.code);

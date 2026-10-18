@@ -14,6 +14,7 @@ import {
   listWorkspaceDocuments,
   memberRole,
   roleForDocument,
+  validInvitationEmail,
   renameSharedDocument,
   revokeInvitation,
   type CollaborationDb,
@@ -124,6 +125,7 @@ describe("shared project membership", () => {
         role: "owner" as "editor",
       }),
     ).rejects.toThrow(/Invalid invitation role/);
+    expect(validInvitationEmail("person@example.com\nBcc: attacker@example.com")).toBe(false);
   });
 });
 

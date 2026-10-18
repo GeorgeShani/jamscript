@@ -10,7 +10,7 @@ const web = vi.hoisted(() => ({
   getSuperdoughAudioController: vi.fn().mockReturnValue(null),
   getAudioContext: vi.fn().mockReturnValue(null),
 }));
-vi.mock("@strudel/web", () => web);
+vi.mock("@strudel/web", () => ({ ...web, Pattern: class MockPattern {} }));
 beforeEach(() => {
   vi.resetModules();
   vi.stubEnv("SSR", false);
@@ -21,6 +21,16 @@ beforeEach(() => {
 });
 
 describe("Live playback adapter", () => {
+  it("accepts Strudel editor visualization calls without requiring their UI", async () => {
+    const playback = await import("@/engine/playback");
+    expect(await playback.play('s("bd")._punchcard({ vertical: 0 })._scope()')).toBe(true);
+    const { Pattern } = await import("@strudel/web");
+    const pattern = new Pattern();
+    expect((pattern as { _punchcard: () => unknown })._punchcard()).toBe(pattern);
+    expect((pattern as { _scope: () => unknown })._scope()).toBe(pattern);
+    await playback.stop();
+  });
+
   it("reports Strudel's callback-based evaluation errors as failure", async () => {
     const playback = await import("@/engine/playback");
     const errors = vi.fn();

@@ -135,6 +135,8 @@ export function ShareControls({
       const body = (await response.json()) as {
         error?: string;
         url?: string;
+        delivery?: "email" | "link";
+        invitationError?: string;
         workspaceId?: string;
         documentId?: string;
         role?: CollaborationRole;
@@ -158,7 +160,16 @@ export function ShareControls({
           }),
         );
       }
-      setNotice(body.url ? `Invite link: ${body.url}` : "Shared document is ready");
+      setNotice(
+        body.invitationError
+          ? `Workspace shared, but ${body.invitationError}`
+          : body.delivery === "email"
+            ? `Invitation email sent to ${email.trim()}`
+            : body.url
+              ? `Invite link: ${body.url}`
+              : "Shared document is ready",
+      );
+      if (body.delivery) setEmail("");
       if (document.shared) setInviteVersion((version) => version + 1);
     } catch (cause) {
       setNotice(cause instanceof Error ? cause.message : "Could not share this document");

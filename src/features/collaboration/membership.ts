@@ -24,6 +24,11 @@ export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+export function validInvitationEmail(email: string) {
+  const normalized = normalizeEmail(email);
+  return normalized.length <= 254 && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(normalized);
+}
+
 export async function createSharedProject(
   db: CollaborationDb,
   input: {
@@ -163,7 +168,7 @@ export async function createInvitation(
   if (input.role !== "editor" && input.role !== "viewer")
     throw new Error("Invalid invitation role");
   const email = normalizeEmail(input.email);
-  if (email.length < 4 || !email.includes("@")) throw new Error("Invitation email is invalid");
+  if (!validInvitationEmail(email)) throw new Error("Invitation email is invalid");
   const token = randomBytes(32).toString("hex");
   const [invitation] = await db
     .insert(workspaceInvitations)
@@ -202,6 +207,21 @@ export async function listActiveInvitations(
         isNull(workspaceInvitations.acceptedAt),
       ),
     );
+}
+
+export async function workspaceNameForOwner(
+  db: CollaborationDb,
+  workspaceId: string,
+  actorId: string,
+) {
+  if ((await memberRole(db, workspaceId, actorId)) !== "owner")
+    throw new Error("Only the owner can invite");
+  const [workspace] = await db
+    .select({ name: workspaces.name })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
+  if (!workspace) throw new Error("Workspace was not found");
+  return workspace.name;
 }
 
 export async function revokeInvitation(

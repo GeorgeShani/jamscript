@@ -15,9 +15,28 @@ export interface MixSourcePatch {
   insert: string;
 }
 
+export interface MovedPattern {
+  from: number;
+  to: number;
+  playbackFrom: number;
+}
+
 /** Convert a source location in orbit-augmented playback code to the editor document. */
-export function editorOffsetFromPlayback(offset: number, tracks: MixTrack[]): number | null {
+export function editorOffsetFromPlayback(
+  offset: number,
+  tracks: MixTrack[],
+  moved?: MovedPattern,
+): number | null {
   if (!Number.isInteger(offset) || offset < 0) return null;
+  if (moved) {
+    if (offset >= moved.playbackFrom)
+      return offset < moved.playbackFrom + moved.to - moved.from
+        ? moved.from + offset - moved.playbackFrom
+        : null;
+    if (offset >= moved.from)
+      return offset < moved.playbackFrom - 1 ? offset + moved.to - moved.from : null;
+    return offset;
+  }
   const insertions = tracks
     .flatMap((track) => [
       { at: track.from, length: 1 },
@@ -85,7 +104,7 @@ function stackCall(node: SyntaxNode | null, source: string): SyntaxNode | null {
 export function prepareMix(
   source: string,
   parsedTree?: Tree,
-): { code: string; tracks: MixTrack[]; mixable?: boolean } {
+): { code: string; tracks: MixTrack[]; mixable?: boolean; moved?: MovedPattern } {
   const tree = parsedTree ?? javascriptLanguage.parser.parse(source);
   let invalid = false;
   tree.iterate({
@@ -94,6 +113,42 @@ export function prepareMix(
     },
   });
   if (invalid) return { code: source, tracks: [] };
+
+  const topLevel = children(tree.topNode).filter(
+    (node) => node.name !== "LineComment" && node.name !== "BlockComment",
+  );
+  const final = topLevel.at(-1);
+  if (final?.name === "FunctionDeclaration") {
+    const patterns = topLevel.filter((node) => {
+      const label = node.name === "LabeledStatement" ? node.getChild("Label") : null;
+      return label && source.slice(label.from, label.to) === "$";
+    });
+    const pattern = patterns.length === 1 ? patterns[0] : null;
+    if (
+      pattern &&
+      topLevel
+        .slice(topLevel.indexOf(pattern) + 1)
+        .every((node) => node.name === "FunctionDeclaration")
+    ) {
+      // Strudel returns the last expression. Move its labeled pattern after
+      // hoisted function declarations in playback only; the editor stays intact.
+      const code =
+        source.slice(0, pattern.from) +
+        source.slice(pattern.to) +
+        "\n" +
+        source.slice(pattern.from, pattern.to);
+      return {
+        code,
+        tracks: [],
+        mixable: false,
+        moved: {
+          from: pattern.from,
+          to: pattern.to,
+          playbackFrom: source.length - (pattern.to - pattern.from) + 1,
+        },
+      };
+    }
+  }
 
   const targets: Target[] = [];
   let mixable = true;
