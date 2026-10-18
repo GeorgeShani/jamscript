@@ -3,6 +3,7 @@ name: Desktop
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 jobs:
@@ -42,3 +43,26 @@ jobs:
             src-tauri/target/release/bundle/**/*.deb
             src-tauri/target/release/bundle/**/*.rpm
             src-tauri/target/release/bundle/**/*.AppImage
+
+  # Installers are published to a separate public repo so anyone can download
+  # them while the source repo stays private. RELEASES_TOKEN is a fine-grained
+  # PAT with Contents: read/write on GeorgeShani/jamscript-releases only.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mapfile -t files < <(find installers -type f)
+          gh release create "$TAG" "${files[@]}" \
+            --repo GeorgeShani/jamscript-releases \
+            --title "JamScript $TAG" \
+            --generate-notes
