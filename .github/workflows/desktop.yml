@@ -115,10 +115,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bundle="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
-          app=$(find "$bundle" -maxdepth 1 -name '*.app' -print -quit)
+          bundle="src-tauri/target/${{ matrix.target }}/release/bundle/dmg"
+          dmg=$(find "$bundle" -maxdepth 1 -name '*.dmg' -print -quit)
+          if [ -z "$dmg" ]; then
+            echo "::error::The macOS disk image was not produced"
+            exit 1
+          fi
+          hdiutil verify "$dmg"
+          mount="$RUNNER_TEMP/jamscript-release-mount"
+          mkdir -p "$mount"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$dmg"
+          trap 'hdiutil detach "$mount" -quiet || true' EXIT
+          app=$(find "$mount" -maxdepth 1 -name '*.app' -print -quit)
           if [ -z "$app" ]; then
-            echo "::error::The macOS app bundle was not produced"
+            echo "::error::The disk image does not contain the app"
             exit 1
           fi
           codesign --verify --deep --strict --verbose=2 "$app"

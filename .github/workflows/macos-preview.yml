@@ -45,12 +45,10 @@ jobs:
           set -euo pipefail
           bundle=src-tauri/target/aarch64-apple-darwin/release/bundle
           dmg=$(find "$bundle/dmg" -maxdepth 1 -name '*.dmg' -print -quit)
-          app=$(find "$bundle/macos" -maxdepth 1 -name '*.app' -print -quit)
-          if [ -z "$dmg" ] || [ -z "$app" ]; then
-            echo "::error::The macOS disk image or app bundle is missing"
+          if [ -z "$dmg" ]; then
+            echo "::error::The macOS disk image is missing"
             exit 1
           fi
-          codesign --verify --deep --strict --verbose=2 "$app"
           hdiutil verify "$dmg"
           mount="$RUNNER_TEMP/jamscript-preview-mount"
           mkdir -p "$mount"
