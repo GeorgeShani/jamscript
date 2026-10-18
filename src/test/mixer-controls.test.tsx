@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionWorkbench } from "@/workbench/SessionWorkbench";
+import { MixerPanel } from "@/workbench/MixerPanel";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { listDocuments, listWorkspaces } from "@/workspaces/storage";
 
@@ -17,6 +18,38 @@ vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
 afterEach(cleanup);
 
 describe("track controls", () => {
+  it("uses short mixer labels while preserving the full source track identity", () => {
+    const name = "1. DRUMS (Dusty, unquantized crate drum kit)";
+    const onLevel = vi.fn();
+    const onSelect = vi.fn();
+    render(
+      <MixerPanel
+        tracks={[{ id: name, name, orbit: 64, from: 0, to: 10 }]}
+        levels={{}}
+        master={1}
+        solo={null}
+        muted={new Set()}
+        colors={{}}
+        onLevel={onLevel}
+        onMaster={() => undefined}
+        onSolo={() => undefined}
+        onMute={() => undefined}
+        onSelect={onSelect}
+        onColor={() => undefined}
+        onRename={() => false}
+      />,
+    );
+    const mixer = screen.getByRole("region", { name: "Mixer" });
+    expect(mixer).toHaveTextContent("1. DRUMS");
+    expect(mixer).not.toHaveTextContent("Dusty, unquantized");
+    fireEvent.click(screen.getByRole("button", { name: "Inspect 1. DRUMS" }));
+    fireEvent.change(screen.getByRole("slider", { name: "1. DRUMS level" }), {
+      target: { value: "65" },
+    });
+    expect(onSelect).toHaveBeenCalledWith(name);
+    expect(onLevel).toHaveBeenCalledWith(name, 0.65);
+  });
+
   it("opens the inspector on a track that already has numeric parameters", async () => {
     render(
       <TooltipProvider>

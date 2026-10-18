@@ -8,6 +8,7 @@ import {
   createWorkspace,
   listDocuments,
   listWorkspaces,
+  saveDocument,
 } from "@/workspaces/storage";
 import * as playback from "@/engine/playback";
 
@@ -25,6 +26,26 @@ vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
 afterEach(cleanup);
 
 describe("browser workbench", () => {
+  it("searches file contents across the workspace and opens a selected result", async () => {
+    const { workspace } = await createWorkspace(`Search ${crypto.randomUUID()}`, 's("bd")');
+    const second = await createDocument(workspace.id, "lead.js");
+    await saveDocument({ ...second, source: 's("bd hh")' });
+    render(
+      <TooltipProvider>
+        <SessionWorkbench workspaceId={workspace.id} />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Search workspace" }));
+    const query = screen.getByRole("searchbox", { name: "Search in workspace files" });
+    fireEvent.change(query, { target: { value: "bd" } });
+    expect(screen.getByText("2 results in workspace")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /lead\.js, line 1, column 4/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: "lead.js" })).toHaveAttribute("aria-selected", "true"),
+    );
+    expect(screen.queryByText("replace all")).not.toBeInTheDocument();
+  });
+
   it("starts a blank document with editable Strudel code", async () => {
     const { workspace } = await createWorkspace(`Starter ${crypto.randomUUID()}`);
     const { container } = render(

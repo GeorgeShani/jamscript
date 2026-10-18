@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isolateHistory } from "@codemirror/commands";
+import { closeSearchPanel } from "@codemirror/search";
 import { Transaction } from "@codemirror/state";
 import {
   AlertCircle,
@@ -53,6 +54,7 @@ import { ExportControl } from "./ExportControl";
 import { ChatPanel } from "@/features/assistant/ChatPanel";
 import { GitPanel } from "./GitPanel";
 import { CommandPalette, type WorkbenchCommand } from "./CommandPalette";
+import { searchWorkspaceDocuments, type WorkspaceSearchHit } from "./workspace-search";
 import { syntaxProblems } from "@/features/language/syntax-problems";
 import {
   captureTake,
@@ -140,6 +142,8 @@ export function SessionWorkbench({
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
   );
+  const [sidebarView, setSidebarView] = useState<"files" | "search">("files");
+  const [workspaceQuery, setWorkspaceQuery] = useState("");
   const [inspectorOpen, setInspectorOpen] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
   );
@@ -186,8 +190,10 @@ export function SessionWorkbench({
   const [takes, setTakes] = useState<TakeRecord[]>([]);
   const [auditionTakeId, setAuditionTakeId] = useState<string | null>(null);
   const [tempo, setTempo] = useState(() => readTempo(""));
-  const [, setReadyVersion] = useState(0);
+  const [readyVersion, setReadyVersion] = useState(0);
   const views = useRef(new Map<string, EditorView>());
+  const pendingSearchHit = useRef<WorkspaceSearchHit | null>(null);
+  const workspaceSearchField = useRef<HTMLInputElement>(null);
   const paletteReturnFocus = useRef<HTMLElement | null>(null);
   const mainPane = useRef<HTMLDivElement>(null);
   const editorColumn = useRef<HTMLDivElement>(null);
@@ -209,6 +215,10 @@ export function SessionWorkbench({
   const exportingNow = useRef(false);
 
   const activeDocument = documents.find((item) => item.id === activeId) ?? null;
+  const searchResults = useMemo(
+    () => searchWorkspaceDocuments(documents, workspaceQuery),
+    [documents, workspaceQuery],
+  );
   const agentRole = activeDocument?.shared?.role;
   useEffect(() => {
     // Viewers of shared docs stay read-only; everyone else can open Assistant when Gemini is up.
@@ -341,6 +351,24 @@ export function SessionWorkbench({
     }
     return undefined;
   }, [activeId]);
+
+  useEffect(() => {
+    const hit = pendingSearchHit.current;
+    if (!hit || hit.documentId !== activeId) return;
+    const view = views.current.get(hit.documentId);
+    if (!view) return;
+    pendingSearchHit.current = null;
+    requestAnimationFrame(() => {
+      if (activeIdRef.current !== hit.documentId) return;
+      const end = Math.min(hit.to, view.state.doc.length);
+      const start = Math.min(hit.from, end);
+      view.dispatch({
+        selection: { anchor: start, head: end },
+        effects: CodeMirrorView.scrollIntoView(start, { y: "center" }),
+      });
+      view.focus();
+    });
+  }, [activeId, readyVersion]);
 
   useEffect(() => {
     code.current = activeDocument?.source ?? "";
@@ -677,6 +705,24 @@ export function SessionWorkbench({
     setMutedTracks(new Set());
   };
 
+  const selectSearchHit = (hit: WorkspaceSearchHit) => {
+    pendingSearchHit.current = hit;
+    selectDocument(hit.documentId);
+    if (hit.documentId === activeId) setReadyVersion((version) => version + 1);
+  };
+
+  const openWorkspaceSearch = useCallback(() => {
+    const activeView = views.current.get(activeIdRef.current ?? "");
+    if (activeView) closeSearchPanel(activeView);
+    setSidebarView("search");
+    setSidebarOpen(true);
+    if (window.innerWidth < 900) {
+      setInspectorOpen(false);
+      setAssistantOpen(false);
+    }
+    requestAnimationFrame(() => workspaceSearchField.current?.focus());
+  }, []);
+
   const closeTab = (id: string) => {
     const item = drafts.current.get(id);
     if (
@@ -715,6 +761,11 @@ export function SessionWorkbench({
     if (!workspace) return;
     const onShortcut = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() === "f" && event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        openWorkspaceSearch();
+        return;
+      }
       if (event.key.toLowerCase() === "f" && !event.shiftKey && !event.altKey) {
         const view = views.current.get(activeIdRef.current ?? "");
         if (!view) return;
@@ -728,7 +779,7 @@ export function SessionWorkbench({
     };
     window.addEventListener("keydown", onShortcut);
     return () => window.removeEventListener("keydown", onShortcut);
-  }, [workspace, openPalette]);
+  }, [workspace, openPalette, openWorkspaceSearch]);
 
   const exportMain = async (format: "wav" | "mp3", bars: number) => {
     if (!activeDocument || exportingNow.current) return;
@@ -1683,13 +1734,10 @@ export function SessionWorkbench({
       >
         <nav className="jam-activity-bar" aria-label="Workbench views">
           <button
-            onClick={() => {
-              const view = views.current.get(activeIdRef.current ?? "");
-              if (view) openMusicFind(view);
-            }}
-            aria-label="Find in document"
-            title="Find in document (Ctrl/Cmd+F)"
-            disabled={!activeDocument}
+            className={sidebarOpen && sidebarView === "search" ? "is-active" : ""}
+            onClick={openWorkspaceSearch}
+            aria-label="Search workspace"
+            title="Search workspace (Ctrl/Cmd+Shift+F)"
           >
             <FileSearch size={20} aria-hidden="true" />
           </button>
@@ -1708,17 +1756,26 @@ export function SessionWorkbench({
             <Command size={20} aria-hidden="true" />
           </button>
           <button
-            className={sidebarOpen ? "is-active" : ""}
+            className={sidebarOpen && sidebarView === "files" ? "is-active" : ""}
             onClick={() => {
-              setSidebarOpen(!sidebarOpen);
-              if (!sidebarOpen && window.innerWidth < 900) {
+              if (sidebarOpen && sidebarView === "files") {
+                setSidebarOpen(false);
+                return;
+              }
+              setSidebarView("files");
+              setSidebarOpen(true);
+              if (window.innerWidth < 900) {
                 setInspectorOpen(false);
                 setAssistantOpen(false);
               }
             }}
-            aria-label={sidebarOpen ? "Hide files" : "Show files"}
+            aria-label={sidebarOpen && sidebarView === "files" ? "Hide files" : "Show files"}
           >
-            {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+            {sidebarOpen && sidebarView === "files" ? (
+              <PanelLeftClose size={20} />
+            ) : (
+              <PanelLeftOpen size={20} />
+            )}
           </button>
           <button
             className={inspectorOpen ? "is-active" : ""}
@@ -1752,116 +1809,187 @@ export function SessionWorkbench({
         </nav>
         {sidebarOpen && (
           <aside className="jam-file-sidebar">
-            <div className="jam-panel-heading">
-              <span>Files</span>
-              {!sharedOnly && (
-                <button
-                  onClick={() => document.getElementById("new-document-name")?.focus()}
-                  aria-label="New document"
-                >
-                  <Plus size={17} />
-                </button>
-              )}
-            </div>
-            <div className="jam-sidebar-workspace">
-              <Folder size={15} />
-              {workspace.name}
-            </div>
-            {!sharedOnly && (
-              <form
-                className="jam-new-file"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void addDocument();
-                }}
-              >
-                <input
-                  id="new-document-name"
-                  name="documentName"
-                  autoComplete="off"
-                  aria-label="New document name"
-                  placeholder="new-file.js"
-                  value={newDocumentName}
-                  onChange={(event) => setNewDocumentName(event.target.value)}
-                  required
-                />
-                <button type="submit" aria-label="Create document">
-                  <Plus size={16} />
-                </button>
-              </form>
-            )}
-            <ul className="jam-file-list">
-              {documents.map((item) => (
-                <li key={item.id}>
-                  {renaming === item.id ? (
-                    <form
-                      className="jam-inline-form"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void applyRename(item.id, false);
-                      }}
-                    >
-                      <input
-                        aria-label="Document name"
-                        value={renameValue}
-                        onChange={(event) => setRenameValue(event.target.value)}
-                        autoFocus
-                      />
-                      <div className="jam-inline-form-actions">
-                        <button type="submit">Save</button>
-                        <button type="button" onClick={() => setRenaming(null)}>
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
+            {sidebarView === "search" ? (
+              <>
+                <div className="jam-panel-heading">
+                  <span>Search</span>
+                  <button onClick={() => setSidebarOpen(false)} aria-label="Close search">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="jam-workspace-search">
+                  <input
+                    ref={workspaceSearchField}
+                    type="search"
+                    aria-label="Search in workspace files"
+                    placeholder="Search in files"
+                    value={workspaceQuery}
+                    onChange={(event) => setWorkspaceQuery(event.target.value)}
+                  />
+                  {workspaceQuery.trim() ? (
                     <>
-                      <button
-                        className={`jam-file-button ${item.id === activeId ? "is-active" : ""}`}
-                        onClick={() => selectDocument(item.id)}
-                      >
-                        <FileCode2 size={15} />
-                        <span>
-                          {item.name}
-                          {storage.isDirty?.(item) ? " •" : ""}
-                        </span>
-                      </button>
-                      {(!sharedOnly || (item.shared && item.shared.role !== "viewer")) && (
-                        <button
-                          className="jam-file-action"
-                          aria-label={`Rename ${item.name}`}
-                          onClick={() => {
-                            setRenaming(item.id);
-                            setRenameValue(item.name);
-                          }}
-                        >
-                          ✎
-                        </button>
-                      )}
-                      {!sharedOnly && (
-                        <button
-                          className="jam-file-action"
-                          aria-label={`Delete ${item.name}`}
-                          onClick={() => void removeDocument(item)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <p className="jam-search-summary" role="status">
+                        {searchResults.hits.length}{" "}
+                        {searchResults.hits.length === 1 ? "result" : "results"}
+                        {searchResults.truncated ? " (showing first 500)" : ""} in workspace
+                      </p>
+                      <ul className="jam-search-files">
+                        {documents.map((item) => {
+                          const matches = searchResults.hits.filter(
+                            (hit) => hit.documentId === item.id,
+                          );
+                          return matches.length ? (
+                            <li key={item.id}>
+                              <div className="jam-search-file-heading">
+                                <FileCode2 size={14} aria-hidden="true" />
+                                <span>{item.name}</span>
+                                <span>{matches.length}</span>
+                              </div>
+                              <ul>
+                                {matches.map((hit) => (
+                                  <li key={`${hit.from}:${hit.to}`}>
+                                    <button
+                                      type="button"
+                                      onClick={() => selectSearchHit(hit)}
+                                      aria-label={`${item.name}, line ${hit.line}, column ${hit.column}: ${hit.preview}`}
+                                    >
+                                      <span className="jam-search-location">
+                                        {hit.line}:{hit.column}
+                                      </span>
+                                      <span className="jam-search-preview">{hit.preview}</span>
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                          ) : null;
+                        })}
+                      </ul>
+                      {!searchResults.hits.length && (
+                        <p className="jam-search-empty">No matches in this workspace.</p>
                       )}
                     </>
+                  ) : (
+                    <p className="jam-search-empty">
+                      Search the contents of every file in this workspace.
+                    </p>
                   )}
-                </li>
-              ))}
-            </ul>
-            {nativeWorkspace && storage.git && (
-              <GitPanel
-                workspaceId={workspace.id}
-                documents={documents}
-                git={storage.git}
-                isDirty={(document) => !!storage.isDirty?.(document)}
-                onFilesChanged={() =>
-                  void reloadNativeFiles().catch((cause: unknown) => setError(message(cause)))
-                }
-              />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="jam-panel-heading">
+                  <span>Files</span>
+                  {!sharedOnly && (
+                    <button
+                      onClick={() => document.getElementById("new-document-name")?.focus()}
+                      aria-label="New document"
+                    >
+                      <Plus size={17} />
+                    </button>
+                  )}
+                </div>
+                <div className="jam-sidebar-workspace">
+                  <Folder size={15} />
+                  {workspace.name}
+                </div>
+                {!sharedOnly && (
+                  <form
+                    className="jam-new-file"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void addDocument();
+                    }}
+                  >
+                    <input
+                      id="new-document-name"
+                      name="documentName"
+                      autoComplete="off"
+                      aria-label="New document name"
+                      placeholder="new-file.js"
+                      value={newDocumentName}
+                      onChange={(event) => setNewDocumentName(event.target.value)}
+                      required
+                    />
+                    <button type="submit" aria-label="Create document">
+                      <Plus size={16} />
+                    </button>
+                  </form>
+                )}
+                <ul className="jam-file-list">
+                  {documents.map((item) => (
+                    <li key={item.id}>
+                      {renaming === item.id ? (
+                        <form
+                          className="jam-inline-form"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void applyRename(item.id, false);
+                          }}
+                        >
+                          <input
+                            aria-label="Document name"
+                            value={renameValue}
+                            onChange={(event) => setRenameValue(event.target.value)}
+                            autoFocus
+                          />
+                          <div className="jam-inline-form-actions">
+                            <button type="submit">Save</button>
+                            <button type="button" onClick={() => setRenaming(null)}>
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <>
+                          <button
+                            className={`jam-file-button ${item.id === activeId ? "is-active" : ""}`}
+                            onClick={() => selectDocument(item.id)}
+                          >
+                            <FileCode2 size={15} />
+                            <span>
+                              {item.name}
+                              {storage.isDirty?.(item) ? " •" : ""}
+                            </span>
+                          </button>
+                          {(!sharedOnly || (item.shared && item.shared.role !== "viewer")) && (
+                            <button
+                              className="jam-file-action"
+                              aria-label={`Rename ${item.name}`}
+                              onClick={() => {
+                                setRenaming(item.id);
+                                setRenameValue(item.name);
+                              }}
+                            >
+                              ✎
+                            </button>
+                          )}
+                          {!sharedOnly && (
+                            <button
+                              className="jam-file-action"
+                              aria-label={`Delete ${item.name}`}
+                              onClick={() => void removeDocument(item)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {nativeWorkspace && storage.git && (
+                  <GitPanel
+                    workspaceId={workspace.id}
+                    documents={documents}
+                    git={storage.git}
+                    isDirty={(document) => !!storage.isDirty?.(document)}
+                    onFilesChanged={() =>
+                      void reloadNativeFiles().catch((cause: unknown) => setError(message(cause)))
+                    }
+                  />
+                )}
+              </>
             )}
           </aside>
         )}

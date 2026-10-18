@@ -1475,6 +1475,85 @@
   border-right: 1px solid var(--border);
   background: var(--card);
 }
+.jam-workspace-search {
+  padding: 10px 9px;
+}
+.jam-workspace-search > input {
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--input);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12px;
+}
+.jam-workspace-search > input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.jam-search-summary,
+.jam-search-empty {
+  margin: 10px 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.jam-search-files {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jam-search-file-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 4px 4px;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+.jam-search-file-heading span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-search-file-heading span:last-child {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.jam-search-files ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jam-search-files button {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  padding: 5px 4px 5px 16px;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.jam-search-files button:hover,
+.jam-search-files button:focus-visible {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.jam-search-location {
+  flex: none;
+}
+.jam-search-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .jam-panel-heading {
   height: 36px;
   display: flex;
@@ -2304,24 +2383,31 @@
 }
 .jam-mixer {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  min-width: 0;
 }
 .jam-mixer h2 {
   margin-bottom: 0;
 }
 .jam-mix-tracks {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 11px;
+  min-width: 0;
 }
 .jam-mix-track {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 5px;
+  min-width: 0;
 }
 .jam-mix-track.is-selected .jam-mix-track-name {
   color: var(--foreground);
 }
 .jam-mix-track-heading {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -2335,6 +2421,7 @@
 }
 .jam-mix-track-name {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   align-items: center;
   gap: 7px;
@@ -2432,11 +2519,13 @@
   grid-template-columns: 44px minmax(0, 1fr) 33px;
   align-items: center;
   gap: 7px;
+  min-width: 0;
   font-size: 10px;
   color: var(--muted-foreground);
 }
 .jam-mix-level input {
   width: 100%;
+  min-width: 0;
   accent-color: var(--primary);
 }
 .jam-mix-level output {

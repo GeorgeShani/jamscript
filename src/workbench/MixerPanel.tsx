@@ -4,13 +4,19 @@ import type { MixTrack } from "@/engine/mix-source";
 
 const PALETTE = ["Sky", "Pink", "Green", "Yellow", "Coral", "Violet"] as const;
 
+function mixerTrackLabel(name: string) {
+  return name.replace(/(?:\s+\([^()]*\))+$/, "").trim() || name;
+}
+
 function Level({
   label,
+  ariaLabel = label,
   value,
   color,
   onChange,
 }: {
   label: string;
+  ariaLabel?: string;
   value: number;
   color?: string;
   onChange: (value: number) => void;
@@ -23,7 +29,7 @@ function Level({
         min="0"
         max="100"
         value={Math.round(value * 100)}
-        aria-label={`${label} level`}
+        aria-label={`${ariaLabel} level`}
         style={color ? { accentColor: color } : undefined}
         onChange={(event) => onChange(Number(event.target.value) / 100)}
       />
@@ -94,6 +100,7 @@ export function MixerPanel({
         <div className="jam-mix-tracks">
           {tracks.map((track) => {
             const color = `var(--jam-track-${track.orbit}, var(--track-${((track.orbit - 64) % 6) + 1}))`;
+            const displayName = mixerTrackLabel(track.name);
             return (
               <div
                 className={selected === track.id ? "jam-mix-track is-selected" : "jam-mix-track"}
@@ -134,18 +141,18 @@ export function MixerPanel({
                     <button
                       type="button"
                       className="jam-mix-track-name"
-                      aria-label={`Inspect ${track.name}`}
-                      title={`Inspect ${track.name}`}
+                      aria-label={`Inspect ${displayName}`}
+                      title={`Inspect ${displayName}`}
                       aria-pressed={selected === track.id}
                       onClick={() => onSelect?.(track.id)}
                     >
                       <span className="jam-track-dot" style={{ backgroundColor: color }} />
-                      {track.name}
+                      {displayName}
                     </button>
                     <div className="jam-mix-track-actions">
                       <button
                         type="button"
-                        aria-label={`Rename ${track.name}`}
+                        aria-label={`Rename ${displayName}`}
                         title="Rename track in code"
                         onClick={() => {
                           setColorOpen(null);
@@ -158,7 +165,7 @@ export function MixerPanel({
                       </button>
                       <button
                         type="button"
-                        aria-label={`Change ${track.name} color`}
+                        aria-label={`Change ${displayName} color`}
                         aria-expanded={colorOpen === track.id}
                         title="Track color"
                         onClick={() => setColorOpen(colorOpen === track.id ? null : track.id)}
@@ -168,7 +175,7 @@ export function MixerPanel({
                       <button
                         type="button"
                         className={solo === track.id ? "is-solo" : ""}
-                        aria-label={`${solo === track.id ? "Unsolo" : "Solo"} ${track.name}`}
+                        aria-label={`${solo === track.id ? "Unsolo" : "Solo"} ${displayName}`}
                         aria-pressed={solo === track.id}
                         onClick={() => onSolo(solo === track.id ? null : track.id)}
                       >
@@ -177,7 +184,7 @@ export function MixerPanel({
                       <button
                         type="button"
                         className={muted.has(track.id) ? "is-mute" : ""}
-                        aria-label={`${muted.has(track.id) ? "Unmute" : "Mute"} ${track.name}`}
+                        aria-label={`${muted.has(track.id) ? "Unmute" : "Mute"} ${displayName}`}
                         aria-pressed={muted.has(track.id)}
                         onClick={() => onMute(track.id)}
                       >
@@ -187,12 +194,16 @@ export function MixerPanel({
                   </div>
                 )}
                 {colorOpen === track.id && (
-                  <div className="jam-mix-palette" role="group" aria-label={`${track.name} colors`}>
+                  <div
+                    className="jam-mix-palette"
+                    role="group"
+                    aria-label={`${displayName} colors`}
+                  >
                     {PALETTE.map((label, index) => (
                       <button
                         key={label}
                         type="button"
-                        aria-label={`${label} for ${track.name}`}
+                        aria-label={`${label} for ${displayName}`}
                         aria-pressed={
                           (colors[String(track.orbit)] ?? ((track.orbit - 64) % 6) + 1) ===
                           index + 1
@@ -208,7 +219,8 @@ export function MixerPanel({
                   </div>
                 )}
                 <Level
-                  label={track.name}
+                  label="Level"
+                  ariaLabel={displayName}
                   value={levels[track.id] ?? 1}
                   color={color}
                   onChange={(value) => onLevel(track.id, value)}
