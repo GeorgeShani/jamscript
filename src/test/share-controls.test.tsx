@@ -9,9 +9,11 @@ import { ShareControls } from "@/features/collaboration/ShareControls";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 it("shows a selectable link and a safe reason when SMTP cannot deliver an invite", async () => {
+  vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", "pk_test_share_controls");
   const url = "https://jamscript.example/app/invitations/test-token";
   const fetcher = vi.fn(async (input: string, init?: RequestInit) => {
     if (!init?.method) return Response.json([]);
