@@ -1,6 +1,6 @@
 [package]
 name = "jamscript"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [lib]
@@ -19,3 +19,6 @@ sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 notify = "6.1"
 git2 = "0.21"
+keyring = "3"
+ureq = { version = "2", features = ["json"] }
+open = "5"

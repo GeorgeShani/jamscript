@@ -161,6 +161,21 @@ export const desktopStorage: WorkspaceStorage = {
         throw new Error("Save all open files before Pull");
       return invoke("git_pull_fast_forward", { folderId: folderId(workspaceId) });
     },
+    githubAuthStatus() {
+      return invoke("github_auth_status");
+    },
+    beginGitHubDeviceFlow() {
+      return invoke("github_auth_begin_device");
+    },
+    pollGitHubDeviceFlow() {
+      return invoke("github_auth_poll_device");
+    },
+    storeGitHubToken(token) {
+      return invoke("github_auth_store_token", { token });
+    },
+    signOutGitHub() {
+      return invoke("github_auth_sign_out");
+    },
   },
   isNativeWorkspace,
   isDirty(document) {

@@ -1298,6 +1298,23 @@
   background: var(--card);
   box-shadow: 0 12px 32px #0007;
 }
+.jam-git-auth {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-git-auth p,
+.jam-git-pat-help {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.jam-git-pat-help strong {
+  color: var(--foreground);
+  font-weight: 500;
+}
 .jam-git-popup form,
 .jam-git-popup fieldset,
 .jam-git-popup form > label {

@@ -52,6 +52,34 @@ function HelpPage() {
             someone else.
           </p>
         </section>
+        <section>
+          <h2>Desktop Git and GitHub tokens</h2>
+          <p>
+            Git lives in the desktop app only (open a selected folder). The web workbench does not
+            connect to GitHub remotes. To push and pull, paste a fine-grained personal access token
+            in the desktop Git panel, or use device sign-in when a GitHub OAuth client id is
+            configured.
+          </p>
+          <p>Fine-grained token settings:</p>
+          <ul>
+            <li>
+              GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+              → Generate new token.
+            </li>
+            <li>Resource owner: your GitHub user (or the org that owns the song repos).</li>
+            <li>Repository access: Only select repositories — pick the song repos you will use.</li>
+            <li>
+              Repository permissions → <strong>Contents: Read and write</strong> (clone private
+              repos, push, and pull).
+            </li>
+            <li>Metadata: Read-only (GitHub requires this; leave it).</li>
+            <li>Do not grant Administration, Workflows, or other permissions.</li>
+          </ul>
+          <p>
+            JamScript stores the token in the OS keychain. It never force-pushes and only
+            fast-forward pulls.
+          </p>
+        </section>
       </div>
     </main>
   );

@@ -4,6 +4,7 @@ import type { DocumentRecord, WorkspaceStorage } from "@/workspaces/storage";
 
 type GitService = NonNullable<WorkspaceStorage["git"]>;
 type GitState = Awaited<ReturnType<GitService["status"]>>;
+type AuthState = Awaited<ReturnType<GitService["githubAuthStatus"]>>;
 
 /** Local Git is an explicit desktop capability, independent of workspace identity. */
 export function GitPanel({
@@ -26,6 +27,11 @@ export function GitPanel({
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [cloneUrl, setCloneUrl] = useState("");
+  const [auth, setAuth] = useState<AuthState | null>(null);
+  const [tokenDraft, setTokenDraft] = useState("");
+  const [deviceCode, setDeviceCode] = useState<string | null>(null);
+  const [deviceUri, setDeviceUri] = useState<string | null>(null);
+
   useEffect(() => {
     let current = true;
     setStatus(null);
@@ -41,10 +47,45 @@ export function GitPanel({
         if (text.includes("No Git repository")) setMissing(true);
         else setError(text);
       });
+    void git
+      .githubAuthStatus()
+      .then((value) => {
+        if (current) setAuth(value);
+      })
+      .catch(() => {
+        if (current) setAuth({ signedIn: false, deviceFlowAvailable: false });
+      });
     return () => {
       current = false;
     };
   }, [workspaceId, git]);
+
+  useEffect(() => {
+    if (!deviceCode) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      void git.pollGitHubDeviceFlow().then((result) => {
+        if (cancelled) return;
+        if (result.status === "complete") {
+          setDeviceCode(null);
+          setDeviceUri(null);
+          void git.githubAuthStatus().then(setAuth);
+        } else if (result.status === "denied" || result.status === "expired") {
+          setDeviceCode(null);
+          setDeviceUri(null);
+          setError(
+            result.status === "denied"
+              ? "GitHub sign-in was denied."
+              : "GitHub sign-in expired. Start again.",
+          );
+        }
+      });
+    }, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [deviceCode, git]);
 
   const run = async (action: () => Promise<GitState>, filesChanged = false) => {
     setBusy(true);
@@ -66,10 +107,121 @@ export function GitPanel({
       (file) =>
         file.status === "deleted" || documents.some((document) => document.name === file.name),
     ) ?? [];
+
   return (
     <details className="jam-git-control">
       <summary>Git</summary>
       <div className="jam-git-popup">
+        <section className="jam-git-auth" aria-label="GitHub credentials">
+          <p>
+            {auth?.signedIn
+              ? "GitHub credentials are stored in this computer’s keychain."
+              : "Sign in for private clone, push and pull. Local commit works without GitHub."}
+          </p>
+          {auth?.signedIn ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                setError(null);
+                void git
+                  .signOutGitHub()
+                  .then(setAuth)
+                  .catch((cause: unknown) =>
+                    setError(cause instanceof Error ? cause.message : String(cause)),
+                  )
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Sign out of GitHub
+            </Button>
+          ) : (
+            <>
+              {auth?.deviceFlowAvailable && (
+                <Button
+                  size="sm"
+                  type="button"
+                  disabled={busy || !!deviceCode}
+                  onClick={() => {
+                    setBusy(true);
+                    setError(null);
+                    void git
+                      .beginGitHubDeviceFlow()
+                      .then((begin) => {
+                        setDeviceCode(begin.userCode);
+                        setDeviceUri(begin.verificationUri);
+                      })
+                      .catch((cause: unknown) =>
+                        setError(cause instanceof Error ? cause.message : String(cause)),
+                      )
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  Sign in with GitHub
+                </Button>
+              )}
+              {deviceCode && (
+                <p>
+                  Enter code <strong className="code-face">{deviceCode}</strong>
+                  {deviceUri ? (
+                    <>
+                      {" "}
+                      at{" "}
+                      <a href={deviceUri} target="_blank" rel="noreferrer">
+                        {deviceUri}
+                      </a>
+                    </>
+                  ) : null}
+                  . Waiting for approval…
+                </p>
+              )}
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setBusy(true);
+                  setError(null);
+                  void git
+                    .storeGitHubToken(tokenDraft)
+                    .then((next) => {
+                      setAuth(next);
+                      setTokenDraft("");
+                    })
+                    .catch((cause: unknown) =>
+                      setError(cause instanceof Error ? cause.message : String(cause)),
+                    )
+                    .finally(() => setBusy(false));
+                }}
+              >
+                <label>
+                  Or paste a fine-grained GitHub token
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={tokenDraft}
+                    placeholder="github_pat_…"
+                    onChange={(event) => setTokenDraft(event.target.value)}
+                    required
+                  />
+                </label>
+                <p className="jam-git-pat-help">
+                  Create one at GitHub → Settings → Developer settings → Personal access tokens →
+                  Fine-grained tokens. Resource owner: your user. Repository access: only the
+                  song repos you need. Permissions → Repository permissions →{" "}
+                  <strong>Contents: Read and write</strong>. Metadata stays Read-only. No other
+                  permissions. JamScript stores the token in this computer’s keychain and never
+                  force-pushes.
+                </p>
+                <Button size="sm" type="submit" disabled={busy || !tokenDraft.trim()}>
+                  Store token
+                </Button>
+              </form>
+            </>
+          )}
+        </section>
+
         {missing ? (
           <>
             <p>This folder has no Git repository.</p>
@@ -142,8 +294,7 @@ export function GitPanel({
               </Button>
             </div>
             <p>
-              Sync requires an origin remote and Git credentials. Pull refuses local changes and
-              divergent history.
+              Push never forces. Pull only fast-forwards and refuses dirty or divergent folders.
             </p>
             {eligible.length > 0 && (
               <form

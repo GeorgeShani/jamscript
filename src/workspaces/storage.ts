@@ -69,6 +69,16 @@ export interface WorkspaceStorage {
       workspaceId: string,
       documents: DocumentRecord[],
     ): Promise<{ branch: string | null; files: { name: string; status: string }[] }>;
+    githubAuthStatus(): Promise<{ signedIn: boolean; deviceFlowAvailable: boolean }>;
+    beginGitHubDeviceFlow(): Promise<{
+      userCode: string;
+      verificationUri: string;
+      interval: number;
+      expiresIn: number;
+    }>;
+    pollGitHubDeviceFlow(): Promise<{ status: string }>;
+    storeGitHubToken(token: string): Promise<{ signedIn: boolean; deviceFlowAvailable: boolean }>;
+    signOutGitHub(): Promise<{ signedIn: boolean; deviceFlowAvailable: boolean }>;
   };
 }
 

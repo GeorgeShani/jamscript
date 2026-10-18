@@ -1,5 +1,11 @@
+mod github_auth;
+
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
-use git2::{build::CheckoutBuilder, IndexAddOption, Repository, RepositoryInitOptions, Status, StatusOptions};
+use git2::{
+    build::{CheckoutBuilder, RepoBuilder},
+    Cred, FetchOptions, IndexAddOption, PushOptions, RemoteCallbacks, Repository,
+    RepositoryInitOptions, Status, StatusOptions,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -144,12 +150,32 @@ fn git_commit_files(state: State<'_, Folders>, folder_id: String, files: Vec<Git
     commit_music_files(&selected, files, message)
 }
 
+fn github_remote_callbacks() -> RemoteCallbacks<'static> {
+    let mut callbacks = RemoteCallbacks::new();
+    callbacks.credentials(|_url, _username, _allowed| {
+        match github_auth::load_token() {
+            Ok(Some(token)) => Cred::userpass_plaintext("x-access-token", &token),
+            Ok(None) => Err(git2::Error::from_str(
+                "Sign in with GitHub or paste a token before syncing private repositories",
+            )),
+            Err(error) => Err(git2::Error::from_str(&error)),
+        }
+    });
+    callbacks
+}
+
 fn clone_into_selected_folder(selected: &Folder, url: &str) -> Result<GitStatus, String> {
     let root = fs::canonicalize(&selected.path).map_err(|e| e.to_string())?;
     if fs::read_dir(&root).map_err(|e| e.to_string())?.next().is_some() {
         return Err("Choose an empty selected folder for Clone".into());
     }
-    let repo = Repository::clone(url, &root).map_err(|e| e.to_string())?;
+    let mut fetch = FetchOptions::new();
+    fetch.remote_callbacks(github_remote_callbacks());
+    let mut builder = RepoBuilder::new();
+    builder.fetch_options(fetch);
+    let repo = builder
+        .clone(url, &root)
+        .map_err(|e| github_auth::map_remote_error(&e.to_string()))?;
     read_git_status(&repo)
 }
 
@@ -176,7 +202,12 @@ fn push_current_branch(selected: &Folder) -> Result<GitStatus, String> {
     let branch = current_branch(&repo)?;
     let mut remote = origin(&repo)?;
     let refspec = format!("refs/heads/{branch}:refs/heads/{branch}");
-    remote.push(&[refspec.as_str()], None).map_err(|e| format!("Push failed: {e}"))?;
+    // Never force-push: omit force flags so rejected non-fast-forwards stay rejected.
+    let mut options = PushOptions::new();
+    options.remote_callbacks(github_remote_callbacks());
+    remote
+        .push(&[refspec.as_str()], Some(&mut options))
+        .map_err(|e| github_auth::map_remote_error(&format!("Push failed: {e}")))?;
     read_git_status(&repo)
 }
 
@@ -194,13 +225,19 @@ fn pull_fast_forward(selected: &Folder) -> Result<GitStatus, String> {
     }
     let branch = current_branch(&repo)?;
     let mut remote = origin(&repo)?;
-    remote.fetch(&[branch.as_str()], None, None).map_err(|e| format!("Fetch failed: {e}"))?;
+    let mut fetch = FetchOptions::new();
+    fetch.remote_callbacks(github_remote_callbacks());
+    remote
+        .fetch(&[branch.as_str()], Some(&mut fetch), None)
+        .map_err(|e| github_auth::map_remote_error(&format!("Fetch failed: {e}")))?;
     let target_ref = format!("refs/remotes/origin/{branch}");
     let target = repo.find_reference(&target_ref).map_err(|_| "Origin does not have this branch".to_string())?;
     let annotated = repo.reference_to_annotated_commit(&target).map_err(|e| e.to_string())?;
     let (analysis, _) = repo.merge_analysis(&[&annotated]).map_err(|e| e.to_string())?;
     if analysis.is_up_to_date() { return read_git_status(&repo); }
-    if !analysis.is_fast_forward() { return Err("Branches diverged. JamScript only performs fast-forward pulls".into()); }
+    if !analysis.is_fast_forward() {
+        return Err("GitHub has new commits and so do you. JamScript can't merge yet; open the repo on GitHub to combine them.".into());
+    }
     let commit = repo.find_commit(annotated.id()).map_err(|e| e.to_string())?;
     let tree = commit.tree().map_err(|e| e.to_string())?;
     repo.checkout_tree(tree.as_object(), Some(CheckoutBuilder::new().safe())).map_err(|e| format!("Could not safely load fetched files: {e}"))?;
@@ -336,10 +373,37 @@ mod git_tests {
         push_current_branch(&second).unwrap();
         fs::write(first_path.join("song.js"), "s('bd sd cp')").unwrap();
         commit_music_files(&first, vec![GitCommitFile { name: "song.js".into(), expected_revision: Some(revision("s('bd sd cp')")), deleted: false }], "Local claps".into()).unwrap();
-        assert!(pull_fast_forward(&first).unwrap_err().contains("diverged"));
+        assert!(pull_fast_forward(&first).unwrap_err().contains("can't merge yet"));
         assert_eq!(fs::read_to_string(first_path.join("song.js")).unwrap(), "s('bd sd cp')");
         fs::remove_dir_all(root).unwrap();
     }
+}
+
+#[tauri::command]
+fn github_auth_status() -> Result<github_auth::GitHubAuthStatus, String> {
+    github_auth::auth_status()
+}
+
+#[tauri::command]
+fn github_auth_begin_device() -> Result<github_auth::DeviceBegin, String> {
+    github_auth::begin_device_flow()
+}
+
+#[tauri::command]
+fn github_auth_poll_device() -> Result<github_auth::DevicePoll, String> {
+    github_auth::poll_device_flow()
+}
+
+#[tauri::command]
+fn github_auth_store_token(token: String) -> Result<github_auth::GitHubAuthStatus, String> {
+    github_auth::store_token(&token)?;
+    github_auth::auth_status()
+}
+
+#[tauri::command]
+fn github_auth_sign_out() -> Result<github_auth::GitHubAuthStatus, String> {
+    github_auth::clear_token()?;
+    github_auth::auth_status()
 }
 
 #[tauri::command]
@@ -476,7 +540,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![list_folders, open_folder, list_folder_documents,
             read_folder_document, create_folder_document, rename_folder_document,
             delete_folder_document, write_folder_document, git_status, git_init, git_commit_files,
-            git_clone, git_push, git_pull_fast_forward])
+            git_clone, git_push, git_pull_fast_forward, github_auth_status, github_auth_begin_device,
+            github_auth_poll_device, github_auth_store_token, github_auth_sign_out])
         .run(tauri::generate_context!())
         .expect("JamScript failed to start");
 }

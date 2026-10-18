@@ -5,17 +5,33 @@ import type { DocumentRecord, WorkspaceStorage } from "@/workspaces/storage";
 
 afterEach(cleanup);
 
+function authStubs(
+  overrides: Partial<NonNullable<WorkspaceStorage["git"]>> = {},
+): NonNullable<WorkspaceStorage["git"]> {
+  return {
+    status: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
+    initialize: vi.fn(),
+    commit: vi.fn(),
+    cloneInto: vi.fn(),
+    push: vi.fn(),
+    pull: vi.fn(),
+    githubAuthStatus: vi.fn().mockResolvedValue({ signedIn: false, deviceFlowAvailable: false }),
+    beginGitHubDeviceFlow: vi.fn(),
+    pollGitHubDeviceFlow: vi.fn(),
+    storeGitHubToken: vi.fn().mockResolvedValue({ signedIn: true, deviceFlowAvailable: false }),
+    signOutGitHub: vi.fn().mockResolvedValue({ signedIn: false, deviceFlowAvailable: false }),
+    ...overrides,
+  };
+}
+
 describe("optional desktop Git panel", () => {
   it("initializes explicitly and commits only selected saved music files", async () => {
     const files = [{ name: "song.js", status: "untracked" }];
-    const git = {
+    const git = authStubs({
       status: vi.fn().mockRejectedValue(new Error("No Git repository in this selected folder")),
       initialize: vi.fn().mockResolvedValue({ branch: null, files }),
       commit: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
-      cloneInto: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
-      push: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
-      pull: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
-    } satisfies NonNullable<WorkspaceStorage["git"]>;
+    });
     const document = {
       id: "song",
       workspaceId: "native:folder",
@@ -44,15 +60,11 @@ describe("optional desktop Git panel", () => {
       expect(git.commit).toHaveBeenCalledWith("native:folder", [document], [], "Add kick pattern"),
     );
   });
+
   it("refuses pull while any file has unsaved changes", async () => {
-    const git = {
-      status: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
-      initialize: vi.fn(),
-      commit: vi.fn(),
-      cloneInto: vi.fn(),
+    const git = authStubs({
       push: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
-      pull: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
-    } satisfies NonNullable<WorkspaceStorage["git"]>;
+    });
     const document = {
       id: "song",
       workspaceId: "native:folder",
@@ -76,16 +88,12 @@ describe("optional desktop Git panel", () => {
   });
 
   it("commits an explicitly selected deleted music file", async () => {
-    const git = {
+    const git = authStubs({
       status: vi
         .fn()
         .mockResolvedValue({ branch: "main", files: [{ name: "old.js", status: "deleted" }] }),
-      initialize: vi.fn(),
-      cloneInto: vi.fn(),
-      push: vi.fn(),
-      pull: vi.fn(),
       commit: vi.fn().mockResolvedValue({ branch: "main", files: [] }),
-    } satisfies NonNullable<WorkspaceStorage["git"]>;
+    });
     render(<GitPanel workspaceId="native:folder" documents={[]} git={git} isDirty={() => false} />);
     fireEvent.click(screen.getByText("Git"));
     fireEvent.click(await screen.findByRole("checkbox"));
@@ -96,5 +104,19 @@ describe("optional desktop Git panel", () => {
     await waitFor(() =>
       expect(git.commit).toHaveBeenCalledWith("native:folder", [], ["old.js"], "Remove old song"),
     );
+  });
+
+  it("stores a pasted GitHub token in the OS credential path", async () => {
+    const git = authStubs();
+    render(<GitPanel workspaceId="native:folder" documents={[]} git={git} isDirty={() => false} />);
+    fireEvent.click(screen.getByText("Git"));
+    fireEvent.change(await screen.findByPlaceholderText("github_pat_…"), {
+      target: { value: "github_pat_exampletoken" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Store token" }));
+    await waitFor(() =>
+      expect(git.storeGitHubToken).toHaveBeenCalledWith("github_pat_exampletoken"),
+    );
+    expect(await screen.findByRole("button", { name: "Sign out of GitHub" })).toBeInTheDocument();
   });
 });
