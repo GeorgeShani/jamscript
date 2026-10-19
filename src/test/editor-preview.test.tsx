@@ -23,7 +23,11 @@ describe("Editable code and live controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "drums, step 2, rest" }));
     const expected = SAMPLE_CODE.replace("bd ~ sd ~", "bd bd sd ~");
     expect(source(container)).toBe(expected);
-    expect(changed).toHaveBeenLastCalledWith(expected, expect.objectContaining({ valid: true }));
+    expect(changed).toHaveBeenLastCalledWith(
+      expected,
+      expect.objectContaining({ valid: true }),
+      true,
+    );
     expect(screen.getByRole("button", { name: "drums, step 2, bd" })).toHaveAttribute(
       "aria-pressed",
       "true",

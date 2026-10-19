@@ -1,13 +1,11 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DesktopAuthProvider } from "../../desktop/auth";
 import { AuthControls, GuestWorkspaceNotice } from "../../desktop/AuthControls";
-import { collaborationApi } from "../../desktop/collaboration-api";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-vi.mock("../../desktop/collaboration-api", () => ({ collaborationApi: vi.fn() }));
 
 beforeEach(() => vi.clearAllMocks());
 afterEach(cleanup);
@@ -23,18 +21,233 @@ describe("desktop guest save notice", () => {
     expect(await screen.findByText("Saved locally · No account required")).toBeInTheDocument();
   });
 
-  it("hides the notice for a signed-in session even if its profile request fails", async () => {
-    vi.mocked(invoke).mockResolvedValue({ signedIn: true, available: true });
-    vi.mocked(collaborationApi).mockRejectedValue(new Error("Profile unavailable"));
+  it("does not claim a stored token is signed in when its profile cannot be verified", async () => {
+    let checks = 0;
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status") return { signedIn: true, available: true };
+      if (command === "desktop_auth_profile") {
+        if (checks++ === 0) throw new Error("Clerk profile unavailable");
+        return { id: "user_1", name: "Musician", email: "musician@example.com" };
+      }
+      return undefined;
+    });
     render(
       <DesktopAuthProvider>
         <AuthControls />
         <GuestWorkspaceNotice />
       </DesktopAuthProvider>,
     );
-    await waitFor(() => expect(collaborationApi).toHaveBeenCalledWith("/api/desktop-session"));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Profile unavailable");
-    expect(screen.getByText("● Signed in")).toBeInTheDocument();
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("desktop_auth_profile"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Clerk profile unavailable");
+    expect(screen.queryByText("● Signed in")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in to JamScript" })).toBeInTheDocument();
+    expect(screen.getByText("Saved locally · No account required")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry account check" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open account profile" }));
+    expect(screen.getByText("musician@example.com")).toBeInTheDocument();
+  });
+
+  it("offers a fresh sign-in when the native credential disappeared", async () => {
+    let statusChecks = 0;
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status")
+        return { signedIn: statusChecks++ === 0, available: true };
+      if (command === "desktop_auth_profile")
+        throw new Error("Sign in to JamScript to collaborate");
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Browser approval did not create a desktop session. Sign in again.",
+    );
+    expect(screen.getByRole("button", { name: "Sign in to JamScript" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry account check" })).not.toBeInTheDocument();
+  });
+
+  it("keeps sign-in available and can clear an unreadable saved session", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status")
+        return {
+          signedIn: false,
+          available: true,
+          warning: "Stored JamScript sign-in is invalid. Clear saved sign-in and try again",
+        };
+      if (command === "desktop_auth_sign_out") return { signedIn: false, available: true };
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Stored JamScript sign-in is invalid",
+    );
+    expect(screen.getByRole("button", { name: "Sign in to JamScript" })).toBeEnabled();
+    expect(screen.queryByText("Collaboration unavailable")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear saved sign-in" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(invoke).toHaveBeenCalledWith("desktop_auth_sign_out");
+  });
+
+  it("lets the user choose another account before opening Clerk verification", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status") return { signedIn: false, available: true };
+      if (command === "desktop_auth_begin")
+        return {
+          userCode: "TEST-CODE",
+          verificationUri: "https://example.clerk.accounts.dev/device",
+          verificationUriComplete: "https://example.clerk.accounts.dev/device?user_code=TEST-CODE",
+          interval: 600,
+          expiresIn: 600,
+        };
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Sign in to JamScript" }));
+    expect(await screen.findByText("TEST-CODE")).toBeInTheDocument();
+    expect(invoke).not.toHaveBeenCalledWith("desktop_auth_open_verification");
+    fireEvent.click(screen.getByRole("button", { name: "Choose another account" }));
+    expect(screen.getByRole("textbox", { name: "Verification link" })).toHaveValue(
+      "https://example.clerk.accounts.dev/device?user_code=TEST-CODE",
+    );
+  });
+
+  it("shows the verified account and offers account switching without signing out first", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status") return { signedIn: true, available: true };
+      if (command === "desktop_auth_profile")
+        return {
+          id: "user_1",
+          name: "Musician",
+          email: "musician@example.com",
+        };
+      if (command === "desktop_auth_begin")
+        return {
+          userCode: "SWITCH-CODE",
+          verificationUri: "https://example.clerk.accounts.dev/device",
+          interval: 600,
+          expiresIn: 600,
+        };
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Open account profile" }));
+    expect(screen.getByText("musician@example.com")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Switch account" }));
+    expect(await screen.findByText("SWITCH-CODE")).toBeInTheDocument();
+    expect(invoke).not.toHaveBeenCalledWith("desktop_auth_sign_out");
+  });
+
+  it("restores a pending device approval and signs in without the collaboration API", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status")
+        return {
+          signedIn: false,
+          available: true,
+          pending: {
+            userCode: "RESTORED-CODE",
+            verificationUri: "https://example.clerk.accounts.dev/device",
+            interval: 1,
+            expiresIn: 600,
+          },
+        };
+      if (command === "desktop_auth_poll") return { status: "complete" };
+      if (command === "desktop_auth_profile")
+        return {
+          id: "user_2",
+          name: "Restored player",
+          email: "restored@example.com",
+        };
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+        <GuestWorkspaceNotice />
+      </DesktopAuthProvider>,
+    );
+    expect(await screen.findByText("RESTORED-CODE")).toBeInTheDocument();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Open account profile" }, { timeout: 2000 }),
+    );
+    expect(screen.getByText("restored@example.com")).toBeInTheDocument();
     expect(screen.queryByText("Saved locally · No account required")).not.toBeInTheDocument();
+    expect(invoke).not.toHaveBeenCalledWith("desktop_collaboration_request", expect.anything());
+  });
+
+  it("keeps polling after a temporary Clerk connection error", async () => {
+    let polls = 0;
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status")
+        return {
+          signedIn: false,
+          available: true,
+          pending: {
+            userCode: "RETRY-CODE",
+            verificationUri: "https://example.clerk.accounts.dev/device",
+            interval: 1,
+            expiresIn: 600,
+          },
+        };
+      if (command === "desktop_auth_poll") {
+        if (polls++ === 0) throw new Error("Connection interrupted");
+        return { status: "complete" };
+      }
+      if (command === "desktop_auth_profile")
+        return {
+          id: "user_3",
+          name: "Player",
+          email: "player@example.com",
+        };
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    expect(await screen.findByText("RETRY-CODE")).toBeInTheDocument();
+    expect(await screen.findByRole("alert", {}, { timeout: 2000 })).toHaveTextContent(
+      "Connection interrupted",
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Open account profile" }, { timeout: 3000 }),
+    );
+    expect(screen.getByText("player@example.com")).toBeInTheDocument();
+  });
+
+  it("opens verified profile details and signs out through the native account action", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status") return { signedIn: true, available: true };
+      if (command === "desktop_auth_profile")
+        return { id: "user_1", name: "Test Player", email: "player@example.com" };
+      if (command === "desktop_auth_sign_out") return { signedIn: false, available: true };
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Open account profile" }));
+    expect(screen.getByRole("dialog", { name: "JamScript profile" })).toBeInTheDocument();
+    expect(screen.getByText("Test Player")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(await screen.findByRole("button", { name: "Sign in to JamScript" })).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith("desktop_auth_sign_out");
   });
 });

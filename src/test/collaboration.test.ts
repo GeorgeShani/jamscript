@@ -9,16 +9,19 @@ import {
   acceptInvitation,
   createInvitation,
   createSharedProject,
+  deleteSharedWorkspace,
   hashInviteToken,
   listVisibleDocuments,
   listWorkspaceDocuments,
   listWorkspaceMembers,
+  leaveSharedWorkspace,
   memberRole,
   openSharedWorkspace,
   removeMember,
   roleForDocument,
   validInvitationEmail,
   renameSharedDocument,
+  renameSharedWorkspace,
   revokeInvitation,
   type CollaborationDb,
 } from "@/features/collaboration/membership";
@@ -45,6 +48,54 @@ async function database() {
 }
 
 describe("shared project membership", () => {
+  it("limits shared workspace rename and deletion to the owner and lets members leave", async () => {
+    const db = await database();
+    const project = await createSharedProject(db, {
+      name: "Coastline",
+      ownerId: "owner",
+      documentName: "song.js",
+      source: 's("bd")',
+    });
+    const invite = await createInvitation(db, {
+      workspaceId: project.workspaceId,
+      actorId: "owner",
+      email: "editor@example.com",
+      role: "editor",
+    });
+    await acceptInvitation(db, {
+      token: invite.token,
+      userId: "editor",
+      email: "editor@example.com",
+    });
+    await expect(
+      renameSharedWorkspace(db, {
+        workspaceId: project.workspaceId,
+        actorId: "editor",
+        name: "Other",
+      }),
+    ).rejects.toThrow(/owner/);
+    await expect(
+      deleteSharedWorkspace(db, { workspaceId: project.workspaceId, actorId: "editor" }),
+    ).rejects.toThrow(/owner/);
+    await expect(
+      leaveSharedWorkspace(db, { workspaceId: project.workspaceId, actorId: "owner" }),
+    ).rejects.toThrow(/owner/);
+    expect(
+      await renameSharedWorkspace(db, {
+        workspaceId: project.workspaceId,
+        actorId: "owner",
+        name: "  New name  ",
+      }),
+    ).toMatchObject({ name: "New name" });
+    expect((await listVisibleDocuments(db, "editor"))[0]?.workspaceName).toBe("New name");
+    await leaveSharedWorkspace(db, { workspaceId: project.workspaceId, actorId: "editor" });
+    expect(await listVisibleDocuments(db, "editor")).toEqual([]);
+    expect(
+      await deleteSharedWorkspace(db, { workspaceId: project.workspaceId, actorId: "owner" }),
+    ).toEqual([project.documentId]);
+    expect(await listVisibleDocuments(db, "owner")).toEqual([]);
+  });
+
   it("lets an owner invite, blocks a revoked invite, and rejects a viewer write role", async () => {
     const db = await database();
     const project = await createSharedProject(db, {

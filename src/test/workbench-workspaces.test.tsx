@@ -1,4 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { EditorView } from "@codemirror/view";
+import { dispatchLensEdit, musicModel } from "@/components/jam/code-editor";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionWorkbench } from "@/workbench/SessionWorkbench";
@@ -20,6 +22,7 @@ vi.mock("@/engine/playback", () => ({
   play: vi.fn().mockResolvedValue(true),
   stop: vi.fn().mockResolvedValue(undefined),
   getOutputNode: vi.fn().mockReturnValue(null),
+  outputFrames: vi.fn().mockReturnValue(null),
   setMix: vi.fn(),
 }));
 vi.mock("@/workbench/AuthControls", () => ({
@@ -30,6 +33,43 @@ vi.mock("@/workbench/AuthControls", () => ({
 afterEach(cleanup);
 
 describe("browser workbench", () => {
+  it("streams component edits during playback and applies typed code only with Ctrl+Enter", async () => {
+    const { workspace } = await createWorkspace(
+      `Live ${crypto.randomUUID()}`,
+      'drums: s("bd").gain(0.5);',
+    );
+    const { container } = render(
+      <TooltipProvider>
+        <SessionWorkbench workspaceId={workspace.id} />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /^Play$/ }));
+    await screen.findByRole("button", { name: /^Stop$/ });
+    vi.mocked(playback.play).mockClear();
+    const view = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
+    const start = view.state.doc.toString().indexOf("0.5");
+    act(() => view.dispatch({ changes: { from: start, to: start + 3, insert: "0.3" } }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 220));
+    });
+    expect(playback.play).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Music code" }), {
+      key: "Enter",
+      ctrlKey: true,
+    });
+    await waitFor(() => expect(playback.play).toHaveBeenCalledWith('drums: s("bd").gain(0.3);'));
+    vi.mocked(playback.play).mockClear();
+    const lens = view.state
+      .field(musicModel)
+      .tracks[0]!.lenses.find((lens) => lens.kind === "param")!;
+    act(() => {
+      expect(dispatchLensEdit(view, { target: lens.id, value: 0.7 })).toBe(true);
+    });
+    expect(view.state.doc.toString()).toBe('drums: s("bd").gain(0.7);');
+    await waitFor(() => expect(playback.play).toHaveBeenCalledWith('drums: s("bd").gain(0.7);'));
+    fireEvent.click(screen.getByRole("button", { name: /^Stop$/ }));
+  });
+
   it("uses an in-app Save As dialog for desktop folders", async () => {
     const { workspace } = await createWorkspace(`Desktop ${crypto.randomUUID()}`, 's("bd")');
     const saveAs = vi.fn(
@@ -94,7 +134,9 @@ describe("browser workbench", () => {
         <SessionWorkbench workspaceId={workspace.id} />
       </TooltipProvider>,
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Insert a beat" }));
+    const insert = await screen.findByRole("button", { name: "Insert a beat" });
+    await waitFor(() => expect(insert).toBeEnabled());
+    fireEvent.click(insert);
     await waitFor(() =>
       expect(container.querySelector(".cm-content")?.textContent).toContain(
         'drums: s("bd ~ sd ~")',
@@ -230,9 +272,7 @@ describe("browser workbench", () => {
     await waitFor(() => expect(playback.stop).toHaveBeenCalled());
     finish(false);
     await waitFor(() => expect(screen.getByRole("button", { name: /^Play$/ })).toBeEnabled());
-    vi.mocked(playback.stop).mockClear();
-    fireEvent.click(screen.getByRole("button", { name: "Stop all audio" }));
-    await waitFor(() => expect(playback.stop).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Stop all audio" })).not.toBeInTheDocument();
     vi.mocked(playback.play).mockResolvedValue(true);
   });
 

@@ -160,7 +160,7 @@ const highlighting = HighlightStyle.define([
 export function createMusicEditor(
   parent: HTMLElement,
   code: string,
-  onChange: (code: string, model: MusicDocument) => void,
+  onChange: (code: string, model: MusicDocument, control?: boolean) => void,
   onEvaluate: () => void,
 ) {
   return new EditorView({
@@ -202,8 +202,16 @@ export function createMusicEditor(
           spellcheck: "false",
         }),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged)
-            onChange(update.state.doc.toString(), update.state.field(musicModel));
+          if (update.docChanged) {
+            const control = update.transactions.some(
+              (transaction) =>
+                transaction.isUserEvent("input.type.lens") ||
+                transaction.isUserEvent("input.tempo"),
+            );
+            if (control) {
+              onChange(update.state.doc.toString(), update.state.field(musicModel), true);
+            } else onChange(update.state.doc.toString(), update.state.field(musicModel));
+          }
         }),
         EditorView.domEventHandlers({
           mousemove(event, view) {

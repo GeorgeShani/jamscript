@@ -19,6 +19,6 @@ sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 notify = "6.1"
 git2 = "0.21"
-keyring = "3"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 ureq = { version = "2", features = ["json"] }
 open = "5"

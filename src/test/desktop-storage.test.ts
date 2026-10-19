@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const disk = new Map<string, string>();
 const folder = { id: "selected-1", name: "songs", path: "/selected/songs" };
+let selectedFolders = [folder];
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(
     async (
@@ -14,8 +15,16 @@ vi.mock("@tauri-apps/api/core", () => ({
         expectedRevision?: string;
       },
     ) => {
-      if (command === "list_folders") return [folder];
-      if (command === "open_folder") return folder;
+      if (command === "list_folders") return selectedFolders;
+      if (command === "open_folder") return selectedFolders[0];
+      if (command === "rename_selected_folder") {
+        selectedFolders = [{ ...folder, name: args!.name! }];
+        return selectedFolders[0];
+      }
+      if (command === "remove_selected_folder") {
+        selectedFolders = [];
+        return undefined;
+      }
       if (command === "list_folder_documents")
         return [...disk].map(([name, source]) => ({ name, source, revision: source }));
       if (command === "read_folder_document") {
@@ -43,11 +52,48 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 import { desktopStorage } from "../../desktop/storage";
+import { detachLocalWorkspace } from "@/features/collaboration/detach-local-workspace";
 
 describe("desktop folder storage", () => {
   beforeEach(() => {
     disk.clear();
     localStorage.clear();
+    selectedFolders = [folder];
+  });
+
+  it("renames a selected folder in JamScript and removes it from recents without deleting disk files", async () => {
+    disk.set("song.js", 's("bd")');
+    const workspace = (await desktopStorage.openFolder!())!;
+    const renamed = await desktopStorage.renameWorkspace(workspace, "New name");
+    expect(renamed.name).toBe("New name");
+    expect((await desktopStorage.listWorkspaces())[0]?.name).toBe("New name");
+    await desktopStorage.deleteWorkspace(workspace.id);
+    expect(await desktopStorage.listWorkspaces()).toEqual([]);
+    expect(disk.get("song.js")).toBe('s("bd")');
+  });
+
+  it("keeps a folder in recents while it contains unsaved recovery edits", async () => {
+    disk.set("song.js", 's("bd")');
+    const workspace = (await desktopStorage.openFolder!())!;
+    const [document] = await desktopStorage.listDocuments(workspace.id);
+    await desktopStorage.saveDocument({ ...document!, source: 's("sd")' });
+    await expect(desktopStorage.deleteWorkspace(workspace.id)).rejects.toThrow(/Save unsaved/);
+    expect((await desktopStorage.listWorkspaces())[0]?.id).toBe(workspace.id);
+  });
+
+  it("keeps a local file private after leaving its shared workspace", async () => {
+    disk.set("song.js", 's("bd")');
+    const workspace = (await desktopStorage.openFolder!())!;
+    const [document] = await desktopStorage.listDocuments(workspace.id);
+    await desktopStorage.saveDocument({
+      ...document!,
+      shared: { workspaceId: "remote", documentId: "remote-song", role: "owner" },
+    });
+    await detachLocalWorkspace(desktopStorage, "remote");
+    const [privateCopy] = await desktopStorage.listDocuments(workspace.id);
+    expect(privateCopy?.source).toBe('s("bd")');
+    expect(privateCopy?.shared).toBeUndefined();
+    expect(disk.get("song.js")).toBe('s("bd")');
   });
 
   it("keeps edits in recovery until explicit disk save and detects an external conflict", async () => {

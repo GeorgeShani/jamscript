@@ -235,6 +235,7 @@ export const desktopStorage: WorkspaceStorage = {
     if (!isNativeWorkspace(document.workspaceId)) return browserStorage.saveDocument(document);
     if (document.shared)
       localStorage.setItem(sharedKey(document.id), JSON.stringify(document.shared));
+    else localStorage.removeItem(sharedKey(document.id));
     if (document.source === baselines.get(document.id)?.source)
       localStorage.removeItem(recoveryKey(document.id));
     else {
@@ -360,12 +361,27 @@ export const desktopStorage: WorkspaceStorage = {
     baselines.delete(id);
   },
   async renameWorkspace(workspace, name) {
-    if (isNativeWorkspace(workspace.id))
-      throw new Error("Rename a selected folder in your file manager");
+    if (isNativeWorkspace(workspace.id)) {
+      const renamed = await invoke<Folder>("rename_selected_folder", {
+        folderId: folderId(workspace.id),
+        name,
+      });
+      return folderRecord(renamed);
+    }
     return browserStorage.renameWorkspace(workspace, name);
   },
   async deleteWorkspace(id) {
-    if (isNativeWorkspace(id)) throw new Error("Selected folders cannot be deleted from JamScript");
+    if (isNativeWorkspace(id)) {
+      const known = ids(folderId(id));
+      if (
+        Object.values(known).some((value) =>
+          localStorage.getItem(recoveryKey(`native-doc:${value}`)),
+        )
+      )
+        throw new Error("Save unsaved folder edits to disk before removing it from JamScript");
+      await invoke("remove_selected_folder", { folderId: folderId(id) });
+      return;
+    }
     return browserStorage.deleteWorkspace(id);
   },
 };

@@ -1,5 +1,20 @@
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/tanstack-react-start";
+import {
+  Show,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+  useClerk,
+} from "@clerk/tanstack-react-start";
 import { Button } from "@/components/ui/button";
+
+function ProfileButton() {
+  const clerk = useClerk();
+  return (
+    <Button size="sm" variant="ghost" onClick={() => clerk.openUserProfile()}>
+      Profile
+    </Button>
+  );
+}
 
 /** Local browser workspaces remain available before Clerk keys are configured. */
 export function AuthControls() {
@@ -20,6 +35,7 @@ export function AuthControls() {
         </SignUpButton>
       </Show>
       <Show when="signed-in">
+        <ProfileButton />
         <UserButton />
       </Show>
     </div>

@@ -283,6 +283,54 @@ export async function workspaceNameForOwner(
   return workspace.name;
 }
 
+export async function renameSharedWorkspace(
+  db: CollaborationDb,
+  input: { workspaceId: string; actorId: string; name: string },
+) {
+  const name = input.name.trim();
+  if (!name || name.length > 120) throw new Error("Choose a workspace name of 1 to 120 characters");
+  if ((await memberRole(db, input.workspaceId, input.actorId)) !== "owner")
+    throw new Error("Only the owner can rename this workspace");
+  const [updated] = await db
+    .update(workspaces)
+    .set({ name, updatedAt: new Date() })
+    .where(eq(workspaces.id, input.workspaceId))
+    .returning({ id: workspaces.id, name: workspaces.name });
+  if (!updated) throw new Error("Workspace was not found");
+  return updated;
+}
+
+export async function leaveSharedWorkspace(
+  db: CollaborationDb,
+  input: { workspaceId: string; actorId: string },
+) {
+  const role = await memberRole(db, input.workspaceId, input.actorId);
+  if (!role) throw new Error("No access to this workspace");
+  if (role === "owner") throw new Error("The owner cannot leave their workspace");
+  await db
+    .delete(workspaceMembers)
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, input.workspaceId),
+        eq(workspaceMembers.clerkUserId, input.actorId),
+      ),
+    );
+}
+
+export async function deleteSharedWorkspace(
+  db: CollaborationDb,
+  input: { workspaceId: string; actorId: string },
+) {
+  if ((await memberRole(db, input.workspaceId, input.actorId)) !== "owner")
+    throw new Error("Only the owner can delete this workspace");
+  const files = await db
+    .select({ id: documents.id })
+    .from(documents)
+    .where(eq(documents.workspaceId, input.workspaceId));
+  await db.delete(workspaces).where(eq(workspaces.id, input.workspaceId));
+  return files.map((file) => file.id);
+}
+
 export async function revokeInvitation(
   db: CollaborationDb,
   input: { invitationId: string; actorId: string },

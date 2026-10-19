@@ -24,6 +24,9 @@ export const Route = createFileRoute("/api/desktop-session")({
           {
             id: userId,
             name: user.fullName || user.username || user.firstName || "Musician",
+            email:
+              user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)
+                ?.emailAddress ?? null,
           },
           { headers },
         );

@@ -13,7 +13,7 @@ export function EditorSlot({
 }: {
   panelOpen?: boolean;
   initialCode?: string;
-  onChange?: (code: string, model: MusicDocument) => void;
+  onChange?: (code: string, model: MusicDocument, control?: boolean) => void;
   onEvaluate?: () => void;
   onReady?: (view: EditorView | null) => void;
 }) {
@@ -26,7 +26,7 @@ export function EditorSlot({
     const view = createMusicEditor(
       mount.current,
       initial.current,
-      (code, model) => callbacks.current.onChange?.(code, model),
+      (code, model, control) => callbacks.current.onChange?.(code, model, control),
       () => callbacks.current.onEvaluate?.(),
     );
     callbacks.current.onReady?.(view);

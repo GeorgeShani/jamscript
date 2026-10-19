@@ -6,17 +6,21 @@ import {
   acceptInvitation,
   createInvitation,
   createSharedProject,
+  deleteSharedWorkspace,
+  leaveSharedWorkspace,
   listActiveInvitations,
   listWorkspaceMembers,
   listVisibleDocuments,
   openSharedWorkspace,
   removeMember,
   renameSharedDocument,
+  renameSharedWorkspace,
   revokeInvitation,
   validInvitationEmail,
   workspaceNameForOwner,
 } from "@/features/collaboration/membership";
 import { seedLiveblocksDocument } from "@/features/collaboration/liveblocks-document";
+import { roomId } from "@/features/collaboration/shared-document";
 
 const headers = { "Cache-Control": "private, no-store" };
 
@@ -251,6 +255,36 @@ export const Route = createFileRoute("/api/shared-projects")({
             );
             return Response.json(renamed, { headers });
           }
+          if (body.action === "rename-workspace") {
+            const renamed = await withCollaborationDb((db) =>
+              renameSharedWorkspace(db, {
+                workspaceId: text("workspaceId"),
+                actorId: current.userId,
+                name: text("name"),
+              }),
+            );
+            return Response.json(renamed, { headers });
+          }
+          if (body.action === "leave-workspace") {
+            await withCollaborationDb((db) =>
+              leaveSharedWorkspace(db, {
+                workspaceId: text("workspaceId"),
+                actorId: current.userId,
+              }),
+            );
+            return Response.json({ ok: true }, { headers });
+          }
+          if (body.action === "delete-workspace") {
+            const documentIds = await withCollaborationDb((db) =>
+              deleteSharedWorkspace(db, {
+                workspaceId: text("workspaceId"),
+                actorId: current.userId,
+              }),
+            );
+            const liveblocks = new Liveblocks({ secret: process.env["LIVEBLOCKS_SECRET_KEY"]! });
+            await Promise.allSettled(documentIds.map((id) => liveblocks.deleteRoom(roomId(id))));
+            return Response.json({ ok: true }, { headers });
+          }
           if (body.action === "remove-member") {
             await withCollaborationDb((db) =>
               removeMember(db, {
@@ -275,11 +309,12 @@ export const Route = createFileRoute("/api/shared-projects")({
           return Response.json({ error: "Unknown collaboration action" }, { status: 400, headers });
         } catch (cause) {
           const message = cause instanceof Error ? cause.message : "Collaboration request failed";
-          const status = /not active|expired|different account|Only the owner|invalid/i.test(
-            message,
-          )
-            ? 403
-            : 400;
+          const status =
+            /not active|expired|different account|Only the owner|The owner cannot|No access|invalid/i.test(
+              message,
+            )
+              ? 403
+              : 400;
           return Response.json({ error: message }, { status, headers });
         }
       },

@@ -4,8 +4,13 @@ import { useEffect, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 
 import { Button } from "@/components/ui/button";
+import { SessionLoader } from "@/components/SessionLoader";
+import { browserStorage } from "@/workspaces/storage";
 import type { DocumentRecord } from "@/workspaces/storage";
 import { attachSharedDocument, type SharedPresence } from "./binding";
+import { detachLocalWorkspace } from "./detach-local-workspace";
+import { SharedWorkspaceRow } from "./SharedWorkspaceRow";
+import { SharedWorkspaceHeading } from "./SharedWorkspaceHeading";
 import type { CollaborationRole } from "./shared-document";
 import { shareableDocumentName } from "./shareable";
 
@@ -23,9 +28,14 @@ export function SharedProjectList() {
   >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refresh, setRefresh] = useState(0);
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!isSignedIn) {
+      setItems([]);
+      return;
+    }
     setLoading(true);
+    setError(null);
     void fetch("/api/shared-projects")
       .then(async (response) => {
         const body = (await response.json()) as { error?: string } | typeof items;
@@ -37,15 +47,30 @@ export function SharedProjectList() {
         setError(cause instanceof Error ? cause.message : "Shared projects are unavailable"),
       )
       .finally(() => setLoading(false));
-  }, [isSignedIn]);
+  }, [isSignedIn, refresh]);
   if (!import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"] || !isSignedIn) return null;
   const projects = [...new Map(items.map((item) => [item.workspaceId, item])).values()];
+  const manage = async (
+    workspaceId: string,
+    action: "rename-workspace" | "delete-workspace" | "leave-workspace",
+    name?: string,
+  ) => {
+    const response = await fetch("/api/shared-projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, workspaceId, name }),
+    });
+    const body = (await response.json()) as { error?: string };
+    if (!response.ok) throw new Error(body.error ?? "Could not update shared workspace");
+    if (action !== "rename-workspace") await detachLocalWorkspace(browserStorage, workspaceId);
+    setRefresh((value) => value + 1);
+  };
   return (
     <section className="jam-chooser-section jam-chooser-shared" aria-labelledby="shared-heading">
-      <h2 id="shared-heading">Shared with you</h2>
+      <SharedWorkspaceHeading loading={loading} refresh={() => setRefresh((value) => value + 1)} />
       {error && <p role="alert">{error}</p>}
       {loading ? (
-        <p className="jam-muted">Loading shared projects…</p>
+        <SessionLoader label="Loading shared projects" />
       ) : items.length === 0 ? (
         <p className="jam-muted">
           Sign-in workspaces you create or join appear here. Invite people from an open session with
@@ -53,28 +78,22 @@ export function SharedProjectList() {
         </p>
       ) : (
         <ul>
-          {projects.map((item) => {
-            const fileCount = items.filter((file) => file.workspaceId === item.workspaceId).length;
-            return (
-              <li key={item.workspaceId}>
-                <button
-                  type="button"
-                  className="jam-shared-open"
-                  onClick={() =>
-                    void navigate({
-                      to: "/app/shared/$documentId",
-                      params: { documentId: item.documentId },
-                    })
-                  }
-                >
-                  <span className="jam-shared-open-name">{item.workspaceName}</span>
-                  <small>
-                    {fileCount} {fileCount === 1 ? "file" : "files"} · {item.role}
-                  </small>
-                </button>
-              </li>
-            );
-          })}
+          {projects.map((item) => (
+            <SharedWorkspaceRow
+              key={item.workspaceId}
+              item={{
+                ...item,
+                fileCount: items.filter((file) => file.workspaceId === item.workspaceId).length,
+              }}
+              onOpen={() =>
+                void navigate({
+                  to: "/app/shared/$documentId",
+                  params: { documentId: item.documentId },
+                })
+              }
+              onManage={(action, name) => manage(item.workspaceId, action, name)}
+            />
+          ))}
         </ul>
       )}
     </section>

@@ -22,6 +22,11 @@ function HelpPage() {
           Each browser workspace contains local JavaScript documents. Play evaluates the active
           document. Changes are saved in this browser as you work.
         </p>
+        <p>
+          While music is playing, knobs, sliders, rhythm grids and BPM controls update the sound
+          live. Apply typed code to playback with <kbd>⌘/Ctrl Enter</kbd>. Unapplied typing stays in
+          your editor and is still saved automatically.
+        </p>
         <section>
           <h2>Find your way around</h2>
           <ul>

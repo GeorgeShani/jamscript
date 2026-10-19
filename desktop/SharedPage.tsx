@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SessionLoader } from "@/components/SessionLoader";
 import { sharedDocumentStorage } from "@/features/collaboration/shared-storage";
 import type { CollaborationRole } from "@/features/collaboration/shared-document";
 import { SessionWorkbench } from "@/workbench/SessionWorkbench";
@@ -86,12 +87,7 @@ export function SharedPage({ documentId, close }: { documentId: string; close: (
         </div>
       </main>
     );
-  if (!opened || !storage)
-    return (
-      <div className="jam-loading" role="status">
-        Opening shared project…
-      </div>
-    );
+  if (!opened || !storage) return <SessionLoader fullScreen label="Opening shared project" />;
   return (
     <SessionWorkbench
       collaboration

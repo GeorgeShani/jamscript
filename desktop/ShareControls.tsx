@@ -2,12 +2,17 @@ import type { EditorView } from "@codemirror/view";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SessionLoader } from "@/components/SessionLoader";
 import { attachSharedDocument, type SharedPresence } from "@/features/collaboration/binding";
 import { shareableDocumentName } from "@/features/collaboration/shareable";
 import type { CollaborationRole } from "@/features/collaboration/shared-document";
 import type { DocumentRecord } from "@/workspaces/storage";
+import { detachLocalWorkspace } from "@/features/collaboration/detach-local-workspace";
+import { SharedWorkspaceRow } from "@/features/collaboration/SharedWorkspaceRow";
+import { SharedWorkspaceHeading } from "@/features/collaboration/SharedWorkspaceHeading";
 import { useDesktopAuth } from "./auth";
 import { collaborationApi } from "./collaboration-api";
+import { desktopStorage } from "./storage";
 
 type SharedItem = {
   workspaceId: string;
@@ -37,6 +42,7 @@ export function SharedProjectList() {
     }
     let live = true;
     setLoading(true);
+    setError(null);
     void collaborationApi<SharedItem[]>("/api/shared-projects")
       .then((items) => {
         if (live) setItems(items);
@@ -53,37 +59,42 @@ export function SharedProjectList() {
   }, [person, refresh]);
   if (!person) return null;
   const projects = [...new Map(items.map((item) => [item.workspaceId, item])).values()];
+  const manage = async (
+    workspaceId: string,
+    action: "rename-workspace" | "delete-workspace" | "leave-workspace",
+    name?: string,
+  ) => {
+    await collaborationApi("/api/shared-projects", {
+      method: "POST",
+      body: { action, workspaceId, name },
+    });
+    if (action !== "rename-workspace") await detachLocalWorkspace(desktopStorage, workspaceId);
+    setRefresh((value) => value + 1);
+  };
   return (
     <section className="jam-chooser-section jam-chooser-shared" aria-labelledby="shared-heading">
-      <h2 id="shared-heading">Shared with you</h2>
-      <button type="button" onClick={() => setRefresh((value) => value + 1)}>
-        Refresh
-      </button>
+      <SharedWorkspaceHeading loading={loading} refresh={() => setRefresh((value) => value + 1)} />
       {error && <p role="alert">{error}</p>}
       {loading ? (
-        <p className="jam-muted">Loading shared projects…</p>
+        <SessionLoader label="Loading shared projects" />
       ) : projects.length === 0 ? (
         <p className="jam-muted">Projects you create or join appear here.</p>
       ) : (
         <ul>
           {projects.map((item) => (
-            <li key={item.workspaceId}>
-              <button
-                type="button"
-                className="jam-shared-open"
-                onClick={() =>
-                  window.dispatchEvent(
-                    new CustomEvent(OPEN_SHARED_DOCUMENT, { detail: item.documentId }),
-                  )
-                }
-              >
-                <span className="jam-shared-open-name">{item.workspaceName}</span>
-                <small>
-                  {items.filter((file) => file.workspaceId === item.workspaceId).length} files ·{" "}
-                  {item.role}
-                </small>
-              </button>
-            </li>
+            <SharedWorkspaceRow
+              key={item.workspaceId}
+              item={{
+                ...item,
+                fileCount: items.filter((file) => file.workspaceId === item.workspaceId).length,
+              }}
+              onOpen={() =>
+                window.dispatchEvent(
+                  new CustomEvent(OPEN_SHARED_DOCUMENT, { detail: item.documentId }),
+                )
+              }
+              onManage={(action, name) => manage(item.workspaceId, action, name)}
+            />
           ))}
         </ul>
       )}

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { SessionLoader } from "@/components/SessionLoader";
 
 import { sharedDocumentStorage } from "@/features/collaboration/shared-storage";
 import type { CollaborationRole } from "@/features/collaboration/shared-document";
@@ -76,12 +77,7 @@ function SharedDocumentPage() {
         </p>
       </main>
     );
-  if (!opened)
-    return (
-      <div className="jam-loading" role="status">
-        Opening shared project…
-      </div>
-    );
+  if (!opened) return <SessionLoader fullScreen label="Opening shared project" />;
   const storage = sharedDocumentStorage(opened);
   return (
     <SessionWorkbench

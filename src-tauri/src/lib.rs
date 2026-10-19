@@ -442,6 +442,17 @@ fn desktop_auth_status() -> Result<desktop_auth::AuthStatus, String> {
 }
 
 #[tauri::command]
+fn desktop_auth_profile() -> Result<desktop_auth::AuthProfile, String> {
+    desktop_auth::profile()
+}
+
+#[tauri::command]
+fn desktop_open_licenses() -> Result<(), String> {
+    open::that("https://jamscript.lukavacheishvili.workers.dev/licenses/THIRD_PARTY_NOTICES.txt")
+        .map_err(|error| format!("Could not open JamScript licenses: {error}"))
+}
+
+#[tauri::command]
 fn desktop_auth_begin() -> Result<desktop_auth::DeviceBegin, String> {
     desktop_auth::begin()
 }
@@ -473,6 +484,40 @@ fn desktop_collaboration_request(
 #[tauri::command]
 fn list_folders(state: State<'_, Folders>) -> Result<Vec<Folder>, String> {
     Ok(state.items.lock().map_err(|e| e.to_string())?.clone())
+}
+
+#[tauri::command]
+fn rename_selected_folder(app: tauri::AppHandle, state: State<'_, Folders>, folder_id: String, name: String) -> Result<Folder, String> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().count() > 80 || name.chars().any(char::is_control) {
+        return Err("Choose a folder name of 1 to 80 characters".into());
+    }
+    let mut folders = state.items.lock().map_err(|e| e.to_string())?;
+    let mut updated = folders.clone();
+    let selected = updated.iter_mut().find(|item| item.id == folder_id)
+        .ok_or("Folder was not selected in JamScript")?;
+    selected.name = name.to_string();
+    let selected = selected.clone();
+    persist(&app, &updated)?;
+    *folders = updated;
+    Ok(selected)
+}
+
+#[tauri::command]
+fn remove_selected_folder(app: tauri::AppHandle, state: State<'_, Folders>, folder_id: String) -> Result<(), String> {
+    let mut folders = state.items.lock().map_err(|e| e.to_string())?;
+    let selected = folders.iter().find(|item| item.id == folder_id)
+        .cloned().ok_or("Folder was not selected in JamScript")?;
+    let mut updated = folders.clone();
+    updated.retain(|item| item.id != folder_id);
+    persist(&app, &updated)?;
+    *folders = updated;
+    if let Ok(mut watcher) = state.watcher.lock() {
+        if let Some(watcher) = watcher.as_mut() {
+            let _ = watcher.unwatch(&selected.path);
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -601,12 +646,13 @@ pub fn run() {
             app.manage(Folders { items, watcher: Mutex::new(watcher) });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![list_folders, open_folder, list_folder_documents,
+        .invoke_handler(tauri::generate_handler![list_folders, open_folder, rename_selected_folder,
+            remove_selected_folder, list_folder_documents,
             read_folder_document, create_folder_document, rename_folder_document,
             delete_folder_document, write_folder_document, git_status, git_init, git_commit_files,
             git_clone, git_set_origin, git_push, git_pull_fast_forward, github_auth_status,
             github_auth_begin_device, github_auth_poll_device, github_auth_store_token,
-            github_auth_sign_out, desktop_auth_status, desktop_auth_begin, desktop_auth_poll,
+            github_auth_sign_out, desktop_auth_status, desktop_auth_profile, desktop_open_licenses, desktop_auth_begin, desktop_auth_poll,
             desktop_auth_sign_out, desktop_auth_open_verification, desktop_collaboration_request])
         .run(tauri::generate_context!())
         .expect("JamScript failed to start");

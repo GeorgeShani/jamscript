@@ -52,6 +52,8 @@ Musicians work primarily in BPM. Documents default to four beats per cycle: 120 
 
 The track mixer routes independently mixable patterns. A stack with effects applied after it keeps its original Strudel audio routing; source controls remain available, and individual track faders are omitted to avoid changing the sound.
 
+During playback, checked knob, slider, rhythm-grid and BPM edits stream to Strudel while the gesture continues. Typed code stays staged for Ctrl/Cmd+Enter; autosave remains independent. Control edits map onto the last applied program without publishing unrelated staged typing. If a control overlaps unapplied text, the user must apply that text first. Pattern changes affect upcoming scheduled events; existing note envelopes and effect tails are not rewritten.
+
 Future releases must support the complete eddyflux "coastline" program, including sample packs, variables, nested stacks, chords, voicing, mini-notation and modulation. Complex lenses edit explicit syntax without flattening patterns or replacing expressions with constants. Arbitrary modulation graph builders are outside this release.
 
 The workspace agent uses Gemini, with the project owner's key stored only in private server configuration. It can propose reviewed edits across files and request explicit Git actions. General shell execution is excluded. Local use is anonymous; shared workspaces use email sign-in, invitations and owner/editor/viewer roles.
