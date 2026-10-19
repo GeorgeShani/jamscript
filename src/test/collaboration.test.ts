@@ -40,14 +40,36 @@ import {
 import { sharedDocumentStorage } from "@/features/collaboration/shared-storage";
 import type { Liveblocks } from "@liveblocks/node";
 
-async function database() {
+async function database(logQuery: () => void = () => {}) {
   const client = new PGlite();
-  const db = drizzle({ client });
+  const db = drizzle({ client, logger: { logQuery } });
   await migrate(db, { migrationsFolder: "./drizzle" });
   return db as unknown as CollaborationDb;
 }
 
 describe("shared project membership", () => {
+  it("opens an authorized workspace in one database round trip", async () => {
+    const logQuery = vi.fn();
+    const db = await database(logQuery);
+    const project = await createSharedProject(db, {
+      name: "Coastline",
+      ownerId: "owner",
+      documentName: "song.js",
+      source: 's("bd")',
+    });
+    logQuery.mockClear();
+    const opened = await openSharedWorkspace(db, project.documentId, "owner");
+    expect(opened?.access).toMatchObject({ role: "owner", source: 's("bd")', name: "song.js" });
+    expect(opened?.documents).toEqual([
+      { id: project.documentId, name: "song.js", source: 's("bd")' },
+    ]);
+    expect(logQuery).toHaveBeenCalledTimes(1);
+    expect(await openSharedWorkspace(db, project.documentId, "outsider")).toBeNull();
+    expect(
+      await openSharedWorkspace(db, "00000000-0000-4000-8000-000000000000", "owner"),
+    ).toBeNull();
+  });
+
   it("limits shared workspace rename and deletion to the owner and lets members leave", async () => {
     const db = await database();
     const project = await createSharedProject(db, {

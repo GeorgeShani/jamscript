@@ -1,5 +1,5 @@
 import type { EditorView } from "@codemirror/view";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { SessionLoader } from "@/components/SessionLoader";
@@ -26,23 +26,31 @@ export const OPEN_SHARED_DOCUMENT = "jamscript:open-shared-document";
 
 export function SharedProjectList() {
   const { person } = useDesktopAuth();
+  const userId = person?.id;
   const [items, setItems] = useState<SharedItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const lastLoad = useRef(0);
   useEffect(() => {
-    const reload = () => setRefresh((value) => value + 1);
+    const reload = () => {
+      if (userId && !loading && Date.now() - lastLoad.current >= 30_000) {
+        setRefresh((value) => value + 1);
+      }
+    };
     window.addEventListener("focus", reload);
     return () => window.removeEventListener("focus", reload);
-  }, []);
+  }, [userId, loading]);
+  useEffect(() => setItems([]), [userId]);
   useEffect(() => {
-    if (!person) {
-      setItems([]);
+    if (!userId) {
+      setLoading(false);
       return;
     }
     let live = true;
     setLoading(true);
     setError(null);
+    lastLoad.current = Date.now();
     void collaborationApi<SharedItem[]>("/api/shared-projects")
       .then((items) => {
         if (live) setItems(items);
@@ -56,7 +64,7 @@ export function SharedProjectList() {
     return () => {
       live = false;
     };
-  }, [person, refresh]);
+  }, [userId, refresh]);
   if (!person) return null;
   const projects = [...new Map(items.map((item) => [item.workspaceId, item])).values()];
   const manage = async (
@@ -75,7 +83,7 @@ export function SharedProjectList() {
     <section className="jam-chooser-section jam-chooser-shared" aria-labelledby="shared-heading">
       <SharedWorkspaceHeading loading={loading} refresh={() => setRefresh((value) => value + 1)} />
       {error && <p role="alert">{error}</p>}
-      {loading ? (
+      {loading && items.length === 0 ? (
         <SessionLoader label="Loading shared projects" />
       ) : projects.length === 0 ? (
         <p className="jam-muted">Projects you create or join appear here.</p>

@@ -1,3 +1,4 @@
+mod blocking;
 mod desktop_auth;
 mod github_auth;
 
@@ -48,6 +49,7 @@ struct GitCommitFile { name: String, expected_revision: Option<String>, #[serde(
 struct Folders {
     items: Arc<Mutex<Vec<Folder>>>,
     watcher: Mutex<Option<RecommendedWatcher>>,
+    io: Mutex<()>,
 }
 
 fn watch_folders(watcher: &mut RecommendedWatcher, folders: &[Folder]) {
@@ -147,39 +149,55 @@ fn validate_https_remote(url: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn git_set_origin(state: State<'_, Folders>, folder_id: String, url: String) -> Result<GitStatus, String> {
-    validate_https_remote(&url)?;
-    let selected = folder(&state, &folder_id)?;
-    let repo = selected_repository(&selected)?;
-    match repo.find_remote("origin") {
-        Ok(_) => repo.remote_set_url("origin", &url).map_err(|e| e.to_string())?,
-        Err(_) => {
-            repo.remote("origin", &url).map_err(|e| e.to_string())?;
+async fn git_set_origin(app: tauri::AppHandle, folder_id: String, url: String) -> Result<GitStatus, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        validate_https_remote(&url)?;
+        let selected = folder(&state, &folder_id)?;
+        let repo = selected_repository(&selected)?;
+        match repo.find_remote("origin") {
+            Ok(_) => repo.remote_set_url("origin", &url).map_err(|e| e.to_string())?,
+            Err(_) => {
+                repo.remote("origin", &url).map_err(|e| e.to_string())?;
+            }
         }
-    }
-    read_git_status(&repo)
+        read_git_status(&repo)
+    }).await
 }
 
 #[tauri::command]
-fn git_status(state: State<'_, Folders>, folder_id: String) -> Result<GitStatus, String> {
-    read_git_status(&selected_repository(&folder(&state, &folder_id)?)?)
+async fn git_status(app: tauri::AppHandle, folder_id: String) -> Result<GitStatus, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        read_git_status(&selected_repository(&folder(&state, &folder_id)?)?)
+    }).await
 }
 
 #[tauri::command]
-fn git_init(state: State<'_, Folders>, folder_id: String) -> Result<GitStatus, String> {
-    let selected = folder(&state, &folder_id)?;
-    let root = fs::canonicalize(&selected.path).map_err(|e| e.to_string())?;
-    if root.join(".git").exists() { return Err("This folder already contains Git metadata".into()); }
-    let mut options = RepositoryInitOptions::new();
-    options.no_reinit(true).mkdir(false).mkpath(false);
-    Repository::init_opts(&root, &options).map_err(|e| e.to_string())?;
-    read_git_status(&selected_repository(&selected)?)
+async fn git_init(app: tauri::AppHandle, folder_id: String) -> Result<GitStatus, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        let selected = folder(&state, &folder_id)?;
+        let root = fs::canonicalize(&selected.path).map_err(|e| e.to_string())?;
+        if root.join(".git").exists() { return Err("This folder already contains Git metadata".into()); }
+        let mut options = RepositoryInitOptions::new();
+        options.no_reinit(true).mkdir(false).mkpath(false);
+        Repository::init_opts(&root, &options).map_err(|e| e.to_string())?;
+        read_git_status(&selected_repository(&selected)?)
+    }).await
 }
 
 #[tauri::command]
-fn git_commit_files(state: State<'_, Folders>, folder_id: String, files: Vec<GitCommitFile>, message: String) -> Result<GitStatus, String> {
-    let selected = folder(&state, &folder_id)?;
-    commit_music_files(&selected, files, message)
+async fn git_commit_files(app: tauri::AppHandle, folder_id: String, files: Vec<GitCommitFile>, message: String) -> Result<GitStatus, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        let selected = folder(&state, &folder_id)?;
+        commit_music_files(&selected, files, message)
+    }).await
 }
 
 fn github_remote_callbacks() -> RemoteCallbacks<'static> {
@@ -212,9 +230,13 @@ fn clone_into_selected_folder(selected: &Folder, url: &str) -> Result<GitStatus,
 }
 
 #[tauri::command]
-fn git_clone(state: State<'_, Folders>, folder_id: String, url: String) -> Result<GitStatus, String> {
-    validate_https_remote(&url)?;
-    clone_into_selected_folder(&folder(&state, &folder_id)?, &url)
+async fn git_clone(app: tauri::AppHandle, folder_id: String, url: String) -> Result<GitStatus, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        validate_https_remote(&url)?;
+        clone_into_selected_folder(&folder(&state, &folder_id)?, &url)
+    }).await
 }
 
 fn origin(repo: &Repository) -> Result<git2::Remote<'_>, String> {
@@ -242,8 +264,12 @@ fn push_current_branch(selected: &Folder) -> Result<GitStatus, String> {
 }
 
 #[tauri::command]
-fn git_push(state: State<'_, Folders>, folder_id: String) -> Result<GitStatus, String> {
-    push_current_branch(&folder(&state, &folder_id)?)
+async fn git_push(app: tauri::AppHandle, folder_id: String) -> Result<GitStatus, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        push_current_branch(&folder(&state, &folder_id)?)
+    }).await
 }
 
 fn pull_fast_forward(selected: &Folder) -> Result<GitStatus, String> {
@@ -278,8 +304,12 @@ fn pull_fast_forward(selected: &Folder) -> Result<GitStatus, String> {
 }
 
 #[tauri::command]
-fn git_pull_fast_forward(state: State<'_, Folders>, folder_id: String) -> Result<GitStatus, String> {
-    pull_fast_forward(&folder(&state, &folder_id)?)
+async fn git_pull_fast_forward(app: tauri::AppHandle, folder_id: String) -> Result<GitStatus, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        pull_fast_forward(&folder(&state, &folder_id)?)
+    }).await
 }
 
 fn commit_music_files(selected: &Folder, files: Vec<GitCommitFile>, message: String) -> Result<GitStatus, String> {
@@ -410,199 +440,241 @@ mod git_tests {
 }
 
 #[tauri::command]
-fn github_auth_status() -> Result<github_auth::GitHubAuthStatus, String> {
-    github_auth::auth_status()
+async fn github_auth_status() -> Result<github_auth::GitHubAuthStatus, String> {
+    blocking::run(github_auth::auth_status).await
 }
 
 #[tauri::command]
-fn github_auth_begin_device() -> Result<github_auth::DeviceBegin, String> {
-    github_auth::begin_device_flow()
+async fn github_auth_begin_device() -> Result<github_auth::DeviceBegin, String> {
+    blocking::run(github_auth::begin_device_flow).await
 }
 
 #[tauri::command]
-fn github_auth_poll_device() -> Result<github_auth::DevicePoll, String> {
-    github_auth::poll_device_flow()
+async fn github_auth_poll_device() -> Result<github_auth::DevicePoll, String> {
+    blocking::run(github_auth::poll_device_flow).await
 }
 
 #[tauri::command]
-fn github_auth_store_token(token: String) -> Result<github_auth::GitHubAuthStatus, String> {
-    github_auth::store_token(&token)?;
-    github_auth::auth_status()
+async fn github_auth_store_token(token: String) -> Result<github_auth::GitHubAuthStatus, String> {
+    blocking::run(move || {
+        github_auth::store_token(&token)?;
+        github_auth::auth_status()
+    }).await
 }
 
 #[tauri::command]
-fn github_auth_sign_out() -> Result<github_auth::GitHubAuthStatus, String> {
-    github_auth::clear_token()?;
-    github_auth::auth_status()
+async fn github_auth_sign_out() -> Result<github_auth::GitHubAuthStatus, String> {
+    blocking::run(move || {
+        github_auth::clear_token()?;
+        github_auth::auth_status()
+    }).await
 }
 
 #[tauri::command]
-fn desktop_auth_status() -> Result<desktop_auth::AuthStatus, String> {
-    desktop_auth::status()
+async fn desktop_auth_status() -> Result<desktop_auth::AuthStatus, String> {
+    blocking::run(desktop_auth::status).await
 }
 
 #[tauri::command]
-fn desktop_auth_profile() -> Result<desktop_auth::AuthProfile, String> {
-    desktop_auth::profile()
+async fn desktop_auth_profile() -> Result<desktop_auth::AuthProfile, String> {
+    blocking::run(desktop_auth::profile).await
 }
 
 #[tauri::command]
-fn desktop_open_licenses() -> Result<(), String> {
-    open::that("https://jamscript.lukavacheishvili.workers.dev/licenses/THIRD_PARTY_NOTICES.txt")
-        .map_err(|error| format!("Could not open JamScript licenses: {error}"))
+async fn desktop_open_licenses() -> Result<(), String> {
+    blocking::run(move || {
+        open::that("https://jamscript.lukavacheishvili.workers.dev/licenses/THIRD_PARTY_NOTICES.txt")
+            .map_err(|error| format!("Could not open JamScript licenses: {error}"))
+    }).await
 }
 
 #[tauri::command]
-fn desktop_auth_begin() -> Result<desktop_auth::DeviceBegin, String> {
-    desktop_auth::begin()
+async fn desktop_auth_begin() -> Result<desktop_auth::DeviceBegin, String> {
+    blocking::run(desktop_auth::begin).await
 }
 
 #[tauri::command]
-fn desktop_auth_poll() -> Result<desktop_auth::DevicePoll, String> {
-    desktop_auth::poll()
+async fn desktop_auth_poll() -> Result<desktop_auth::DevicePoll, String> {
+    blocking::run(desktop_auth::poll).await
 }
 
 #[tauri::command]
-fn desktop_auth_open_verification() -> Result<(), String> {
-    desktop_auth::open_verification()
+async fn desktop_auth_open_verification() -> Result<(), String> {
+    blocking::run(desktop_auth::open_verification).await
 }
 
 #[tauri::command]
-fn desktop_auth_sign_out() -> Result<desktop_auth::AuthStatus, String> {
-    desktop_auth::sign_out()
+async fn desktop_auth_sign_out() -> Result<desktop_auth::AuthStatus, String> {
+    blocking::run(desktop_auth::sign_out).await
 }
 
 #[tauri::command]
-fn desktop_collaboration_request(
+async fn desktop_collaboration_request(
     path: String,
     method: String,
     body: Option<String>,
 ) -> Result<desktop_auth::ApiResult, String> {
-    desktop_auth::api_request(&path, &method, body.as_deref())
+    blocking::run(move || {
+        desktop_auth::api_request(&path, &method, body.as_deref())
+    }).await
 }
 
 #[tauri::command]
-fn list_folders(state: State<'_, Folders>) -> Result<Vec<Folder>, String> {
-    Ok(state.items.lock().map_err(|e| e.to_string())?.clone())
+async fn list_folders(app: tauri::AppHandle) -> Result<Vec<Folder>, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let folders = state.items.lock().map_err(|e| e.to_string())?.clone();
+        Ok(folders)
+    }).await
 }
 
 #[tauri::command]
-fn rename_selected_folder(app: tauri::AppHandle, state: State<'_, Folders>, folder_id: String, name: String) -> Result<Folder, String> {
-    let name = name.trim();
-    if name.is_empty() || name.chars().count() > 80 || name.chars().any(char::is_control) {
-        return Err("Choose a folder name of 1 to 80 characters".into());
-    }
-    let mut folders = state.items.lock().map_err(|e| e.to_string())?;
-    let mut updated = folders.clone();
-    let selected = updated.iter_mut().find(|item| item.id == folder_id)
-        .ok_or("Folder was not selected in JamScript")?;
-    selected.name = name.to_string();
-    let selected = selected.clone();
-    persist(&app, &updated)?;
-    *folders = updated;
-    Ok(selected)
-}
-
-#[tauri::command]
-fn remove_selected_folder(app: tauri::AppHandle, state: State<'_, Folders>, folder_id: String) -> Result<(), String> {
-    let mut folders = state.items.lock().map_err(|e| e.to_string())?;
-    let selected = folders.iter().find(|item| item.id == folder_id)
-        .cloned().ok_or("Folder was not selected in JamScript")?;
-    let mut updated = folders.clone();
-    updated.retain(|item| item.id != folder_id);
-    persist(&app, &updated)?;
-    *folders = updated;
-    if let Ok(mut watcher) = state.watcher.lock() {
-        if let Some(watcher) = watcher.as_mut() {
-            let _ = watcher.unwatch(&selected.path);
+async fn rename_selected_folder(app: tauri::AppHandle, folder_id: String, name: String) -> Result<Folder, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > 80 || name.chars().any(char::is_control) {
+            return Err("Choose a folder name of 1 to 80 characters".into());
         }
-    }
-    Ok(())
+        let mut folders = state.items.lock().map_err(|e| e.to_string())?;
+        let mut updated = folders.clone();
+        let selected = updated.iter_mut().find(|item| item.id == folder_id)
+            .ok_or("Folder was not selected in JamScript")?;
+        selected.name = name.to_string();
+        let selected = selected.clone();
+        persist(&app, &updated)?;
+        *folders = updated;
+        Ok(selected)
+    }).await
 }
 
 #[tauri::command]
-async fn open_folder(app: tauri::AppHandle, state: State<'_, Folders>) -> Result<Option<Folder>, String> {
-    let Some(chosen) = app.dialog().file().blocking_pick_folder() else { return Ok(None); };
-    let canonical = fs::canonicalize(chosen.into_path().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-    if !canonical.is_dir() { return Err("Choose a folder".into()); }
-    let mut folders = state.items.lock().map_err(|e| e.to_string())?;
-    if let Some(existing) = folders.iter().find(|item| item.path == canonical) { return Ok(Some(existing.clone())); }
-    let name = canonical.file_name().and_then(|value| value.to_str()).unwrap_or("Folder").to_string();
-    let item = Folder { id: uuid::Uuid::new_v4().to_string(), name, path: canonical.clone() };
-    folders.insert(0, item.clone());
-    persist(&app, &folders)?;
-    if let Ok(mut watcher) = state.watcher.lock() {
-        if let Some(watcher) = watcher.as_mut() {
-            let _ = watcher.watch(&canonical, RecursiveMode::NonRecursive);
+async fn remove_selected_folder(app: tauri::AppHandle, folder_id: String) -> Result<(), String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let mut folders = state.items.lock().map_err(|e| e.to_string())?;
+        let selected = folders.iter().find(|item| item.id == folder_id)
+            .cloned().ok_or("Folder was not selected in JamScript")?;
+        let mut updated = folders.clone();
+        updated.retain(|item| item.id != folder_id);
+        persist(&app, &updated)?;
+        *folders = updated;
+        if let Ok(mut watcher) = state.watcher.lock() {
+            if let Some(watcher) = watcher.as_mut() {
+                let _ = watcher.unwatch(&selected.path);
+            }
         }
-    }
-    Ok(Some(item))
+        Ok(())
+    }).await
 }
 
 #[tauri::command]
-fn list_folder_documents(state: State<'_, Folders>, folder_id: String) -> Result<Vec<Document>, String> {
-    let root = folder(&state, &folder_id)?;
-    let mut result = Vec::new();
-    for entry in fs::read_dir(&root.path).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let name = entry.file_name().to_string_lossy().to_string();
-        let Ok(path) = file_path(&root, &name, true) else { continue };
+async fn open_folder(app: tauri::AppHandle) -> Result<Option<Folder>, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let Some(chosen) = app.dialog().file().blocking_pick_folder() else { return Ok(None); };
+        let canonical = fs::canonicalize(chosen.into_path().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+        if !canonical.is_dir() { return Err("Choose a folder".into()); }
+        let mut folders = state.items.lock().map_err(|e| e.to_string())?;
+        if let Some(existing) = folders.iter().find(|item| item.path == canonical) { return Ok(Some(existing.clone())); }
+        let name = canonical.file_name().and_then(|value| value.to_str()).unwrap_or("Folder").to_string();
+        let item = Folder { id: uuid::Uuid::new_v4().to_string(), name, path: canonical.clone() };
+        folders.insert(0, item.clone());
+        persist(&app, &folders)?;
+        if let Ok(mut watcher) = state.watcher.lock() {
+            if let Some(watcher) = watcher.as_mut() {
+                let _ = watcher.watch(&canonical, RecursiveMode::NonRecursive);
+            }
+        }
+        Ok(Some(item))
+    }).await
+}
+
+#[tauri::command]
+async fn list_folder_documents(app: tauri::AppHandle, folder_id: String) -> Result<Vec<Document>, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        let root = folder(&state, &folder_id)?;
+        let mut result = Vec::new();
+        for entry in fs::read_dir(&root.path).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let name = entry.file_name().to_string_lossy().to_string();
+            let Ok(path) = file_path(&root, &name, true) else { continue };
+            let source = fs::read_to_string(path).map_err(|e| e.to_string())?;
+            result.push(Document { name, revision: revision(&source), source });
+        }
+        result.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(result)
+    }).await
+}
+
+#[tauri::command]
+async fn read_folder_document(app: tauri::AppHandle, folder_id: String, name: String) -> Result<Document, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        let path = file_path(&folder(&state, &folder_id)?, &name, true)?;
         let source = fs::read_to_string(path).map_err(|e| e.to_string())?;
-        result.push(Document { name, revision: revision(&source), source });
-    }
-    result.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(result)
+        Ok(Document { name, revision: revision(&source), source })
+    }).await
 }
 
 #[tauri::command]
-fn read_folder_document(state: State<'_, Folders>, folder_id: String, name: String) -> Result<Document, String> {
-    let path = file_path(&folder(&state, &folder_id)?, &name, true)?;
-    let source = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    Ok(Document { name, revision: revision(&source), source })
+async fn create_folder_document(app: tauri::AppHandle, folder_id: String, name: String) -> Result<Document, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        let path = file_path(&folder(&state, &folder_id)?, &name, false)?;
+        fs::OpenOptions::new().write(true).create_new(true).open(path).map_err(|e| e.to_string())?;
+        Ok(Document { name, source: String::new(), revision: revision("") })
+    }).await
 }
 
 #[tauri::command]
-fn create_folder_document(state: State<'_, Folders>, folder_id: String, name: String) -> Result<Document, String> {
-    let path = file_path(&folder(&state, &folder_id)?, &name, false)?;
-    fs::OpenOptions::new().write(true).create_new(true).open(path).map_err(|e| e.to_string())?;
-    Ok(Document { name, source: String::new(), revision: revision("") })
+async fn rename_folder_document(app: tauri::AppHandle, folder_id: String, from: String, to: String) -> Result<(), String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        let root = folder(&state, &folder_id)?;
+        let old_path = file_path(&root, &from, true)?;
+        let new_path = file_path(&root, &to, false)?;
+        if new_path.exists() { return Err("Destination already exists".into()); }
+        fs::rename(old_path, new_path).map_err(|e| e.to_string())
+    }).await
 }
 
 #[tauri::command]
-fn rename_folder_document(state: State<'_, Folders>, folder_id: String, from: String, to: String) -> Result<(), String> {
-    let root = folder(&state, &folder_id)?;
-    let old_path = file_path(&root, &from, true)?;
-    let new_path = file_path(&root, &to, false)?;
-    if new_path.exists() { return Err("Destination already exists".into()); }
-    fs::rename(old_path, new_path).map_err(|e| e.to_string())
+async fn delete_folder_document(app: tauri::AppHandle, folder_id: String, name: String) -> Result<(), String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        let path = file_path(&folder(&state, &folder_id)?, &name, true)?;
+        fs::remove_file(path).map_err(|e| e.to_string())
+    }).await
 }
 
 #[tauri::command]
-fn delete_folder_document(state: State<'_, Folders>, folder_id: String, name: String) -> Result<(), String> {
-    let path = file_path(&folder(&state, &folder_id)?, &name, true)?;
-    fs::remove_file(path).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn write_folder_document(state: State<'_, Folders>, folder_id: String, name: String, source: String, expected_revision: String) -> Result<String, String> {
-    let root = folder(&state, &folder_id)?;
-    let path = file_path(&root, &name, true)?;
-    let current = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    if revision(&current) != expected_revision { return Err("File changed on disk. Review the conflict before saving.".into()); }
-    let temporary = root.path.join(format!(".jamscript-{}.tmp", uuid::Uuid::new_v4()));
-    fs::write(&temporary, source.as_bytes()).map_err(|e| e.to_string())?;
-    let result = fs::rename(&temporary, &path).map_err(|e| e.to_string());
-    if result.is_err() { let _ = fs::remove_file(&temporary); }
-    result?;
-    Ok(revision(&source))
+async fn write_folder_document(app: tauri::AppHandle, folder_id: String, name: String, source: String, expected_revision: String) -> Result<String, String> {
+    blocking::run(move || {
+        let state = app.state::<Folders>();
+        let _io = state.io.lock().map_err(|e| e.to_string())?;
+        let root = folder(&state, &folder_id)?;
+        let path = file_path(&root, &name, true)?;
+        let current = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        if revision(&current) != expected_revision { return Err("File changed on disk. Review the conflict before saving.".into()); }
+        let temporary = root.path.join(format!(".jamscript-{}.tmp", uuid::Uuid::new_v4()));
+        fs::write(&temporary, source.as_bytes()).map_err(|e| e.to_string())?;
+        let result = fs::rename(&temporary, &path).map_err(|e| e.to_string());
+        if result.is_err() { let _ = fs::remove_file(&temporary); }
+        result?;
+        Ok(revision(&source))
+    }).await
 }
 
 fn start_watcher(app: tauri::AppHandle, items: Arc<Mutex<Vec<Folder>>>) -> Option<RecommendedWatcher> {
     let (tx, rx) = mpsc::channel::<Result<Event, notify::Error>>();
-    let mut watcher = notify::recommended_watcher(tx).ok()?;
-    if let Ok(folders) = items.lock() {
-        watch_folders(&mut watcher, &folders);
-    }
+    let watcher = notify::recommended_watcher(tx).ok()?;
     thread::spawn(move || {
         while let Ok(first) = rx.recv() {
             thread::sleep(Duration::from_millis(250));
@@ -610,7 +682,7 @@ fn start_watcher(app: tauri::AppHandle, items: Arc<Mutex<Vec<Folder>>>) -> Optio
             while let Ok(next) = rx.try_recv() {
                 batch.push(next);
             }
-            let Ok(folders) = items.lock() else { continue };
+            let Ok(folders) = items.lock().map(|items| items.clone()) else { continue };
             let mut touched = HashSet::new();
             for event in batch.into_iter().flatten() {
                 for path in event.paths {
@@ -643,7 +715,16 @@ pub fn run() {
                 .unwrap_or_default();
             let items = Arc::new(Mutex::new(recent));
             let watcher = start_watcher(app.handle().clone(), Arc::clone(&items));
-            app.manage(Folders { items, watcher: Mutex::new(watcher) });
+            app.manage(Folders { items, watcher: Mutex::new(watcher), io: Mutex::new(()) });
+            // Register saved folders away from the window thread: disconnected drives can stall.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let state = handle.state::<Folders>();
+                let folders = state.items.lock().map(|items| items.clone()).unwrap_or_default();
+                if let Ok(mut watcher) = state.watcher.lock() {
+                    if let Some(watcher) = watcher.as_mut() { watch_folders(watcher, &folders); }
+                };
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![list_folders, open_folder, rename_selected_folder,

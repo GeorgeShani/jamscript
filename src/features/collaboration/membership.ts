@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { alias } from "drizzle-orm/pg-core";
 
 import {
   documentRevisions,
@@ -119,14 +120,19 @@ export async function roleForDocument(db: CollaborationDb, documentId: string, u
       workspaceName: workspaces.name,
       source: documents.source,
       name: documents.name,
+      role: workspaceMembers.role,
     })
     .from(documents)
     .innerJoin(workspaces, eq(workspaces.id, documents.workspaceId))
+    .innerJoin(
+      workspaceMembers,
+      and(
+        eq(workspaceMembers.workspaceId, documents.workspaceId),
+        eq(workspaceMembers.clerkUserId, userId),
+      ),
+    )
     .where(eq(documents.id, documentId));
-  if (!document) return null;
-  const role = await memberRole(db, document.workspaceId, userId);
-  if (!role) return null;
-  return { ...document, role };
+  return document ?? null;
 }
 
 export async function listWorkspaceDocuments(
@@ -147,13 +153,39 @@ export async function listWorkspaceDocuments(
  * Returns database snapshots only — live Yjs is loaded in the browser room after mount.
  */
 export async function openSharedWorkspace(db: CollaborationDb, documentId: string, userId: string) {
-  const access = await roleForDocument(db, documentId, userId);
-  if (!access) return null;
-  const files = await db
-    .select({ id: documents.id, name: documents.name, source: documents.source })
-    .from(documents)
-    .where(eq(documents.workspaceId, access.workspaceId));
-  return { access, documents: files };
+  const selected = alias(documents, "selected_document");
+  const rows = await db
+    .select({
+      workspaceId: workspaces.id,
+      workspaceName: workspaces.name,
+      role: workspaceMembers.role,
+      id: documents.id,
+      name: documents.name,
+      source: documents.source,
+    })
+    .from(selected)
+    .innerJoin(workspaces, eq(workspaces.id, selected.workspaceId))
+    .innerJoin(
+      workspaceMembers,
+      and(
+        eq(workspaceMembers.workspaceId, workspaces.id),
+        eq(workspaceMembers.clerkUserId, userId),
+      ),
+    )
+    .innerJoin(documents, eq(documents.workspaceId, workspaces.id))
+    .where(eq(selected.id, documentId));
+  const active = rows.find((row) => row.id === documentId);
+  if (!active) return null;
+  return {
+    access: {
+      workspaceId: active.workspaceId,
+      workspaceName: active.workspaceName,
+      role: active.role,
+      source: active.source,
+      name: active.name,
+    },
+    documents: rows.map(({ id, name, source }) => ({ id, name, source })),
+  };
 }
 
 export async function renameSharedDocument(
