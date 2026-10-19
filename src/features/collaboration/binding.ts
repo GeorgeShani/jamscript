@@ -21,8 +21,11 @@ export type { SharedPresence };
 let client: ReturnType<typeof createClient> | null = null;
 const bindings = new WeakMap<EditorView, Compartment>();
 
-function liveblocks() {
-  client ??= createClient({ authEndpoint: "/api/collaboration/auth" });
+function liveblocks(
+  authEndpoint:
+    string | ((room?: string) => Promise<{ token: string }>) = "/api/collaboration/auth",
+) {
+  client ??= createClient({ authEndpoint });
   return client;
 }
 
@@ -123,11 +126,12 @@ export function attachSharedDocument(
     name: string;
     onStatus: (status: string) => void;
     onPresence: (people: SharedPresence[]) => void;
+    authEndpoint?: (room?: string) => Promise<{ token: string }>;
   },
 ) {
   const identity = { userId: input.userId, name: input.name };
   const doc = new Y.Doc();
-  const { room, leave } = liveblocks().enterRoom(roomId(input.documentId), {
+  const { room, leave } = liveblocks(input.authEndpoint).enterRoom(roomId(input.documentId), {
     // Top-level presence is a fallback when `__yjs.user` blips during reconnect.
     initialPresence: { name: input.name, userId: input.userId },
   });

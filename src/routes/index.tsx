@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MarketingHome } from "@/marketing/MarketingHome";
 
+const siteOrigin = "https://jamscript.lukavacheishvili.workers.dev";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -16,8 +18,20 @@ export const Route = createFileRoute("/")({
         content: "A music workbench where code is the source and controls are how you play it.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: siteOrigin },
+      { property: "og:site_name", content: "JamScript" },
+      { property: "og:image", content: `${siteOrigin}/brand/og-image.png` },
+      { property: "og:image:type", content: "image/png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        property: "og:image:alt",
+        content: "JamScript music workbench with Strudel code and rhythm controls",
+      },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${siteOrigin}/brand/og-image.png` },
     ],
+    links: [{ rel: "canonical", href: siteOrigin }],
   }),
   component: MarketingHome,
 });

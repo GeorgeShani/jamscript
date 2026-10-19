@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { parseStrudelSoundfontsWithoutEval } from "./vite.strudel-soundfonts";
 
 // Static workbench assets are served by the Tauri webview.
 export default defineConfig({
@@ -26,7 +27,7 @@ export default defineConfig({
       { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
     ],
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [parseStrudelSoundfontsWithoutEval(), react(), tailwindcss()],
   server: { port: 1420, strictPort: true },
   build: {
     outDir: "../dist/desktop",

@@ -15,6 +15,7 @@ import { Route as DocsRouteImport } from './routes/docs'
 import { Route as PresentationRouteImport } from './routes/presentation'
 import { Route as ApiAgentChatRouteImport } from './routes/api.agent-chat'
 import { Route as ApiAgentProposalRouteImport } from './routes/api.agent-proposal'
+import { Route as ApiDesktopSessionRouteImport } from './routes/api.desktop-session'
 import { Route as ApiSharedProjectsRouteImport } from './routes/api.shared-projects'
 import { Route as ApiSharedWorkspacesRouteImport } from './routes/api.shared-workspaces'
 import { Route as AppIndexRouteImport } from './routes/app.index'
@@ -53,6 +54,11 @@ const ApiAgentChatRoute = ApiAgentChatRouteImport.update({
 const ApiAgentProposalRoute = ApiAgentProposalRouteImport.update({
   id: '/api/agent-proposal',
   path: '/api/agent-proposal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDesktopSessionRoute = ApiDesktopSessionRouteImport.update({
+  id: '/api/desktop-session',
+  path: '/api/desktop-session',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSharedProjectsRoute = ApiSharedProjectsRouteImport.update({
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/presentation': typeof PresentationRoute
   '/api/agent-chat': typeof ApiAgentChatRoute
   '/api/agent-proposal': typeof ApiAgentProposalRoute
+  '/api/desktop-session': typeof ApiDesktopSessionRoute
   '/api/shared-projects': typeof ApiSharedProjectsRoute
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
   '/app/help': typeof AppHelpRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/presentation': typeof PresentationRoute
   '/api/agent-chat': typeof ApiAgentChatRoute
   '/api/agent-proposal': typeof ApiAgentProposalRoute
+  '/api/desktop-session': typeof ApiDesktopSessionRoute
   '/api/shared-projects': typeof ApiSharedProjectsRoute
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
   '/app/help': typeof AppHelpRoute
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/presentation': typeof PresentationRoute
   '/api/agent-chat': typeof ApiAgentChatRoute
   '/api/agent-proposal': typeof ApiAgentProposalRoute
+  '/api/desktop-session': typeof ApiDesktopSessionRoute
   '/api/shared-projects': typeof ApiSharedProjectsRoute
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
   '/app/help': typeof AppHelpRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/presentation'
     | '/api/agent-chat'
     | '/api/agent-proposal'
+    | '/api/desktop-session'
     | '/api/shared-projects'
     | '/api/shared-workspaces'
     | '/app/help'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/presentation'
     | '/api/agent-chat'
     | '/api/agent-proposal'
+    | '/api/desktop-session'
     | '/api/shared-projects'
     | '/api/shared-workspaces'
     | '/app/help'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/presentation'
     | '/api/agent-chat'
     | '/api/agent-proposal'
+    | '/api/desktop-session'
     | '/api/shared-projects'
     | '/api/shared-workspaces'
     | '/app/help'
@@ -213,6 +225,7 @@ export interface RootRouteChildren {
   PresentationRoute: typeof PresentationRoute
   ApiAgentChatRoute: typeof ApiAgentChatRoute
   ApiAgentProposalRoute: typeof ApiAgentProposalRoute
+  ApiDesktopSessionRoute: typeof ApiDesktopSessionRoute
   ApiSharedProjectsRoute: typeof ApiSharedProjectsRoute
   ApiSharedWorkspacesRoute: typeof ApiSharedWorkspacesRoute
   ApiCollaborationAuthRoute: typeof ApiCollaborationAuthRoute
@@ -260,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: '/api/agent-proposal'
       fullPath: '/api/agent-proposal'
       preLoaderRoute: typeof ApiAgentProposalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/desktop-session': {
+      id: '/api/desktop-session'
+      path: '/api/desktop-session'
+      fullPath: '/api/desktop-session'
+      preLoaderRoute: typeof ApiDesktopSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/shared-projects': {
@@ -355,6 +375,7 @@ const rootRouteChildren: RootRouteChildren = {
   PresentationRoute: PresentationRoute,
   ApiAgentChatRoute: ApiAgentChatRoute,
   ApiAgentProposalRoute: ApiAgentProposalRoute,
+  ApiDesktopSessionRoute: ApiDesktopSessionRoute,
   ApiSharedProjectsRoute: ApiSharedProjectsRoute,
   ApiSharedWorkspacesRoute: ApiSharedWorkspacesRoute,
   ApiCollaborationAuthRoute: ApiCollaborationAuthRoute,

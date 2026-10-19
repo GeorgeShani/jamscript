@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionWorkbench } from "@/workbench/SessionWorkbench";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
+  browserStorage,
   createDocument,
   createWorkspace,
   listDocuments,
@@ -21,11 +22,51 @@ vi.mock("@/engine/playback", () => ({
   getOutputNode: vi.fn().mockReturnValue(null),
   setMix: vi.fn(),
 }));
-vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
+vi.mock("@/workbench/AuthControls", () => ({
+  AuthControls: () => null,
+  GuestWorkspaceNotice: () => null,
+}));
 
 afterEach(cleanup);
 
 describe("browser workbench", () => {
+  it("uses an in-app Save As dialog for desktop folders", async () => {
+    const { workspace } = await createWorkspace(`Desktop ${crypto.randomUUID()}`, 's("bd")');
+    const saveAs = vi.fn(
+      async (document: Awaited<ReturnType<typeof createDocument>>, name: string) => ({
+        ...document,
+        id: crypto.randomUUID(),
+        name,
+      }),
+    );
+    render(
+      <TooltipProvider>
+        <SessionWorkbench
+          workspaceId={workspace.id}
+          storage={{
+            ...browserStorage,
+            isNativeWorkspace: (id) => id === workspace.id,
+            isDirty: () => true,
+            saveToDisk: async () => {},
+            saveAs,
+          }}
+        />
+      </TooltipProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Save As" }));
+    const dialog = screen.getByRole("dialog", { name: "Save a copy" });
+    expect(dialog).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "File name" }), {
+      target: { value: "copy.js" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save copy" }));
+    await waitFor(() => expect(saveAs).toHaveBeenCalledWith(expect.anything(), "copy.js"));
+    await waitFor(() =>
+      expect(document.querySelector(".jam-current-file")).toHaveTextContent("copy.js"),
+    );
+    expect(screen.queryByRole("dialog", { name: "Save a copy" })).not.toBeInTheDocument();
+  });
+
   it("searches file contents across the workspace and opens a selected result", async () => {
     const { workspace } = await createWorkspace(`Search ${crypto.randomUUID()}`, 's("bd")');
     const second = await createDocument(workspace.id, "lead.js");

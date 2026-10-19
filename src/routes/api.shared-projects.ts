@@ -63,9 +63,22 @@ async function actor() {
       error: Response.json({ error: "Collaboration is not configured" }, { status: 503, headers }),
     };
   const { auth } = await import("@clerk/tanstack-react-start/server");
-  const { userId, isAuthenticated } = await auth();
-  if (!isAuthenticated || !userId)
+  const identity = await auth({
+    acceptsToken: ["session_token", "oauth_token"],
+  });
+  const userId = "userId" in identity ? identity.userId : null;
+  if (!identity.isAuthenticated || !userId)
     return { error: Response.json({ error: "Sign in required" }, { status: 401, headers }) };
+  if (
+    identity.tokenType === "oauth_token" &&
+    !("scopes" in identity && identity.scopes.includes("profile"))
+  )
+    return {
+      error: Response.json(
+        { error: "Desktop token lacks profile scope" },
+        { status: 403, headers },
+      ),
+    };
   return { userId };
 }
 

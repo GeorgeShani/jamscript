@@ -3,6 +3,7 @@ import { isolateHistory } from "@codemirror/commands";
 import { Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { Button } from "@/components/ui/button";
+import { shareableDocumentName } from "@/features/collaboration/shareable";
 import { apiUrl } from "@/lib/app-api";
 import { ChatMarkdown } from "./chat-markdown";
 import { createNdjsonParser } from "./chat-stream";
@@ -23,7 +24,13 @@ import {
 import { ProposalCard } from "./ProposalCard";
 import { applyReviewedProposal } from "./apply-proposal";
 import type { ChangeProposal } from "./proposal";
-import type { ChatMessage, ChatMode, ChatScope, ChatThread } from "./chat-types";
+import {
+  CHAT_LIMITS,
+  type ChatMessage,
+  type ChatMode,
+  type ChatScope,
+  type ChatThread,
+} from "./chat-types";
 
 export function ChatPanel({
   workspaceId,
@@ -57,7 +64,6 @@ export function ChatPanel({
   const [mode, setMode] = useState<ChatMode>("ask");
   const [scope, setScope] = useState<ChatScope>("active");
   const [attachedIds, setAttachedIds] = useState<string[]>([]);
-  const [includeActive, setIncludeActive] = useState(true);
   const [includeSelection, setIncludeSelection] = useState(true);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -176,6 +182,7 @@ export function ChatPanel({
   };
 
   const applyProposal = (messageId: string, proposal: ChangeProposal) => {
+    if (!proposal.files.length) return;
     const applied = applyReviewedProposal(proposal, views, canEdit);
     if (!applied) {
       markProposal(messageId, "stale");
@@ -183,7 +190,29 @@ export function ChatPanel({
       return;
     }
     onStopPlayback();
-    markProposal(messageId, "applied");
+    updateThread((current) => ({
+      ...current,
+      messages: current.messages.map((message) => {
+        if (message.id !== messageId || !message.proposal) return message;
+        const appliedDocumentIds = [
+          ...new Set([
+            ...(message.proposal.appliedDocumentIds ?? []),
+            ...proposal.files.map((file) => file.documentId),
+          ]),
+        ];
+        return {
+          ...message,
+          proposal: {
+            ...message.proposal,
+            appliedDocumentIds,
+            status:
+              appliedDocumentIds.length === message.proposal.proposal.files.length
+                ? ("applied" as const)
+                : ("pending" as const),
+          },
+        };
+      }),
+    }));
     views.get(documentId)?.focus();
   };
 
@@ -246,19 +275,20 @@ export function ChatPanel({
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const attachedDocumentIds = [
-        ...(includeActive ? [documentId] : []),
-        ...attachedIds.filter((id) => id !== documentId),
-      ];
+      const attachedDocumentIds = [documentId, ...attachedIds.filter((id) => id !== documentId)];
+      const eligibleDocuments = documents.filter((file) => shareableDocumentName(file.name));
       const fileIds =
         scope === "workspace"
-          ? documents.map((file) => file.id)
+          ? [
+              documentId,
+              ...eligibleDocuments.map((file) => file.id).filter((id) => id !== documentId),
+            ]
           : attachedDocumentIds.length
             ? attachedDocumentIds
             : [documentId];
       const files = fileIds
         .map((id) => {
-          const meta = documents.find((file) => file.id === id);
+          const meta = eligibleDocuments.find((file) => file.id === id);
           const source = sources.find((file) => file.id === id)?.source;
           if (!meta || source === undefined) return null;
           return { id, name: meta.name, source };
@@ -376,8 +406,10 @@ export function ChatPanel({
   const lastAssistant = [...thread.messages]
     .reverse()
     .find((message) => message.role === "assistant");
+  const lastUserMessage = [...thread.messages].reverse().find((message) => message.role === "user");
 
   const bannerError = error && lastAssistant?.error !== error ? error : null;
+  const editAllowed = canEdit(documentId);
 
   return (
     <div className="jam-chat-panel">
@@ -492,17 +524,29 @@ export function ChatPanel({
                   proposal={message.proposal.proposal}
                   status={
                     message.proposal.status === "pending" &&
-                    !message.proposal.proposal.files.every((file) =>
-                      sources.some(
-                        (source) =>
-                          source.id === file.documentId && source.source === file.baseSource,
-                      ),
-                    )
+                    !message.proposal.proposal.files
+                      .filter(
+                        (file) => !message.proposal?.appliedDocumentIds?.includes(file.documentId),
+                      )
+                      .every((file) =>
+                        sources.some(
+                          (source) =>
+                            source.id === file.documentId && source.source === file.baseSource,
+                        ),
+                      )
                       ? "stale"
                       : message.proposal.status
                   }
+                  appliedDocumentIds={message.proposal.appliedDocumentIds ?? []}
                   sources={sources}
-                  onApplyAll={() => applyProposal(message.id, message.proposal!.proposal)}
+                  onApplyAll={() =>
+                    applyProposal(message.id, {
+                      ...message.proposal!.proposal,
+                      files: message.proposal!.proposal.files.filter(
+                        (file) => !message.proposal!.appliedDocumentIds?.includes(file.documentId),
+                      ),
+                    })
+                  }
                   onApplyFile={(id) => {
                     const file = message.proposal!.proposal.files.find(
                       (item) => item.documentId === id,
@@ -533,6 +577,27 @@ export function ChatPanel({
                   </button>
                 </p>
               )}
+              {message.role === "assistant" &&
+                message.id === lastAssistant?.id &&
+                !pending &&
+                !message.proposal &&
+                !message.error &&
+                message.content &&
+                mode === "ask" &&
+                editAllowed &&
+                lastUserMessage && (
+                  <button
+                    type="button"
+                    className="jam-chat-tool-link jam-chat-turn-into-edit"
+                    onClick={() => {
+                      setMode("edit");
+                      setDraft(lastUserMessage.content);
+                      composerRef.current?.focus();
+                    }}
+                  >
+                    Propose an edit for this request
+                  </button>
+                )}
             </article>
           ))
         )}
@@ -547,18 +612,9 @@ export function ChatPanel({
       <div className="jam-chat-dock">
         <div className="jam-chat-dock-meta">
           <div className="jam-chat-context" aria-label="Assistant context">
-            {includeActive && (
-              <button
-                type="button"
-                className="jam-chat-chip"
-                onClick={() => setIncludeActive(false)}
-              >
-                <span className="jam-chat-chip-label">{documentName}</span>
-                <span className="jam-chat-chip-x" aria-hidden="true">
-                  ×
-                </span>
-              </button>
-            )}
+            <span className="jam-chat-chip" title="The active file is always included">
+              <span className="jam-chat-chip-label">{documentName}</span>
+            </span>
             {includeSelection && selection && (
               <button
                 type="button"
@@ -593,6 +649,7 @@ export function ChatPanel({
                 type="button"
                 className="jam-chat-add-file-btn"
                 aria-expanded={pickerOpen}
+                disabled={attachedIds.length >= CHAT_LIMITS.maxAttachedFiles - 1}
                 onClick={() => setPickerOpen((open) => !open)}
               >
                 + File
@@ -600,7 +657,12 @@ export function ChatPanel({
               {pickerOpen && (
                 <ul role="listbox" aria-label="Workspace files">
                   {documents
-                    .filter((file) => file.id !== documentId && !attachedIds.includes(file.id))
+                    .filter(
+                      (file) =>
+                        shareableDocumentName(file.name) &&
+                        file.id !== documentId &&
+                        !attachedIds.includes(file.id),
+                    )
                     .map((file) => (
                       <li key={file.id}>
                         <button
@@ -633,22 +695,29 @@ export function ChatPanel({
               type="button"
               className={mode === "edit" ? "is-active" : undefined}
               aria-pressed={mode === "edit"}
+              disabled={!editAllowed}
               onClick={() => setMode("edit")}
             >
               Edit
             </button>
-            {mode === "edit" && (
-              <select
-                aria-label="Edit scope"
-                value={scope}
-                onChange={(event) => setScope(event.target.value as ChatScope)}
-              >
-                <option value="active">Active file</option>
-                <option value="workspace">Workspace</option>
-              </select>
-            )}
+            <select
+              aria-label="Files in assistant context"
+              value={scope}
+              onChange={(event) => setScope(event.target.value as ChatScope)}
+            >
+              <option value="active">This file</option>
+              <option value="workspace">Workspace (up to 8 files)</option>
+            </select>
           </div>
         </div>
+
+        <p className="jam-chat-mode-help">
+          {!editAllowed
+            ? "You can ask about this shared file. Editing requires editor access."
+            : mode === "edit"
+              ? "Edit proposes changes to your files. Review them before applying."
+              : "Ask answers questions about the selected file context."}
+        </p>
 
         <div className="jam-chat-composer">
           <textarea

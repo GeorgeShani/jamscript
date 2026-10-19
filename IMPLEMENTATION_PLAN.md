@@ -99,6 +99,8 @@ Acceptance: play the complete program, including crate drums and General MIDI pi
 
 ### C. Collaborative workspaces
 
+19 October desktop slice: the Tauri workbench now offers Clerk device-code sign-in, OS-keychain OAuth credentials, native authenticated requests to shared-project and Liveblocks auth endpoints, shared-project opening, owner sharing/invitation controls, and persisted device-local folder-to-room bindings. The Worker accepts verified Clerk OAuth tokens for those endpoints while continuing to enforce database membership and owner/editor/viewer room permissions. Local folders remain available without sign-in. The development Clerk instance has a public JamScript Desktop OAuth client with device authorization enabled. A live two-user desktop/browser session, offline reconciliation, and release-installer verification remain open, so C acceptance stays unchecked.
+
 - [ ] Use Clerk authentication and session identity; add Supabase workspace metadata, memberships and invitations with authorization tied to that identity; use Liveblocks with Yjs for shared project text and presence.
 - [x] Keep anonymous offline local work. Explicit sharing selects project files and excludes credentials, Git internals and dependency directories. External sample references stay source text.
 - [ ] Implement owner/editor/viewer roles, revocable invitations, real presence, connectivity status and persistent workspaces available while the owner is offline.
@@ -142,6 +144,7 @@ Acceptance: save without Git; then complete a real optional clone/edit/commit/pu
 - [x] Let the agent read authorized project files, consult Strudel docs/diagnostics and propose coordinated edits through Ask/Edit chat. Explicit Git tools and general terminal execution remain outside this release.
 - [x] Show streamed text, cancellation and actual failures in the assistant pane. Exclude secrets from context and logs (operation IDs only).
 - [x] Review versioned multi-file proposals before apply; invalidate proposals after source changes. Git actions need their own explicit approval.
+- [x] Separate grounded Ask replies from schema-constrained Edit proposals. Allow workspace file context for questions, carry an answered request into Edit, and keep unapplied files reviewable after a per-file apply.
 - [ ] Perform preservation checks only for the supported deterministic subset; do not execute arbitrary music as validation or substitute fixtures for real check results.
 
 Acceptance: explain and propose a useful change to "coastline," review/apply a fresh proposal, reject stale/unauthorized edits, cancel pending work and keep credentials out of client assets and logs.

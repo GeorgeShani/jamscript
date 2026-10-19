@@ -48,6 +48,10 @@ export function formatAgentModelError(cause: unknown): string {
     return `That Gemini model is unavailable. Set GEMINI_MODEL=${DEFAULT_GEMINI_MODEL}.`;
   if (/API key|INVALID_ARGUMENT|401|unauthenticated/i.test(text))
     return "Gemini API key is invalid or missing. Set GEMINI_API_KEY on the Worker.";
+  if (/Agent proposed no changes/i.test(text))
+    return "The assistant proposed no file changes. Describe the change more specifically.";
+  if (/Invalid agent response|Invalid proposal file/i.test(text))
+    return "The assistant returned a proposal that could not be reviewed. Try again.";
   if (cause instanceof Error && cause.message.startsWith("Agent response")) return cause.message;
   if (cause instanceof Error && cause.message.startsWith("Proposal")) return cause.message;
   if (cause instanceof Error && cause.message.startsWith("Edit mode")) return cause.message;

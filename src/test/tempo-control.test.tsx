@@ -14,7 +14,10 @@ vi.mock("@/engine/playback", () => ({
   stop: vi.fn().mockResolvedValue(undefined),
   setMix: vi.fn(),
 }));
-vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
+vi.mock("@/workbench/AuthControls", () => ({
+  AuthControls: () => null,
+  GuestWorkspaceNotice: () => null,
+}));
 afterEach(() => {
   cleanup();
   vi.useRealTimers();

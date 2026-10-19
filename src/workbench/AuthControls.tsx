@@ -25,3 +25,9 @@ export function AuthControls() {
     </div>
   );
 }
+
+export function GuestWorkspaceNotice() {
+  const notice = <p className="jam-chooser-privacy">Saved locally · No account required</p>;
+  if (!import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"]) return notice;
+  return <Show when="signed-out">{notice}</Show>;
+}

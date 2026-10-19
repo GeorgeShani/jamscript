@@ -6,6 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
+  server: { watch: { ignored: ["**/src-tauri/target/**"] } },
   plugins: [
     cloudflare({ viteEnvironment: { name: "ssr" } }),
     tanstackStart(),

@@ -43,7 +43,7 @@ import {
 } from "@/workspaces/storage";
 import { TrackInspector } from "./TrackInspector";
 import { OutputPanel } from "./OutputPanel";
-import { AuthControls } from "@/workbench/AuthControls";
+import { AuthControls, GuestWorkspaceNotice } from "@/workbench/AuthControls";
 import {
   ShareControls,
   SharedProjectList,
@@ -141,6 +141,16 @@ export function SessionWorkbench({
   const [newDocumentName, setNewDocumentName] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [saveAsTarget, setSaveAsTarget] = useState<string | null>(null);
+  const [saveAsName, setSaveAsName] = useState("");
+  const [saveAsError, setSaveAsError] = useState<string | null>(null);
+  const [savingAs, setSavingAs] = useState(false);
+  const wasSaveAsOpen = useRef(false);
+  useEffect(() => {
+    if (wasSaveAsOpen.current && !saveAsTarget)
+      document.querySelector<HTMLElement>("[data-save-as-trigger]")?.focus();
+    wasSaveAsOpen.current = !!saveAsTarget;
+  }, [saveAsTarget]);
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
   );
@@ -1403,7 +1413,7 @@ export function SessionWorkbench({
                 </Button>
               </div>
             </form>
-            <p className="jam-chooser-privacy">Saved locally · No account required</p>
+            <GuestWorkspaceNotice />
             {storage.openFolder && (
               <Button type="button" variant="outline" onClick={() => void openNativeFolder()}>
                 <Folder size={16} /> Open folder from disk
@@ -1659,22 +1669,13 @@ export function SessionWorkbench({
             <Button
               size="sm"
               variant="ghost"
+              data-save-as-trigger
               disabled={!activeDocument}
-              onClick={async () => {
+              onClick={() => {
                 if (!activeDocument) return;
-                const name = prompt("Save a copy as", activeDocument.name);
-                if (!name || name === activeDocument.name) return;
-                try {
-                  const copy = await storage.saveAs!(
-                    drafts.current.get(activeDocument.id) ?? activeDocument,
-                    name,
-                  );
-                  drafts.current.set(copy.id, copy);
-                  setDocuments((items) => [...items, copy]);
-                  selectDocument(copy.id);
-                } catch (cause) {
-                  setError(message(cause));
-                }
+                setSaveAsTarget(activeDocument.id);
+                setSaveAsName(activeDocument.name);
+                setSaveAsError(null);
               }}
             >
               Save As
@@ -1683,6 +1684,84 @@ export function SessionWorkbench({
         </div>
         <AuthControls />
       </header>
+      {saveAsTarget && storage.saveAs && (
+        <div className="jam-save-as-backdrop">
+          <form
+            className="jam-save-as-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="jam-save-as-title"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const original = drafts.current.get(saveAsTarget);
+              const name = saveAsName.trim();
+              if (!original || !name) return;
+              if (name === original.name) {
+                setSaveAsError("Choose a different file name for the copy.");
+                return;
+              }
+              setSavingAs(true);
+              setSaveAsError(null);
+              void storage.saveAs!(original, name)
+                .then((copy) => {
+                  drafts.current.set(copy.id, copy);
+                  setDocuments((items) => [...items, copy]);
+                  selectDocument(copy.id);
+                  setSaveAsTarget(null);
+                })
+                .catch((cause: unknown) => setSaveAsError(message(cause)))
+                .finally(() => setSavingAs(false));
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !savingAs) setSaveAsTarget(null);
+              if (event.key !== "Tab") return;
+              const focusable = Array.from(
+                event.currentTarget.querySelectorAll<HTMLElement>(
+                  "input:not(:disabled), button:not(:disabled)",
+                ),
+              );
+              if (focusable.length === 0) return;
+              const first = focusable[0];
+              const last = focusable[focusable.length - 1];
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last?.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first?.focus();
+              }
+            }}
+          >
+            <h2 id="jam-save-as-title">Save a copy</h2>
+            <label htmlFor="jam-save-as-name">File name</label>
+            <input
+              id="jam-save-as-name"
+              autoFocus
+              required
+              value={saveAsName}
+              onChange={(event) => setSaveAsName(event.target.value)}
+            />
+            {saveAsError && (
+              <p role="alert" className="jam-error">
+                {saveAsError}
+              </p>
+            )}
+            <div className="jam-save-as-actions">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={savingAs}
+                onClick={() => setSaveAsTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingAs || !saveAsName.trim()}>
+                {savingAs ? "Saving…" : "Save copy"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
       {nativeWorkspace && activeDocument && diskConflicts[activeDocument.id] && (
         <div className="jam-conflict" role="alert">
           <span>{activeDocument.name} changed on disk. Your unsaved edits are still here.</span>

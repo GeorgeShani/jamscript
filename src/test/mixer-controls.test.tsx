@@ -13,7 +13,10 @@ vi.mock("@/engine/playback", () => ({
   getOutputNode: vi.fn().mockReturnValue(null),
   setMix: vi.fn(),
 }));
-vi.mock("@/workbench/AuthControls", () => ({ AuthControls: () => null }));
+vi.mock("@/workbench/AuthControls", () => ({
+  AuthControls: () => null,
+  GuestWorkspaceNotice: () => null,
+}));
 
 afterEach(cleanup);
 

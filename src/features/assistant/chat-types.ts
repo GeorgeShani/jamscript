@@ -10,6 +10,7 @@ export type ProposalStatus = "pending" | "applied" | "rejected" | "stale";
 export interface ChatProposalState {
   proposal: ChangeProposal;
   status: ProposalStatus;
+  appliedDocumentIds?: string[];
 }
 
 export interface ChatMessage {

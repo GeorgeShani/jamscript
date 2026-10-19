@@ -1,3 +1,4 @@
+mod desktop_auth;
 mod github_auth;
 
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
@@ -436,6 +437,40 @@ fn github_auth_sign_out() -> Result<github_auth::GitHubAuthStatus, String> {
 }
 
 #[tauri::command]
+fn desktop_auth_status() -> Result<desktop_auth::AuthStatus, String> {
+    desktop_auth::status()
+}
+
+#[tauri::command]
+fn desktop_auth_begin() -> Result<desktop_auth::DeviceBegin, String> {
+    desktop_auth::begin()
+}
+
+#[tauri::command]
+fn desktop_auth_poll() -> Result<desktop_auth::DevicePoll, String> {
+    desktop_auth::poll()
+}
+
+#[tauri::command]
+fn desktop_auth_open_verification() -> Result<(), String> {
+    desktop_auth::open_verification()
+}
+
+#[tauri::command]
+fn desktop_auth_sign_out() -> Result<desktop_auth::AuthStatus, String> {
+    desktop_auth::sign_out()
+}
+
+#[tauri::command]
+fn desktop_collaboration_request(
+    path: String,
+    method: String,
+    body: Option<String>,
+) -> Result<desktop_auth::ApiResult, String> {
+    desktop_auth::api_request(&path, &method, body.as_deref())
+}
+
+#[tauri::command]
 fn list_folders(state: State<'_, Folders>) -> Result<Vec<Folder>, String> {
     Ok(state.items.lock().map_err(|e| e.to_string())?.clone())
 }
@@ -571,7 +606,8 @@ pub fn run() {
             delete_folder_document, write_folder_document, git_status, git_init, git_commit_files,
             git_clone, git_set_origin, git_push, git_pull_fast_forward, github_auth_status,
             github_auth_begin_device, github_auth_poll_device, github_auth_store_token,
-            github_auth_sign_out])
+            github_auth_sign_out, desktop_auth_status, desktop_auth_begin, desktop_auth_poll,
+            desktop_auth_sign_out, desktop_auth_open_verification, desktop_collaboration_request])
         .run(tauri::generate_context!())
         .expect("JamScript failed to start");
 }

@@ -21,6 +21,7 @@ const baselines = new Map<string, Baseline>();
 const folderId = (id: string) => id.slice("native:".length);
 const isNativeWorkspace = (id: string) => id.startsWith("native:");
 const recoveryKey = (id: string) => `jamscript-recovery-${id}`;
+const sharedKey = (id: string) => `jamscript-shared-${id}`;
 const idMapKey = (id: string) => `jamscript-file-ids-${id}`;
 
 function ids(id: string): Record<string, string> {
@@ -88,12 +89,30 @@ function record(folder: Folder, file: File): DocumentRecord {
     );
   }
   const now = Date.now();
+  let shared: DocumentRecord["shared"];
+  try {
+    const saved = JSON.parse(localStorage.getItem(sharedKey(id)) ?? "null") as unknown;
+    if (
+      saved &&
+      typeof saved === "object" &&
+      "workspaceId" in saved &&
+      typeof saved.workspaceId === "string" &&
+      "documentId" in saved &&
+      typeof saved.documentId === "string" &&
+      "role" in saved &&
+      (saved.role === "owner" || saved.role === "editor" || saved.role === "viewer")
+    )
+      shared = { workspaceId: saved.workspaceId, documentId: saved.documentId, role: saved.role };
+  } catch {
+    /* A damaged local binding never blocks opening the file. */
+  }
   return {
     id,
     workspaceId: `native:${folder.id}`,
     name: file.name,
     source: recovered?.source ?? file.source,
     beatsPerCycle: 4,
+    ...(shared ? { shared } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -214,6 +233,8 @@ export const desktopStorage: WorkspaceStorage = {
   },
   async saveDocument(document) {
     if (!isNativeWorkspace(document.workspaceId)) return browserStorage.saveDocument(document);
+    if (document.shared)
+      localStorage.setItem(sharedKey(document.id), JSON.stringify(document.shared));
     if (document.source === baselines.get(document.id)?.source)
       localStorage.removeItem(recoveryKey(document.id));
     else {
@@ -331,6 +352,7 @@ export const desktopStorage: WorkspaceStorage = {
     const target = location(id);
     await invoke("delete_folder_document", { folderId: target.folderId, name: target.name });
     localStorage.removeItem(recoveryKey(id));
+    localStorage.removeItem(sharedKey(id));
     const known = ids(target.folderId);
     delete known[target.name];
     saveIds(target.folderId, known);

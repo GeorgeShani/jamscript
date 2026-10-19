@@ -6,6 +6,7 @@ import type { ProposalStatus } from "./chat-types";
 export function ProposalCard({
   proposal,
   status,
+  appliedDocumentIds = [],
   sources,
   onApplyAll,
   onApplyFile,
@@ -14,13 +15,18 @@ export function ProposalCard({
 }: {
   proposal: ChangeProposal;
   status: ProposalStatus;
+  appliedDocumentIds?: string[];
   sources: { id: string; source: string }[];
   onApplyAll: () => void;
   onApplyFile: (documentId: string) => void;
   onReject: () => void;
   onReveal: (documentIds: string[]) => void;
 }) {
-  const fresh = status === "pending" && proposalIsFresh(proposal, sources);
+  const remaining = proposal.files.filter((file) => !appliedDocumentIds.includes(file.documentId));
+  const fresh =
+    status === "pending" &&
+    remaining.length > 0 &&
+    proposalIsFresh({ ...proposal, files: remaining }, sources);
   const disabled = !fresh || status !== "pending";
   return (
     <div className="jam-chat-proposal" data-status={status}>
@@ -28,7 +34,7 @@ export function ProposalCard({
         <strong>{proposal.summary}</strong>
         <span className="jam-chat-proposal-status">
           {status === "applied"
-            ? "Applied"
+            ? "Applied to editor"
             : status === "rejected"
               ? "Rejected"
               : fresh
@@ -39,6 +45,7 @@ export function ProposalCard({
       <ul className="jam-chat-proposal-files">
         {proposal.files.map((file) => {
           const counts = lineDiffCounts(file.baseSource, file.proposedSource);
+          const fileApplied = appliedDocumentIds.includes(file.documentId);
           return (
             <li key={file.documentId}>
               <div className="jam-chat-proposal-file-meta">
@@ -50,7 +57,7 @@ export function ProposalCard({
                   {file.name}
                 </button>
                 <span>
-                  +{counts.added} / −{counts.removed}
+                  {fileApplied ? "Applied to editor" : `+${counts.added} / −${counts.removed}`}
                 </span>
               </div>
               <p>{file.explanation}</p>
@@ -68,7 +75,7 @@ export function ProposalCard({
                 size="sm"
                 variant="outline"
                 type="button"
-                disabled={disabled}
+                disabled={disabled || fileApplied}
                 onClick={() => onApplyFile(file.documentId)}
               >
                 Apply file

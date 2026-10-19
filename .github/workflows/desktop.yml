@@ -75,6 +75,10 @@ jobs:
         if: runner.os == 'macOS'
         run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
       - name: Build the desktop app
+        env:
+          JAMSCRIPT_DESKTOP_PUBLIC_API_ORIGIN: ${{ vars.JAMSCRIPT_DESKTOP_PUBLIC_API_ORIGIN }}
+          JAMSCRIPT_CLERK_FRONTEND_API_URL: ${{ vars.JAMSCRIPT_CLERK_FRONTEND_API_URL }}
+          JAMSCRIPT_CLERK_OAUTH_CLIENT_ID: ${{ vars.JAMSCRIPT_CLERK_OAUTH_CLIENT_ID }}
         run: bunx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --ci
       - name: Verify ad-hoc signed macOS app
         if: runner.os == 'macOS' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
