@@ -224,6 +224,9 @@ pub fn poll_device_flow() -> Result<DevicePoll, String> {
 
 pub fn map_remote_error(error: &str) -> String {
     let lower = error.to_ascii_lowercase();
+    if lower.contains("no tls stream available") {
+        return "This desktop build is missing Git HTTPS support. Update or rebuild JamScript, then retry Push.".into();
+    }
     if lower.contains("401")
         || lower.contains("403")
         || lower.contains("authentication")
@@ -254,6 +257,7 @@ mod tests {
         assert!(map_remote_error("unexpected http 401 from github").contains("refused this token"));
         assert!(map_remote_error("Failed to connect to github.com").contains("Can't reach GitHub"));
         assert!(map_remote_error("non-fast-forward").contains("Pull first"));
+        assert!(map_remote_error("Push failed: there is no TLS stream available; class=Ssl (16)").contains("missing Git HTTPS support"));
     }
 
     #[test]

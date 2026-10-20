@@ -67,8 +67,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev libssl-dev pkg-config patchelf
       - run: bun install --frozen-lockfile
+      - name: Verify native Git and account logic
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib --target ${{ matrix.target }}
       # Demo project: no Apple Developer ID certificate. Ad-hoc signing ("-") gives the
       # app a valid code signature, but it is not notarized and macOS will warn on first launch.
       - name: Use ad-hoc macOS signing

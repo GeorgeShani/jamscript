@@ -202,7 +202,10 @@ async fn git_commit_files(app: tauri::AppHandle, folder_id: String, files: Vec<G
 
 fn github_remote_callbacks() -> RemoteCallbacks<'static> {
     let mut callbacks = RemoteCallbacks::new();
-    callbacks.credentials(|_url, _username, _allowed| {
+    callbacks.credentials(|url, _username, _allowed| {
+        if !url.to_ascii_lowercase().starts_with("https://github.com/") {
+            return Err(git2::Error::from_str("GitHub tokens can only be used with HTTPS repositories on github.com"));
+        }
         match github_auth::load_token() {
             Ok(Some(token)) => Cred::userpass_plaintext("x-access-token", &token),
             Ok(None) => Err(git2::Error::from_str(
@@ -210,6 +213,12 @@ fn github_remote_callbacks() -> RemoteCallbacks<'static> {
             )),
             Err(error) => Err(git2::Error::from_str(&error)),
         }
+    });
+    callbacks.push_update_reference(|reference, rejection| {
+        if let Some(reason) = rejection {
+            return Err(git2::Error::from_str(&format!("Push rejected for {reference}: {reason}")));
+        }
+        Ok(())
     });
     callbacks
 }
@@ -360,6 +369,25 @@ fn commit_music_files(selected: &Folder, files: Vec<GitCommitFile>, message: Str
 
 #[cfg(test)]
 mod git_tests {
+    #[test]
+    fn git_https_transport_is_available() {
+        assert!(git2::Version::get().https(), "Desktop Git must include HTTPS/TLS transport");
+    }
+
+    #[test]
+    #[ignore = "Opt-in read-only HTTPS connection to GitHub; downloads no objects and never pushes"]
+    fn github_https_transport_can_read_public_refs() {
+        let temporary = std::env::temp_dir().join(format!("jamscript-https-{}", uuid::Uuid::new_v4()));
+        let repo = git2::Repository::init_bare(&temporary).unwrap();
+        let mut remote = repo.remote_anonymous("https://github.com/GeorgeShani/jamscript.git").unwrap();
+        remote.connect(git2::Direction::Fetch).expect("Native Git HTTPS connection failed");
+        assert!(!remote.list().unwrap().is_empty());
+        remote.disconnect().unwrap();
+        drop(remote); drop(repo);
+        let resolved = temporary.canonicalize().unwrap();
+        assert_eq!(resolved.parent().unwrap(), std::env::temp_dir().canonicalize().unwrap());
+        std::fs::remove_dir_all(&resolved).unwrap();
+    }
     use super::*;
 
     #[test]

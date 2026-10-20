@@ -1,0 +1,230 @@
+.jam-git-feedback {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 0;
+  border-block: 1px solid var(--border);
+  animation: jam-git-feedback-in 180ms var(--ease-jam, ease-out);
+}
+.jam-git-feedback-art {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 24px;
+  color: var(--primary);
+}
+.jam-git-feedback-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.jam-git-feedback-copy strong {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.jam-git-feedback-copy span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.jam-git-feedback[data-phase="success"] .jam-git-feedback-art {
+  color: var(--success);
+}
+.jam-git-feedback[data-phase="error"] .jam-git-feedback-art {
+  color: var(--destructive);
+}
+.jam-git-transfer-route {
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.jam-git-transfer-endpoint {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  fill: var(--background);
+}
+.jam-git-transfer-packet {
+  fill: currentColor;
+  offset-path: path("M14 26H33Q38 26 38 21V15Q38 10 43 10H62");
+  offset-rotate: 0deg;
+  animation: jam-git-packet-out 1.35s linear infinite;
+}
+.jam-git-feedback[data-operation="pull"] .jam-git-transfer-packet {
+  animation-name: jam-git-packet-in;
+}
+.jam-git-transfer-check {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 0;
+  animation: jam-git-check-draw 240ms ease-out;
+}
+.jam-git-transfer-break {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  animation: jam-git-feedback-in 150ms ease-out;
+}
+.jam-git-tool,
+.jam-git-primary,
+.jam-git-icon-btn {
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    color 150ms,
+    transform 100ms;
+}
+.jam-git-tool:not(:disabled):active,
+.jam-git-primary:not(:disabled):active,
+.jam-git-icon-btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+.jam-git-tool[data-pending="true"] {
+  border-color: var(--primary);
+  color: var(--primary);
+  opacity: 1;
+}
+.jam-git-tool[data-pending="true"] svg {
+  animation: jam-git-push-arrow 850ms ease-in-out infinite;
+}
+.jam-git-tool[data-direction="pull"][data-pending="true"] svg {
+  animation-name: jam-git-pull-arrow;
+}
+.jam-git-tool[data-complete="true"] svg {
+  color: var(--success);
+  animation: jam-git-check-settle 200ms ease-out;
+}
+.jam-git-icon-btn[data-pending="true"] svg,
+.jam-git-refresh-mark {
+  animation: jam-git-refresh-scan 1.1s ease-in-out infinite;
+}
+.jam-git-commit-mark {
+  animation: jam-git-commit-pulse 900ms ease-in-out infinite;
+}
+.jam-git-feedback-check {
+  animation: jam-git-check-settle 200ms ease-out;
+}
+.jam-git-sidebar[data-motion-paused="true"] * {
+  animation-play-state: paused !important;
+}
+@keyframes jam-git-packet-out {
+  from {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  to {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+@keyframes jam-git-packet-in {
+  from {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  to {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+}
+@keyframes jam-git-feedback-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes jam-git-check-draw {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes jam-git-check-settle {
+  from {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes jam-git-push-arrow {
+  0%,
+  100% {
+    transform: translateY(1px);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes jam-git-pull-arrow {
+  0%,
+  100% {
+    transform: translateY(-1px);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+@keyframes jam-git-refresh-scan {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: rotate(-18deg);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(18deg);
+  }
+}
+@keyframes jam-git-commit-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jam-git-feedback,
+  .jam-git-feedback *,
+  .jam-git-tool svg,
+  .jam-git-icon-btn svg {
+    animation: none !important;
+  }
+  .jam-git-transfer-packet {
+    offset-distance: 50%;
+    opacity: 1;
+  }
+  .jam-git-tool,
+  .jam-git-primary,
+  .jam-git-icon-btn {
+    transition:
+      color 150ms,
+      background-color 150ms;
+  }
+  .jam-git-tool:not(:disabled):active,
+  .jam-git-primary:not(:disabled):active,
+  .jam-git-icon-btn:not(:disabled):active {
+    transform: none;
+  }
+}
