@@ -98,7 +98,7 @@ export function RepoPopover({
         aria-labelledby={`${id}-title`}
         align="start"
         collisionPadding={8}
-        className="jam-repo-popover w-[360px] overflow-y-auto overflow-x-hidden overscroll-contain"
+        className="jam-repo-popover w-90 overflow-y-auto overflow-x-hidden overscroll-contain"
         onCloseAutoFocus={(event) => {
           if (suppressCloseFocus) {
             event.preventDefault();
@@ -110,7 +110,7 @@ export function RepoPopover({
           requestAnimationFrame(() => onOpenDiff(trigger.current));
         }}
       >
-        <div className="divide-y divide-border [&>*]:py-3 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
+        <div className="divide-y divide-border *:py-3 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
           <div className="space-y-1">
             <h2 id={`${id}-title`} className="text-label font-medium">
               Repo preview

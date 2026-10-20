@@ -682,6 +682,9 @@
   box-shadow: 0 0 0 4px oklch(0.82 0.14 72 / 14%);
 }
 .jam-site-final-art-grid {
+  --track-label-width: 48px;
+  --beat-gap: 7px;
+  --beat-pitch: calc((100cqw - var(--track-label-width)) / 8);
   position: relative;
   container-type: inline-size;
   display: grid;
@@ -694,9 +697,9 @@
 }
 .jam-site-final-art-row {
   display: grid;
-  grid-template-columns: 48px repeat(8, minmax(0, 1fr));
+  grid-template-columns: var(--track-label-width) repeat(8, minmax(0, 1fr));
   align-items: center;
-  gap: 7px;
+  gap: var(--beat-gap);
 }
 .jam-site-final-art-row span {
   color: var(--muted-foreground);
@@ -728,7 +731,9 @@
 }
 .jam-site-final-playhead {
   position: absolute;
-  inset: 10px auto 10px 55px;
+  /* Start at the first pad's center, including the label/gaps and half the line width. */
+  inset: 10px auto 10px
+    calc(var(--track-label-width) + (var(--beat-gap) + var(--beat-pitch)) / 2 - 1px);
   width: 2px;
   background: var(--primary);
   box-shadow: 0 0 12px var(--primary);
@@ -739,7 +744,8 @@
 }
 @keyframes jam-final-playhead {
   to {
-    transform: translateX(calc(100cqw - 110px));
+    /* Eight equal advances; steps(8) displays centers 0–7 before wrapping. */
+    transform: translateX(calc(100cqw - var(--track-label-width)));
   }
 }
 .jam-site-footer {
