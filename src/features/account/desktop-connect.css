@@ -1,0 +1,91 @@
+.jam-connect-page {
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 32px;
+}
+.jam-connect-brand {
+  display: inline-flex;
+}
+.jam-connect-content {
+  width: min(100%, 440px);
+  margin: clamp(40px, 10vh, 100px) auto 40px;
+}
+.jam-connect-symbol {
+  color: var(--primary);
+  margin-bottom: 20px;
+}
+.jam-connect-content h1 {
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+.jam-connect-intro {
+  color: var(--muted-foreground);
+  line-height: 1.6;
+  margin: 14px 0 32px;
+}
+.jam-connect-person {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 24px;
+}
+.jam-connect-person img {
+  border-radius: 50%;
+}
+.jam-connect-person div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.jam-connect-person strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.jam-connect-person span {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.jam-connect-continue,
+.jam-connect-other > button {
+  width: 100%;
+  min-height: 44px;
+  justify-content: space-between;
+}
+.jam-connect-other {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.jam-connect-other p,
+.jam-connect-footnote {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.jam-connect-other p {
+  margin: 12px 0 0;
+}
+.jam-connect-footnote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 32px 0 0;
+}
+.jam-connect-signin {
+  display: flex;
+  justify-content: center;
+}
+.jam-connect-signin .cl-rootBox,
+.jam-connect-signin .cl-cardBox {
+  width: 100%;
+}
+@media (max-width: 480px) {
+  .jam-connect-page {
+    padding: 24px 20px;
+  }
+}

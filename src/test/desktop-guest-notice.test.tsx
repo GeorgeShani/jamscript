@@ -1,16 +1,100 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DesktopAuthProvider } from "../../desktop/auth";
+import { DesktopAuthProvider, useDesktopAuth } from "../../desktop/auth";
 import { AuthControls, GuestWorkspaceNotice } from "../../desktop/AuthControls";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 beforeEach(() => vi.clearAllMocks());
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe("desktop guest save notice", () => {
+  it("bounds automatic checks when DNS stays unavailable", async () => {
+    vi.useFakeTimers();
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status") return { signedIn: true, available: true };
+      if (command === "desktop_auth_profile") throw "ACCOUNT_NETWORK_UNAVAILABLE";
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+    expect(
+      vi.mocked(invoke).mock.calls.filter(([name]) => name === "desktop_auth_profile"),
+    ).toHaveLength(4);
+    expect(screen.getByText("Saved sign-in")).toBeInTheDocument();
+  });
+
+  it("ignores an account check that completes after sign out", async () => {
+    let finish!: (person: { id: string; name: string }) => void;
+    const request = new Promise((resolve) => {
+      finish = resolve;
+    });
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status") return { signedIn: true, available: true };
+      if (command === "desktop_auth_profile") return request;
+      if (command === "desktop_auth_sign_out") return { signedIn: false, available: true };
+      return undefined;
+    });
+    function Status() {
+      const auth = useDesktopAuth();
+      return (
+        <>
+          <button onClick={() => void auth.signOut()}>Sign out test</button>
+          <span>{auth.person?.name ?? "No verified account"}</span>
+        </>
+      );
+    }
+    render(
+      <DesktopAuthProvider>
+        <Status />
+      </DesktopAuthProvider>,
+    );
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("desktop_auth_profile"));
+    fireEvent.click(screen.getByRole("button", { name: "Sign out test" }));
+    await act(async () => {
+      finish({ id: "previous", name: "Previous account" });
+    });
+    expect(screen.getByText("No verified account")).toBeInTheDocument();
+  });
+  it("keeps a saved sign-in distinct from signing out after a DNS failure and recovers on reconnect", async () => {
+    let checks = 0;
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status") return { signedIn: true, available: true };
+      if (command === "desktop_auth_profile") {
+        if (checks++ === 0)
+          throw "Could not verify JamScript account with Clerk: Dns Failed: resolve dns name 'example.clerk.accounts.dev:443': No such host is known. (os error 11001)";
+        return { id: "user_1", name: "Player", email: "player@example.com" };
+      }
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    expect(await screen.findByText("Saved sign-in")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Can't reach the account service");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("os error");
+    expect(screen.queryByRole("button", { name: "Sign in to JamScript" })).not.toBeInTheDocument();
+    fireEvent(window, new Event("online"));
+    expect(await screen.findByRole("button", { name: "Open account profile" })).toBeInTheDocument();
+    expect(invoke).not.toHaveBeenCalledWith("desktop_auth_sign_out");
+  });
+
   it("shows the notice when the desktop session is signed out", async () => {
     vi.mocked(invoke).mockResolvedValue({ signedIn: false, available: true });
     render(
@@ -94,7 +178,7 @@ describe("desktop guest save notice", () => {
     expect(invoke).toHaveBeenCalledWith("desktop_auth_sign_out");
   });
 
-  it("lets the user choose another account before opening Clerk verification", async () => {
+  it("opens account selection in the browser instead of requiring a private window", async () => {
     vi.mocked(invoke).mockImplementation(async (command) => {
       if (command === "desktop_auth_status") return { signedIn: false, available: true };
       if (command === "desktop_auth_begin")
@@ -115,10 +199,11 @@ describe("desktop guest save notice", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Sign in to JamScript" }));
     expect(await screen.findByText("TEST-CODE")).toBeInTheDocument();
     expect(invoke).not.toHaveBeenCalledWith("desktop_auth_open_verification");
-    fireEvent.click(screen.getByRole("button", { name: "Choose another account" }));
-    expect(screen.getByRole("textbox", { name: "Verification link" })).toHaveValue(
-      "https://example.clerk.accounts.dev/device?user_code=TEST-CODE",
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue in browser" }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("desktop_auth_open_verification"));
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss sign-in panel" }));
+    expect(screen.getByRole("button", { name: "Sign-in pending" })).toBeInTheDocument();
   });
 
   it("shows the verified account and offers account switching without signing out first", async () => {
@@ -221,7 +306,7 @@ describe("desktop guest save notice", () => {
     );
     expect(await screen.findByText("RETRY-CODE")).toBeInTheDocument();
     expect(await screen.findByRole("alert", {}, { timeout: 2000 })).toHaveTextContent(
-      "Connection interrupted",
+      "Can't reach the account service",
     );
     fireEvent.click(
       await screen.findByRole("button", { name: "Open account profile" }, { timeout: 3000 }),

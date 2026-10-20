@@ -21,6 +21,7 @@ import { Route as ApiSharedWorkspacesRouteImport } from './routes/api.shared-wor
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppHelpRouteImport } from './routes/app.help'
 import { Route as AppLibraryRouteImport } from './routes/app.library'
+import { Route as DesktopConnectRouteImport } from './routes/desktop.connect'
 import { Route as ApiCollaborationAuthRouteImport } from './routes/api.collaboration.auth'
 import { Route as AppInvitationsTokenRouteImport } from './routes/app.invitations.$token'
 import { Route as AppSharedDocumentIdRouteImport } from './routes/app.shared.$documentId'
@@ -86,6 +87,11 @@ const AppLibraryRoute = AppLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => AppRoute,
 } as any)
+const DesktopConnectRoute = DesktopConnectRouteImport.update({
+  id: '/desktop/connect',
+  path: '/desktop/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCollaborationAuthRoute = ApiCollaborationAuthRouteImport.update({
   id: '/api/collaboration/auth',
   path: '/api/collaboration/auth',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
   '/app/help': typeof AppHelpRoute
   '/app/library': typeof AppLibraryRoute
+  '/desktop/connect': typeof DesktopConnectRoute
   '/app/': typeof AppIndexRoute
   '/api/collaboration/auth': typeof ApiCollaborationAuthRoute
   '/app/invitations/$token': typeof AppInvitationsTokenRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
   '/app/help': typeof AppHelpRoute
   '/app/library': typeof AppLibraryRoute
+  '/desktop/connect': typeof DesktopConnectRoute
   '/app': typeof AppIndexRoute
   '/api/collaboration/auth': typeof ApiCollaborationAuthRoute
   '/app/invitations/$token': typeof AppInvitationsTokenRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/api/shared-workspaces': typeof ApiSharedWorkspacesRoute
   '/app/help': typeof AppHelpRoute
   '/app/library': typeof AppLibraryRoute
+  '/desktop/connect': typeof DesktopConnectRoute
   '/app/': typeof AppIndexRoute
   '/api/collaboration/auth': typeof ApiCollaborationAuthRoute
   '/app/invitations/$token': typeof AppInvitationsTokenRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/api/shared-workspaces'
     | '/app/help'
     | '/app/library'
+    | '/desktop/connect'
     | '/app/'
     | '/api/collaboration/auth'
     | '/app/invitations/$token'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/api/shared-workspaces'
     | '/app/help'
     | '/app/library'
+    | '/desktop/connect'
     | '/app'
     | '/api/collaboration/auth'
     | '/app/invitations/$token'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/api/shared-workspaces'
     | '/app/help'
     | '/app/library'
+    | '/desktop/connect'
     | '/app/'
     | '/api/collaboration/auth'
     | '/app/invitations/$token'
@@ -228,6 +240,7 @@ export interface RootRouteChildren {
   ApiDesktopSessionRoute: typeof ApiDesktopSessionRoute
   ApiSharedProjectsRoute: typeof ApiSharedProjectsRoute
   ApiSharedWorkspacesRoute: typeof ApiSharedWorkspacesRoute
+  DesktopConnectRoute: typeof DesktopConnectRoute
   ApiCollaborationAuthRoute: typeof ApiCollaborationAuthRoute
 }
 
@@ -317,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLibraryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/desktop/connect': {
+      id: '/desktop/connect'
+      path: '/desktop/connect'
+      fullPath: '/desktop/connect'
+      preLoaderRoute: typeof DesktopConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/collaboration/auth': {
       id: '/api/collaboration/auth'
       path: '/api/collaboration/auth'
@@ -378,6 +398,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDesktopSessionRoute: ApiDesktopSessionRoute,
   ApiSharedProjectsRoute: ApiSharedProjectsRoute,
   ApiSharedWorkspacesRoute: ApiSharedWorkspacesRoute,
+  DesktopConnectRoute: DesktopConnectRoute,
   ApiCollaborationAuthRoute: ApiCollaborationAuthRoute,
 }
 export const routeTree = rootRouteImport

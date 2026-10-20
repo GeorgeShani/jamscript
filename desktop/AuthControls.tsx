@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDesktopAuth } from "./auth";
 import { ProfileMenu } from "./ProfileMenu";
+import { DeviceSignInPanel } from "./DeviceSignInPanel";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
 export function AuthControls() {
   const {
@@ -12,114 +14,95 @@ export function AuthControls() {
     available,
     device,
     error,
+    connectionIssue,
     begin,
     openVerification,
     retryProfile,
     signOut,
   } = useDesktopAuth();
-  const [anotherAccount, setAnotherAccount] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const controls = useRef<HTMLDivElement>(null);
   if (loading) return <span className="jam-muted">Checking account…</span>;
-  const verificationLink = device?.verificationUriComplete ?? device?.verificationUri ?? "";
+  const verificationLink =
+    device?.accountSelectionUri || device?.verificationUriComplete || device?.verificationUri || "";
   const start = () => {
-    setAnotherAccount(false);
-    setCopied(false);
+    setDismissed(false);
     void begin();
   };
   return (
-    <div className="jam-auth-controls" aria-label="JamScript account">
-      {signedIn && person ? (
-        <ProfileMenu
-          person={person}
-          canSwitch={available && !device}
-          switchAccount={start}
-          signOut={signOut}
-        />
-      ) : (
-        <Button size="sm" variant="outline" disabled={!available || !!device} onClick={start}>
-          Sign in to JamScript
-        </Button>
-      )}
-      {device && (
-        <div
-          className="jam-desktop-device-panel"
-          role="group"
-          aria-label="Choose JamScript account"
-        >
-          <strong>Choose your JamScript account</strong>
-          <p>
-            Enter <strong>{device.userCode}</strong> on the JamScript sign-in page.
-          </p>
-          {anotherAccount ? (
-            <>
-              <p>
-                Open this link in a private browser window, then sign in with the account you want
-                to use. Your current browser session stays signed in.
-              </p>
-              <input
-                aria-label="Verification link"
-                readOnly
-                value={verificationLink}
-                onFocus={(event) => event.currentTarget.select()}
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  if (!navigator.clipboard?.writeText) {
-                    setCopied(false);
-                    return;
-                  }
-                  void navigator.clipboard
-                    .writeText(verificationLink)
-                    .then(() => setCopied(true))
-                    .catch(() => setCopied(false));
-                }}
-              >
-                {copied ? "Copied" : "Copy link"}
-              </Button>
-            </>
+    <Popover open={!!device && !dismissed} onOpenChange={(open) => setDismissed(!open)}>
+      <PopoverAnchor asChild>
+        <div ref={controls} className="jam-auth-controls" aria-label="JamScript account">
+          {signedIn && person ? (
+            <ProfileMenu
+              person={person}
+              canSwitch={available && !device}
+              switchAccount={start}
+              signOut={signOut}
+            />
+          ) : hasToken && connectionIssue ? (
+            <span className="jam-muted">Saved sign-in</span>
           ) : (
-            <div className="jam-desktop-device-actions">
-              <Button size="sm" onClick={() => void openVerification()}>
-                Use browser account
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setAnotherAccount(true)}>
-                Choose another account
-              </Button>
+            <Button size="sm" variant="outline" disabled={!available || !!device} onClick={start}>
+              Sign in to JamScript
+            </Button>
+          )}
+          {device && dismissed && (
+            <Button variant="ghost" size="sm" onClick={() => setDismissed(false)}>
+              Sign-in pending
+            </Button>
+          )}
+          {!available && !signedIn && (
+            <span
+              className="jam-muted"
+              title="Configure Clerk OAuth and the collaboration API for desktop releases"
+            >
+              Collaboration unavailable
+            </span>
+          )}
+          {!device && error && (
+            <div
+              className={`jam-desktop-auth-error${connectionIssue ? " is-network-issue" : ""}`}
+              role="alert"
+            >
+              <span>{error}</span>
+              {!signedIn && hasToken && (
+                <Button size="sm" variant="outline" onClick={() => void retryProfile()}>
+                  Retry account check
+                </Button>
+              )}
+              {!signedIn && !hasToken && (
+                <Button size="sm" variant="outline" onClick={() => void signOut()}>
+                  Clear saved sign-in
+                </Button>
+              )}
             </div>
           )}
-          {error && (
-            <p role="alert" className="jam-error">
-              {error}
-            </p>
-          )}
         </div>
-      )}
-      {!available && !signedIn && (
-        <span
-          className="jam-muted"
-          title="Configure Clerk OAuth and the collaboration API for desktop releases"
+      </PopoverAnchor>
+      {device && (
+        <PopoverContent
+          align="end"
+          sideOffset={12}
+          className="jam-device-popover"
+          aria-label="Desktop sign-in"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            controls.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+          }}
         >
-          Collaboration unavailable
-        </span>
+          <DeviceSignInPanel
+            key={device.userCode}
+            code={device.userCode}
+            link={verificationLink}
+            switching={signedIn}
+            error={error}
+            openBrowser={openVerification}
+            dismiss={() => setDismissed(true)}
+          />
+        </PopoverContent>
       )}
-      {!device && error && (
-        <div className="jam-desktop-auth-error" role="alert">
-          <span>{error}</span>
-          {!signedIn && hasToken && (
-            <Button size="sm" variant="outline" onClick={() => void retryProfile()}>
-              Retry account check
-            </Button>
-          )}
-          {!signedIn && !hasToken && (
-            <Button size="sm" variant="outline" onClick={() => void signOut()}>
-              Clear saved sign-in
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
+    </Popover>
   );
 }
 

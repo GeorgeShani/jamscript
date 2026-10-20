@@ -1,7 +1,7 @@
 //! Clerk OAuth device sign-in for the desktop workbench. Tokens and pending device
 //! grants stay in the OS credential store; the webview never sees bearer tokens.
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const SERVICE: &str = "com.jamscript.desktop";
@@ -64,7 +64,7 @@ pub fn profile() -> Result<AuthProfile, String> {
         .set("Authorization", &format!("Bearer {token}"))
         .set("Accept", "application/json")
         .call()
-        .map_err(|error| format!("Could not verify JamScript account with Clerk: {error}"))?;
+        .map_err(|error| auth_request_error("verify JamScript account", error))?;
     let info = response
         .into_json::<ClerkUserInfo>()
         .map_err(|error| format!("Invalid Clerk account response: {error}"))?;
@@ -77,6 +77,8 @@ pub struct DeviceBegin {
     pub user_code: String,
     pub verification_uri: String,
     pub verification_uri_complete: Option<String>,
+    #[serde(default)]
+    pub account_selection_uri: String,
     pub interval: u64,
     pub expires_in: u64,
 }
@@ -219,10 +221,27 @@ fn read_stored_credential(account: &str) -> Result<Option<StoredCredential>, Str
 }
 
 fn auth_agent() -> ureq::Agent {
-    ureq::AgentBuilder::new()
-        .redirects(0)
-        .timeout(Duration::from_secs(15))
-        .build()
+    static AGENT: OnceLock<ureq::Agent> = OnceLock::new();
+    AGENT.get_or_init(|| {
+        ureq::AgentBuilder::new()
+            .redirects(0)
+            .timeout(Duration::from_secs(15))
+            .build()
+    }).clone()
+}
+
+fn auth_request_error(action: &str, error: ureq::Error) -> String {
+    match error.kind() {
+        ureq::ErrorKind::Dns | ureq::ErrorKind::ConnectionFailed
+        | ureq::ErrorKind::Io | ureq::ErrorKind::ProxyConnect =>
+            "ACCOUNT_NETWORK_UNAVAILABLE: Cannot reach the account service. Retry when connected.".into(),
+        _ => match error {
+            ureq::Error::Status(status, _) if status >= 500 =>
+                "ACCOUNT_SERVICE_UNAVAILABLE: Account service is temporarily unavailable. Try again shortly.".into(),
+            ureq::Error::Status(status, _) => format!("Could not {action} (HTTP {status}). Try signing in again."),
+            other => format!("Could not {action}: {other}"),
+        }
+    }
 }
 
 fn pending_entry() -> Result<keyring::Entry, String> {
@@ -270,6 +289,7 @@ fn restore_pending() -> Result<Option<DeviceBegin>, String> {
     }
     Ok(guard.as_ref().map(|pending| {
         let mut device = pending.device.clone();
+        device.account_selection_uri = account_selection_url(&device.user_code);
         device.expires_in = pending.expires_at.saturating_sub(now());
         device.interval = pending.interval;
         device
@@ -412,7 +432,7 @@ fn metadata() -> Result<Metadata, String> {
     auth_agent()
         .get(&format!("{origin}/.well-known/oauth-authorization-server"))
         .call()
-        .map_err(|e| format!("Could not discover Clerk OAuth endpoints: {e}"))?
+        .map_err(|e| auth_request_error("discover Clerk OAuth endpoints", e))?
         .into_json::<Metadata>()
         .map_err(|e| format!("Invalid Clerk OAuth metadata: {e}"))
         .and_then(|metadata| {
@@ -443,7 +463,7 @@ pub fn begin() -> Result<DeviceBegin, String> {
     let response = auth_agent()
         .post(&endpoint)
         .send_form(&[("client_id", id.as_str()), ("scope", SCOPES)])
-        .map_err(|e| format!("Could not start JamScript sign-in: {e}"))?
+        .map_err(|e| auth_request_error("start JamScript sign-in", e))?
         .into_json::<DeviceResponse>()
         .map_err(|e| format!("Invalid Clerk device response: {e}"))?;
     let interval = response.interval.max(1);
@@ -456,6 +476,7 @@ pub fn begin() -> Result<DeviceBegin, String> {
         return Err("Clerk returned an unsafe verification link".into());
     }
     let device = DeviceBegin {
+        account_selection_uri: account_selection_url(&response.user_code),
         user_code: response.user_code,
         verification_uri: response.verification_uri,
         verification_uri_complete: response.verification_uri_complete,
@@ -476,6 +497,12 @@ pub fn begin() -> Result<DeviceBegin, String> {
     Ok(device)
 }
 
+fn account_selection_url(user_code: &str) -> String {
+    let origin = api_origin().unwrap_or_else(|_| "https://jamscript.lukavacheishvili.workers.dev".into());
+    ureq::get(&format!("{origin}/desktop/connect"))
+        .query("user_code", user_code).url().to_owned()
+}
+
 pub fn open_verification() -> Result<(), String> {
     restore_pending()?;
     let guard = PENDING.lock().map_err(|e| e.to_string())?;
@@ -483,11 +510,7 @@ pub fn open_verification() -> Result<(), String> {
         .as_ref()
         .ok_or("Start JamScript sign-in first")?
         .device;
-    let link = device
-        .verification_uri_complete
-        .as_ref()
-        .unwrap_or(&device.verification_uri)
-        .clone();
+    let link = account_selection_url(&device.user_code);
     drop(guard);
     open::that(link).map_err(|e| format!("Could not open the system browser: {e}"))
 }
@@ -598,7 +621,7 @@ fn access_token() -> Result<String, String> {
         let body = match response {
             Ok(response) => response,
             Err(ureq::Error::Status(_, response)) => response,
-            Err(error) => return Err(format!("Could not refresh JamScript sign-in: {error}")),
+            Err(error) => return Err(auth_request_error("refresh JamScript sign-in", error)),
         }
         .into_json::<TokenResponse>()
         .map_err(|e| format!("Invalid Clerk refresh response: {e}"))?;
@@ -661,6 +684,66 @@ pub fn api_request(path: &str, method: &str, body: Option<&str>) -> Result<ApiRe
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn consecutive_api_calls_reuse_the_http_connection() {
+        use std::io::{BufRead, BufReader, Write};
+        use std::net::TcpListener;
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/probe", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let mut requests = 0;
+            let mut connections = 0;
+            while requests < 2 {
+                let (stream, _) = listener.accept().unwrap();
+                stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+                connections += 1;
+                let mut reader = BufReader::new(stream);
+                while requests < 2 {
+                    let mut line = String::new();
+                    if reader.read_line(&mut line).unwrap_or(0) == 0 { break; }
+                    loop {
+                        line.clear();
+                        reader.read_line(&mut line).unwrap();
+                        if line == "\r\n" { break; }
+                    }
+                    reader.get_mut().write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nok").unwrap();
+                    requests += 1;
+                }
+            }
+            connections
+        });
+        for _ in 0..2 {
+            assert_eq!(super::auth_agent().get(&url).call().unwrap().into_string().unwrap(), "ok");
+        }
+        assert_eq!(server.join().unwrap(), 1, "API requests opened separate TCP connections");
+    }
+
+    #[test]
+    fn network_errors_are_not_reported_as_lost_credentials() {
+        let error: ureq::Error =
+            std::io::Error::new(std::io::ErrorKind::TimedOut, "connection timed out").into();
+        let message = super::auth_request_error("verify account", error);
+        assert!(message.starts_with("ACCOUNT_NETWORK_UNAVAILABLE"));
+        let response = ureq::Response::new(503, "Service Unavailable", "").unwrap();
+        assert!(super::auth_request_error("verify account", response.into())
+            .starts_with("ACCOUNT_SERVICE_UNAVAILABLE"));
+        let response = ureq::Response::new(401, "Unauthorized", "").unwrap();
+        assert!(
+            !super::auth_request_error("verify account", response.into()).contains("UNAVAILABLE")
+        );
+    }
+
+    #[test]
+    #[ignore = "Opt-in native DNS/TLS check against the configured public Clerk metadata endpoint"]
+    fn configured_clerk_network_is_reachable() {
+        let origin = super::frontend_url().unwrap();
+        let response = super::auth_agent()
+            .get(&format!("{origin}/.well-known/oauth-authorization-server"))
+            .call()
+            .expect("Native Clerk DNS/TLS connection failed");
+        assert_eq!(response.status(), 200);
+    }
+
     use super::{
         allowed_api_path, profile_from_user_info, ClerkUserInfo, DeviceBegin, PendingDevice,
     };
@@ -700,6 +783,7 @@ mod tests {
             code: "private-code".into(),
             token_endpoint: "https://clerk.example/oauth/token".into(),
             device: DeviceBegin {
+                account_selection_uri: String::new(),
                 user_code: "PUBLIC-CODE".into(),
                 verification_uri: "https://clerk.example/device".into(),
                 verification_uri_complete: None,
@@ -715,6 +799,22 @@ mod tests {
         assert_eq!(restored.code, "private-code");
         assert_eq!(restored.device.user_code, "PUBLIC-CODE");
         assert_eq!(restored.expires_at, 123456);
+    }
+
+    #[test]
+    fn account_selection_stays_on_the_public_site_and_keeps_the_code_in_one_parameter() {
+        let url = super::account_selection_url("TEST-CODE&redirect_url=https://untrusted.example");
+        assert!(url.contains("/desktop/connect?user_code="));
+        assert!(url.contains("%26redirect_url%3D"));
+        assert!(!url.contains("&redirect_url="));
+        assert!(!url.contains("device_code="));
+    }
+
+    #[test]
+    fn older_pending_device_requests_do_not_require_the_new_selection_link() {
+        let device: DeviceBegin = serde_json::from_str(r#"{"userCode":"TEST-CODE","verificationUri":"https://clerk.example/device","verificationUriComplete":null,"interval":5,"expiresIn":600}"#).unwrap();
+        assert!(device.account_selection_uri.is_empty());
+        assert_eq!(device.user_code, "TEST-CODE");
     }
 
     #[test]
