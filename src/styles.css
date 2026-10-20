@@ -1230,26 +1230,13 @@
   justify-content: flex-end;
   gap: 8px;
 }
-.jam-desktop-device-panel {
-  position: absolute;
-  z-index: 50;
-  top: calc(100% + 12px);
-  right: 0;
-  width: min(390px, calc(100vw - 24px));
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
-  box-shadow: 0 16px 36px rgb(0 0 0 / 24%);
-  color: var(--foreground);
-  font-size: 13px;
-}
 .jam-desktop-auth-error {
   position: absolute;
   z-index: 50;
   top: calc(100% + 12px);
   right: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   width: min(390px, calc(100vw - 24px));
@@ -1263,13 +1250,12 @@
   line-height: 1.4;
 }
 .jam-desktop-auth-error > span {
-  flex: 1;
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-.jam-desktop-device-panel p {
-  margin: 10px 0;
-  color: var(--muted-foreground);
-  line-height: 1.5;
-}
+.jam-desktop-auth-error > button { flex-shrink: 0; }
+.jam-desktop-auth-error.is-network-issue { border-color: var(--primary); }
 
 .jam-profile-trigger,
 .jam-profile-avatar {
@@ -1358,20 +1344,6 @@
 .jam-profile-action.jam-profile-signout:hover {
   color: color-mix(in srgb, var(--destructive) 65%, var(--foreground));
   background: color-mix(in srgb, var(--destructive) 9%, var(--popover));
-}
-.jam-desktop-device-panel input {
-  width: 100%;
-  margin-bottom: 10px;
-  padding: 8px;
-  border: 1px solid var(--input);
-  border-radius: 5px;
-  background: var(--background);
-  color: var(--foreground);
-}
-.jam-desktop-device-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 .jam-share-control > summary {
   display: flex;
@@ -1482,9 +1454,9 @@
 .jam-git-sidebar {
   display: grid;
   align-content: start;
-  gap: 8px;
-  padding: 8px 10px 12px;
-  font-size: 12px;
+  gap: 16px;
+  padding: 12px;
+  font-size: 13px;
   overflow: auto;
   min-height: 0;
   flex: 1;
@@ -1493,7 +1465,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 24px;
+  min-height: 28px;
   color: var(--muted-foreground);
 }
 .jam-git-status-text {
@@ -1524,36 +1496,23 @@
   opacity: 0.5;
   cursor: default;
 }
-.jam-git-spin {
-  animation: jam-git-spin 0.8s linear infinite;
-}
-@keyframes jam-git-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .jam-git-spin {
-    animation: none;
-  }
-}
 .jam-git-toolbar {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 .jam-git-tool {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  height: 28px;
+  height: 32px;
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--background);
   color: var(--foreground);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -1563,14 +1522,6 @@
 .jam-git-tool:disabled {
   opacity: 0.45;
   cursor: default;
-}
-.jam-git-tool.is-accent {
-  border-color: color-mix(in oklch, var(--primary) 45%, var(--border));
-  background: color-mix(in oklch, var(--primary) 16%, var(--background));
-  color: var(--foreground);
-}
-.jam-git-tool.is-accent:hover:not(:disabled) {
-  background: color-mix(in oklch, var(--primary) 26%, var(--background));
 }
 .jam-git-inline {
   display: grid;
@@ -1587,25 +1538,25 @@
 .jam-git-sidebar input:not([type="checkbox"]) {
   width: 100%;
   min-width: 0;
-  height: 28px;
-  padding: 0 7px;
+  height: 32px;
+  padding: 0 9px;
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--background);
   color: var(--foreground);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 .jam-git-message {
-  height: 28px;
+  height: 32px;
 }
 .jam-git-secondary,
 .jam-git-primary {
-  height: 28px;
+  height: 32px;
   padding: 0 10px;
   border-radius: 5px;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -1615,10 +1566,14 @@
   color: var(--foreground);
 }
 .jam-git-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
-  border: 1px solid color-mix(in oklch, var(--primary) 45%, var(--border));
-  background: color-mix(in oklch, var(--primary) 18%, var(--background));
-  color: var(--foreground);
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 .jam-git-secondary:disabled,
 .jam-git-primary:disabled {
@@ -1630,8 +1585,10 @@
   gap: 6px;
 }
 .jam-git-files {
-  max-height: 140px;
+  max-height: 240px;
   overflow: auto;
+}
+.jam-git-files.has-changes {
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--background);
@@ -1673,20 +1630,31 @@
 .jam-git-hint {
   margin: 0;
   color: var(--muted-foreground);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.5;
 }
+.jam-git-changes > header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; font-size: 12px; font-weight: 500; }
+.jam-git-changes > header span:last-child { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.jam-git-empty { display: flex; align-items: flex-start; gap: 10px; padding: 14px 0 10px; border-top: 1px solid var(--border); }
+.jam-git-empty > svg { flex: none; color: var(--muted-foreground); margin-top: 1px; }
+.jam-git-empty strong { display: block; font-size: 13px; font-weight: 500; line-height: 1.5; }
+.jam-git-empty p { margin: 5px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
+.jam-git-commit { display: grid; gap: 8px; }
+.jam-git-commit > label { font-size: 12px; font-weight: 500; }
+.jam-git-remote { min-width: 0; font-size: 12px; }
+.jam-git-remote > summary { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted-foreground); list-style: none; }
+.jam-git-remote > summary::-webkit-details-marker { display: none; }
+.jam-git-remote > form { margin-top: 10px; }
+.jam-git-sidebar button:focus-visible, .jam-git-sidebar summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .jam-git-auth {
-  display: grid;
-  gap: 6px;
   margin-top: 2px;
-  padding-top: 6px;
+  padding-top: 12px;
   border-top: 1px solid var(--border);
 }
 .jam-git-auth > summary {
   cursor: pointer;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   list-style: none;
 }
@@ -1696,6 +1664,7 @@
 .jam-git-auth > summary::-webkit-details-marker {
   display: none;
 }
+.jam-git-auth > .jam-git-stack, .jam-git-auth > button { margin-top: 12px; }
 .jam-git-link {
   justify-self: start;
   border: 0;
@@ -1713,8 +1682,9 @@
 .jam-git-error {
   margin: 0;
   color: var(--destructive);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 .jam-assistant-pane .jam-agent-control {
   margin: 10px;

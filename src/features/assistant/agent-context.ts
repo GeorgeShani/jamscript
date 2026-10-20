@@ -1,4 +1,4 @@
-import { strudelDocumentation } from "@/features/language/strudel-lsp-core";
+import { strudelDocumentation } from "@/features/language/strudel-docs";
 import { syntaxProblems } from "@/features/language/syntax-problems";
 
 type SourceFile = { id: string; name: string; source: string };

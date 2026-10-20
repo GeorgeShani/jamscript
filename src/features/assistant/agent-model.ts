@@ -84,6 +84,7 @@ export async function* streamGeminiText(input: {
     },
   };
   let lastError: unknown;
+  let emitted = false;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if (input.signal.aborted) return;
     try {
@@ -91,12 +92,17 @@ export async function* streamGeminiText(input: {
       for await (const chunk of chunks) {
         if (input.signal.aborted) return;
         const text = chunk.text ?? "";
-        if (text) yield text;
+        if (text) {
+          emitted = true;
+          yield text;
+        }
       }
       return;
     } catch (cause) {
       lastError = cause;
-      if (attempt === 2 || !isTransientGeminiFailure(cause) || input.signal.aborted) throw cause;
+      // Once text is visible, restarting would concatenate two different answers.
+      if (emitted || attempt === 2 || !isTransientGeminiFailure(cause) || input.signal.aborted)
+        throw cause;
       await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** attempt));
     }
   }

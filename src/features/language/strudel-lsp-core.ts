@@ -14,43 +14,13 @@ type Message = {
     contentChanges?: { text?: string }[];
     position?: Position;
     query?: string;
+    newName?: string;
+    context?: { includeDeclaration?: boolean };
   };
 };
 type Entry = { source: string; version: number };
-const docs: Record<string, { signature: string; detail: string }> = {
-  stack: { signature: "stack(...patterns)", detail: "Play patterns together in one cycle." },
-  samples: { signature: "samples(source)", detail: "Load a named sample bank or sample manifest." },
-  chord: { signature: "chord(symbols)", detail: "Create a pattern of chord symbols." },
-  dict: { signature: ".dict(name)", detail: "Interpret symbols with the selected dictionary." },
-  voicing: { signature: ".voicing()", detail: "Turn chord symbols into playable note voicings." },
-  struct: { signature: ".struct(pattern)", detail: "Apply a rhythmic structure to a pattern." },
-  bank: { signature: ".bank(name)", detail: "Select a sample bank." },
-  mask: { signature: ".mask(pattern)", detail: "Silence events where the mask is off." },
-  lpf: { signature: ".lpf(hertz)", detail: "Set the low-pass filter cutoff in hertz." },
-  s: { signature: "s(sound)", detail: "Select a sample or instrument." },
-  sound: { signature: "sound(name)", detail: "Select a sample or instrument." },
-  note: { signature: "note(pitch)", detail: "Set note pitches using numbers or note names." },
-  n: { signature: "n(index)", detail: "Select a sample or scale degree by index." },
-  gain: { signature: ".gain(amount)", detail: "Set signal gain. Large values can clip." },
-  pan: { signature: ".pan(position)", detail: "Move sound between left and right." },
-  room: { signature: ".room(amount)", detail: "Add room reverb." },
-  delay: { signature: ".delay(amount)", detail: "Add delay." },
-  fast: { signature: ".fast(factor)", detail: "Speed up a pattern by a factor." },
-  slow: { signature: ".slow(factor)", detail: "Slow down a pattern by a factor." },
-  setcps: {
-    signature: "setcps(cyclesPerSecond)",
-    detail: "Set the global playback rate in cycles per second.",
-  },
-  setcpm: {
-    signature: "setcpm(cyclesPerMinute)",
-    detail: "Set the global playback rate in cycles per minute.",
-  },
-};
+import { JavaScriptIntelligence } from "./javascript-intelligence";
 
-/** A bounded, pinned documentation lookup for server-side assistant context. */
-export function strudelDocumentation(name: string) {
-  return docs[name] ?? null;
-}
 const samples = [
   "bd",
   "sd",
@@ -64,9 +34,6 @@ const samples = [
   "bass",
   ...api.sounds,
 ];
-const names = api.names.filter(
-  (name) => !/^(get|setAudio|register|unregister|init|create|destroy|is[A-Z]|has[A-Z])/.test(name),
-);
 const offset = (source: string, pos: Position) => {
   const lines = source.split("\n");
   const line = Math.max(0, Math.min(pos.line, lines.length - 1));
@@ -90,7 +57,7 @@ const response = (id: number | string, result: unknown) => ({ jsonrpc: "2.0", id
 
 function enclosingCall(source: string, at: number) {
   const tree = javascriptLanguage.parser.parse(source);
-  let node: SyntaxNode | null = tree.resolveInner(Math.max(0, at - 1), -1);
+  let node: SyntaxNode | null = tree.resolveInner(at, -1);
   for (; node; node = node.parent) {
     if (node.name !== "ArgList" || node.from >= at || node.to < at) continue;
     const call = node.parent;
@@ -123,6 +90,7 @@ function inSoundArgument(source: string, at: number) {
 export class StrudelLanguageService {
   private documents = new Map<string, Entry>();
   private cancelled = new Set<number | string>();
+  private javascript = new JavaScriptIntelligence();
 
   handle(input: Message): object[] {
     const { id, method, params } = input;
@@ -140,20 +108,25 @@ export class StrudelLanguageService {
             signatureHelpProvider: { triggerCharacters: ["(", ","] },
             documentSymbolProvider: true,
             workspaceSymbolProvider: true,
+            definitionProvider: true,
+            referencesProvider: true,
+            renameProvider: { prepareProvider: true },
           },
-          serverInfo: { name: "JamScript Strudel", version: "0.1.0" },
+          serverInfo: { name: "JamScript JavaScript + Strudel", version: "0.2.0" },
         }),
       ];
     if (method === "initialized") return [];
     if (method === "shutdown") return [response(id!, null)];
     if (method === "exit") {
       this.documents.clear();
+      this.javascript.dispose();
       return [];
     }
     if (method === "textDocument/didOpen") {
       const doc = params?.textDocument;
       if (typeof doc?.uri !== "string" || typeof doc?.text !== "string") return [];
       this.documents.set(doc.uri, { source: doc.text, version: doc.version ?? 0 });
+      this.javascript.update(doc.uri, doc.text, doc.version ?? 0);
       return [this.diagnostics(doc.uri)];
     }
     if (method === "textDocument/didChange") {
@@ -170,11 +143,22 @@ export class StrudelLanguageService {
       )
         return [];
       this.documents.set(uri, { source, version });
+      this.javascript.update(uri, source, version);
       return [this.diagnostics(uri)];
     }
     if (method === "textDocument/didClose") {
       const uri = params?.textDocument?.uri;
-      if (uri) this.documents.delete(uri);
+      if (uri) {
+        this.documents.delete(uri);
+        this.javascript.close(uri);
+        return [
+          {
+            jsonrpc: "2.0",
+            method: "textDocument/publishDiagnostics",
+            params: { uri, diagnostics: [] },
+          },
+        ];
+      }
       return [];
     }
     if (id === undefined || this.cancelled.delete(id)) return [];
@@ -201,67 +185,57 @@ export class StrudelLanguageService {
     )
       return [response(id, null)];
     const at = offset(source, params?.position ?? { line: 0, character: 0 });
+    if (method === "textDocument/definition")
+      return [response(id, this.javascript.definition(uri!, at))];
+    if (method === "textDocument/references")
+      return [
+        response(
+          id,
+          this.javascript.references(uri!, at, params?.context?.includeDeclaration ?? true),
+        ),
+      ];
+    if (method === "textDocument/prepareRename")
+      return [response(id, this.javascript.prepareRename(uri!, at))];
+    if (method === "textDocument/rename")
+      return [response(id, this.javascript.rename(uri!, at, params?.newName ?? ""))];
     if (method === "textDocument/completion") {
+      const token = javascriptLanguage.parser.parse(source).resolveInner(Math.max(0, at - 1), -1);
+      if (/Comment$/.test(token.name)) return [response(id, { isIncomplete: false, items: [] })];
       const sampleContext =
         inSoundArgument(source, at) || /\b(?:s|sound)\s*\(\s*["'][^"']*$/.test(source.slice(0, at));
-      const locals = this.symbols(source).map((symbol) => symbol.name);
-      const candidates = sampleContext ? samples : [...new Set([...locals, ...names])];
+      if (!sampleContext && isStringOrComment(source, at))
+        return [response(id, { isIncomplete: false, items: [] })];
       const prefix = wordAt(source.slice(0, at), at).toLowerCase();
+      if (!sampleContext) {
+        const result = this.javascript.completions(uri!, at, prefix);
+        return [response(id, { isIncomplete: result.incomplete, items: result.items })];
+      }
       return [
         response(id, {
-          isIncomplete: false,
-          items: candidates
+          isIncomplete:
+            samples.filter((name) => name.toLowerCase().startsWith(prefix)).length > 120,
+          items: [...new Set(samples)]
             .filter((name) => name.toLowerCase().startsWith(prefix))
             .slice(0, 120)
             .map((name) => ({
               label: name,
-              kind: sampleContext ? 12 : locals.includes(name) ? 6 : 3,
-              detail: locals.includes(name)
-                ? "Local declaration"
-                : (docs[name]?.signature ?? `Strudel ${api.version}`),
-              documentation: locals.includes(name)
-                ? "Declared in this document."
-                : docs[name]?.detail,
+              kind: 12,
+              detail: "Sound · Strudel",
+              documentation: `Use ${name} in a sound pattern.`,
+              textEdit: {
+                range: { start: position(source, at - prefix.length), end: position(source, at) },
+                newText: name,
+              },
             })),
         }),
       ];
     }
     if (method === "textDocument/hover") {
       if (isStringOrComment(source, at)) return [response(id, null)];
-      const name = wordAt(source, at);
-      const found = docs[name];
-      const local = this.symbols(source).find((symbol) => symbol.name === name);
-      return [
-        response(
-          id,
-          found || local
-            ? {
-                contents: {
-                  kind: "markdown",
-                  value: found
-                    ? `**${found.signature}**\n\n${found.detail}`
-                    : `**${name}** · declared on line ${local!.range.start.line + 1}`,
-                },
-              }
-            : null,
-        ),
-      ];
+      return [response(id, this.javascript.hover(uri!, at))];
     }
     if (method === "textDocument/signatureHelp") {
-      const name = enclosingCall(source, at);
-      const found = name && docs[name];
-      return [
-        response(
-          id,
-          found
-            ? {
-                signatures: [{ label: found.signature, documentation: found.detail }],
-                activeSignature: 0,
-                activeParameter: 0,
-              }
-            : null,
-        ),
-      ];
+      return [response(id, this.javascript.signature(uri!, at))];
     }
     if (method === "textDocument/documentSymbol") return [response(id, this.symbols(source))];
     return [response(id, null)];
@@ -275,15 +249,18 @@ export class StrudelLanguageService {
       params: {
         uri,
         version: doc.version,
-        diagnostics: syntaxProblems(doc.source).map((problem) => ({
-          range: {
-            start: position(doc.source, problem.from),
-            end: position(doc.source, problem.to),
-          },
-          severity: 1,
-          source: "JamScript",
-          message: problem.message,
-        })),
+        diagnostics: [
+          ...syntaxProblems(doc.source).map((problem) => ({
+            range: {
+              start: position(doc.source, problem.from),
+              end: position(doc.source, problem.to),
+            },
+            severity: 1,
+            source: "JamScript",
+            message: problem.message,
+          })),
+          ...this.javascript.diagnostics(uri),
+        ],
       },
     };
   }

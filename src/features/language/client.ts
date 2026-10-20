@@ -1,6 +1,7 @@
 import { LSPClient, languageServerExtensions, type Transport } from "@codemirror/lsp-client";
 import { StateEffect } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { suggestionUI } from "./suggestion-ui";
 
 let client: LSPClient | null = null;
 
@@ -22,7 +23,9 @@ function languageClient() {
       subscribers.delete(handler);
     },
   };
-  client = new LSPClient({ extensions: languageServerExtensions() }).connect(transport);
+  client = new LSPClient({ extensions: [...languageServerExtensions(), suggestionUI] }).connect(
+    transport,
+  );
   return client;
 }
 
