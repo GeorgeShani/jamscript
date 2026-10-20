@@ -78,7 +78,21 @@ The shortcut defaults to `main`; append a branch if needed. Sample names come fr
 
 The future synced-workspace backend has a [Drizzle schema](src/db/schema.ts) and generated PostgreSQL migrations in `drizzle/`. They cover workspaces, owner/editor/viewer memberships, documents with source versions, hashed invitations, and saved source revisions. Clerk user IDs are external references; the database stores no passwords. The `jamscript` schema is private and must stay out of Supabase's exposed API schemas. The read-only `/api/shared-workspaces` route requires a verified Clerk session and queries only that user's memberships; it returns no document source. It requires a server-only `DATABASE_URL` and a migrated database. Browser IndexedDB remains the active storage path until sync is implemented.
 
-Use `bun run db:generate --name=<change>` after editing the schema and `bun run db:check` to check migration history. To apply migrations to a chosen PostgreSQL database, set a server-only `DATABASE_URL` and run `bun run db:migrate`. Use a Supabase database connection string, not its publishable API key. No live database has been migrated by this repository setup.
+Use `bun run db:generate --name=<change>` after editing the schema and `bun run db:check` to check migration history. To apply migrations to a chosen PostgreSQL database, set a server-only `DATABASE_URL` and run `bun run db:migrate`. Use a Supabase database connection string, not its publishable API key. The application data was migrated from Sydney to Ireland on 20 October 2026; see the region migration instructions below.
+
+### Region migration
+
+The Sydney-to-Ireland copy was verified on 20 October 2026: 4 workspaces, 6 memberships, 4 documents, 7 invitations, 4 revisions, and 3 migration-history records. IDs, exact timestamps, row checksums, constraints, indexes, ownership and access grants match. The old database was left unchanged. Clerk accounts and Liveblocks rooms retain their existing IDs.
+
+Use the server-only `DATABASE_URL_OLD` and `DATABASE_URL`, with matching `VITE_SUPABASE_URL_OLD` and `VITE_SUPABASE_URL`, from ignored local environment files. The migration command defaults to read-only preflight; `--apply` only imports into an empty destination. `--verify` compares both databases without changing them:
+
+```sh
+bun --env-file=.env --env-file=.env.local scripts/migrate-supabase-region.ts --verify
+```
+
+The command validates TLS against Supabase's public root certificate in `scripts/certs/`, sourced from the certificate URL in [Supabase Studio's configuration](https://github.com/supabase/supabase/blob/master/apps/studio/hooks/custom-content/custom-content.json). It never logs credentials, invitation details or music source, and copies data in one destination transaction with checksum verification before commit.
+
+Production cutover is separate: update the Worker's private `DATABASE_URL` to Ireland, update any database binding, and redeploy with the new public Supabase settings. Local `.env` changes do not update deployed Worker secrets. Prevent shared-workspace writes during final cutover and verify again; later writes to the old project do not automatically replicate to Ireland.
 
 ### Database latency diagnostics
 
