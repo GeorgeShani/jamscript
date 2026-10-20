@@ -133,15 +133,13 @@ export function ShareControls({
     const workspaceId = document?.shared?.workspaceId;
     if (!workspaceId || document?.shared?.role !== "owner") return;
     let current = true;
-    void Promise.all([
-      fetch(`/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&invitations=1`),
-      fetch(`/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&members=1`),
-    ])
-      .then(async ([inviteResponse, memberResponse]) => {
-        if (!inviteResponse.ok) throw new Error("Could not load invitations");
-        if (!memberResponse.ok) throw new Error("Could not load collaborators");
-        const inviteRows = (await inviteResponse.json()) as typeof invitations;
-        const memberRows = (await memberResponse.json()) as typeof members;
+    void fetch(`/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&management=1`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load workspace access");
+        const { invitations: inviteRows, members: memberRows } = (await response.json()) as {
+          invitations: typeof invitations;
+          members: typeof members;
+        };
         if (current) {
           setInvitations(inviteRows);
           setMembers(memberRows);

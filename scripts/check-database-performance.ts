@@ -4,6 +4,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import {
   listVisibleDocuments,
   listWorkspaceMembers,
+  listWorkspaceDocuments,
+  listActiveInvitations,
+  workspaceNameForOwner,
 } from "../src/features/collaboration/membership";
 
 // Read-only diagnostic. Prints timings and counts, never URLs, identities or source.
@@ -25,7 +28,7 @@ try {
   await db.transaction(
     async (scopedDb) => {
       const [member] = await scopedDb.execute<{ clerk_user_id: string; workspace_id: string }>(sql`
-      select clerk_user_id, workspace_id from jamscript.workspace_members limit 1`);
+      select clerk_user_id, workspace_id from jamscript.workspace_members where role='owner' limit 1`);
       if (!member) {
         console.log("No memberships available to measure");
         return;
@@ -44,6 +47,24 @@ try {
       console.log(
         JSON.stringify({ phase: "workspace members", ms: elapsed(start), rows: people.length }),
       );
+      for (const [phase, run] of [
+        [
+          "workspace files",
+          () => listWorkspaceDocuments(scopedDb, member.workspace_id, member.clerk_user_id),
+        ],
+        [
+          "active invitations",
+          () => listActiveInvitations(scopedDb, member.workspace_id, member.clerk_user_id),
+        ],
+        [
+          "owner workspace name",
+          () => workspaceNameForOwner(scopedDb, member.workspace_id, member.clerk_user_id),
+        ],
+      ] as const) {
+        start = performance.now();
+        await run();
+        console.log(JSON.stringify({ phase, ms: elapsed(start) }));
+      }
       const [plan] = await scopedDb.execute(sql`explain (analyze, buffers, format json)
       select d.id, d.name, w.name, m.role from jamscript.workspace_members m
       join jamscript.workspaces w on w.id=m.workspace_id

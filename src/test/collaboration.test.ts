@@ -14,6 +14,8 @@ import {
   listVisibleDocuments,
   listWorkspaceDocuments,
   listWorkspaceMembers,
+  listActiveInvitations,
+  workspaceNameForOwner,
   leaveSharedWorkspace,
   memberRole,
   openSharedWorkspace,
@@ -48,6 +50,41 @@ async function database(logQuery: () => void = () => {}) {
 }
 
 describe("shared project membership", () => {
+  it("authorizes document, invitation and workspace-name reads within a single query each", async () => {
+    const logQuery = vi.fn();
+    const db = await database(logQuery);
+    const project = await createSharedProject(db, {
+      name: "One trip",
+      ownerId: "owner",
+      documentName: "song.js",
+      source: 's("bd")',
+    });
+    logQuery.mockClear();
+    expect(await listWorkspaceDocuments(db, project.workspaceId, "owner")).toHaveLength(1);
+    expect(logQuery).toHaveBeenCalledTimes(1);
+    logQuery.mockClear();
+    expect(await listActiveInvitations(db, project.workspaceId, "owner")).toEqual([]);
+    expect(logQuery).toHaveBeenCalledTimes(1);
+    logQuery.mockClear();
+    expect(await workspaceNameForOwner(db, project.workspaceId, "owner")).toBe("One trip");
+    expect(logQuery).toHaveBeenCalledTimes(1);
+    expect(await listWorkspaceDocuments(db, project.workspaceId, "outsider")).toBeNull();
+    await expect(listActiveInvitations(db, project.workspaceId, "outsider")).rejects.toThrow(
+      "Only the owner",
+    );
+    await expect(workspaceNameForOwner(db, project.workspaceId, "outsider")).rejects.toThrow(
+      "Only the owner",
+    );
+    const invitation = await createInvitation(db, {
+      workspaceId: project.workspaceId,
+      actorId: "owner",
+      email: "player@example.com",
+      role: "viewer",
+    });
+    expect(await listActiveInvitations(db, project.workspaceId, "owner")).toMatchObject([
+      { id: invitation.invitationId, role: "viewer" },
+    ]);
+  });
   it("lists members with authorization and accepted emails in one database round trip", async () => {
     const logQuery = vi.fn();
     const db = await database(logQuery);

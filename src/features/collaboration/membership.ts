@@ -140,12 +140,15 @@ export async function listWorkspaceDocuments(
   workspaceId: string,
   userId: string,
 ) {
-  const role = await memberRole(db, workspaceId, userId);
-  if (!role) return null;
-  return db
-    .select({ id: documents.id, name: documents.name, source: documents.source })
-    .from(documents)
-    .where(eq(documents.workspaceId, workspaceId));
+  const rows = await db
+    .select({ document: { id: documents.id, name: documents.name, source: documents.source } })
+    .from(workspaceMembers)
+    .leftJoin(documents, eq(documents.workspaceId, workspaceMembers.workspaceId))
+    .where(
+      and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.clerkUserId, userId)),
+    );
+  if (!rows.length) return null;
+  return rows.flatMap((row) => (row.document ? [row.document] : []));
 }
 
 /**
@@ -236,23 +239,33 @@ export async function listActiveInvitations(
   workspaceId: string,
   actorId: string,
 ) {
-  if ((await memberRole(db, workspaceId, actorId)) !== "owner")
-    throw new Error("Only the owner can view invitations");
-  return db
+  const rows = await db
     .select({
-      id: workspaceInvitations.id,
-      email: workspaceInvitations.invitedEmail,
-      role: workspaceInvitations.role,
-      expiresAt: workspaceInvitations.expiresAt,
+      invitation: {
+        id: workspaceInvitations.id,
+        email: workspaceInvitations.invitedEmail,
+        role: workspaceInvitations.role,
+        expiresAt: workspaceInvitations.expiresAt,
+      },
     })
-    .from(workspaceInvitations)
-    .where(
+    .from(workspaceMembers)
+    .leftJoin(
+      workspaceInvitations,
       and(
-        eq(workspaceInvitations.workspaceId, workspaceId),
+        eq(workspaceInvitations.workspaceId, workspaceMembers.workspaceId),
         isNull(workspaceInvitations.revokedAt),
         isNull(workspaceInvitations.acceptedAt),
       ),
+    )
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, workspaceId),
+        eq(workspaceMembers.clerkUserId, actorId),
+        eq(workspaceMembers.role, "owner"),
+      ),
     );
+  if (!rows.length) throw new Error("Only the owner can view invitations");
+  return rows.flatMap((row) => (row.invitation ? [row.invitation] : []));
 }
 
 /** Members of a workspace the actor can access, with invite email when known. */
@@ -299,13 +312,19 @@ export async function workspaceNameForOwner(
   workspaceId: string,
   actorId: string,
 ) {
-  if ((await memberRole(db, workspaceId, actorId)) !== "owner")
-    throw new Error("Only the owner can invite");
   const [workspace] = await db
     .select({ name: workspaces.name })
     .from(workspaces)
+    .innerJoin(
+      workspaceMembers,
+      and(
+        eq(workspaceMembers.workspaceId, workspaces.id),
+        eq(workspaceMembers.clerkUserId, actorId),
+        eq(workspaceMembers.role, "owner"),
+      ),
+    )
     .where(eq(workspaces.id, workspaceId));
-  if (!workspace) throw new Error("Workspace was not found");
+  if (!workspace) throw new Error("Only the owner can invite");
   return workspace.name;
 }
 

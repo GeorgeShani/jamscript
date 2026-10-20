@@ -5,6 +5,7 @@ const backend = vi.hoisted(() => ({
   auth: vi.fn(),
   list: vi.fn(),
   members: vi.fn(),
+  invitations: vi.fn(),
   database: vi.fn(),
 }));
 vi.mock("@clerk/tanstack-react-start/server", () => ({ auth: backend.auth }));
@@ -13,6 +14,7 @@ vi.mock("@/features/collaboration/membership", async (original) => ({
   ...(await original<typeof import("@/features/collaboration/membership")>()),
   listVisibleDocuments: backend.list,
   listWorkspaceMembers: backend.members,
+  listActiveInvitations: backend.invitations,
 }));
 
 beforeEach(() => {
@@ -26,6 +28,8 @@ beforeEach(() => {
   });
   backend.database.mockImplementation((run: (db: object) => unknown) => run({}));
   backend.list.mockResolvedValue([]);
+  backend.members.mockResolvedValue([]);
+  backend.invitations.mockResolvedValue([]);
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -44,6 +48,17 @@ async function get(query = "") {
 }
 
 describe("shared project latency visibility", () => {
+  it("loads management with one authentication check and one database connection", async () => {
+    const response = await get("?workspaceId=private&management=1");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ members: [], invitations: [] });
+    expect(backend.auth).toHaveBeenCalledTimes(1);
+    expect(backend.database).toHaveBeenCalledTimes(1);
+    backend.invitations.mockRejectedValueOnce(new Error("Owner required"));
+    backend.members.mockClear();
+    expect((await get("?workspaceId=private&management=1")).status).toBe(403);
+    expect(backend.members).not.toHaveBeenCalled();
+  });
   it("reports auth separately from database work without caching private results", async () => {
     const response = await get();
     expect(response.status).toBe(200);

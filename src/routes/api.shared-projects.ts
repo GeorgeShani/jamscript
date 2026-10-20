@@ -104,6 +104,23 @@ export const Route = createFileRoute("/api/shared-projects")({
         if ("error" in current && current.error) return current.error;
         const url = new URL(request.url);
         const invitationWorkspace = url.searchParams.get("workspaceId");
+        if (invitationWorkspace && url.searchParams.get("management") === "1") {
+          try {
+            const management = await withCollaborationDb(async (db) => {
+              // The owner-only query authorizes the entire management response.
+              const invitations = await listActiveInvitations(
+                db,
+                invitationWorkspace,
+                current.userId,
+              );
+              const members = await listWorkspaceMembers(db, invitationWorkspace, current.userId);
+              return { invitations, members };
+            });
+            return json(management);
+          } catch {
+            return json({ error: "No access to workspace management" }, 403);
+          }
+        }
         if (invitationWorkspace && url.searchParams.get("invitations") === "1") {
           try {
             const invitations = await withCollaborationDb((db) =>

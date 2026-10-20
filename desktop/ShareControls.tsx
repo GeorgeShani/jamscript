@@ -151,15 +151,10 @@ export function ShareControls({
     const workspaceId = document?.shared?.workspaceId;
     if (!person || !workspaceId || document?.shared?.role !== "owner") return;
     let live = true;
-    void Promise.all([
-      collaborationApi<typeof members>(
-        `/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&members=1`,
-      ),
-      collaborationApi<typeof invitations>(
-        `/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&invitations=1`,
-      ),
-    ])
-      .then(([members, invitations]) => {
+    void collaborationApi<{ members: typeof members; invitations: typeof invitations }>(
+      `/api/shared-projects?workspaceId=${encodeURIComponent(workspaceId)}&management=1`,
+    )
+      .then(({ members, invitations }) => {
         if (live) {
           setMembers(members);
           setInvitations(invitations);

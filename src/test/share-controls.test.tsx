@@ -16,7 +16,7 @@ it("shows a selectable link and a safe reason when Resend cannot deliver an invi
   vi.stubEnv("VITE_CLERK_PUBLISHABLE_KEY", "pk_test_share_controls");
   const url = "https://jamscript.example/app/invitations/test-token";
   const fetcher = vi.fn(async (input: string, init?: RequestInit) => {
-    if (!init?.method) return Response.json([]);
+    if (!init?.method) return Response.json({ members: [], invitations: [] });
     return Response.json({
       invitationId: "invite",
       delivery: "link",
