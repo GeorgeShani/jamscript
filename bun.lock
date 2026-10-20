@@ -72,6 +72,7 @@
         "globals": "^15.15.0",
         "jsdom": "^20.0.3",
         "prettier": "^3.7.3",
+        "rolldown": "1.2.1",
         "typescript-eslint": "^8.56.1",
         "vite": "8.1.5",
         "vitest": "^4.1.10",

@@ -1,5 +1,6 @@
 import { strudelDocumentation } from "@/features/language/strudel-docs";
 import { syntaxProblems } from "@/features/language/syntax-problems";
+import { strudelTypeReference } from "@/features/language/strudel-types";
 
 type SourceFile = { id: string; name: string; source: string };
 
@@ -7,13 +8,17 @@ type SourceFile = { id: string; name: string; source: string };
 export function agentContext(instruction: string, files: SourceFile[]) {
   const names = new Set<string>();
   for (const text of [instruction, ...files.map((file) => file.source)]) {
-    for (const match of text.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) {
+    for (const match of text.matchAll(/\b([A-Za-z_$][\w$]*)\b/g)) {
       if (names.size >= 40) break;
-      names.add(match[1]!);
+      if (strudelDocumentation(match[1]!)) names.add(match[1]!);
     }
   }
   const documentation = [...names]
-    .map((name) => ({ name, reference: strudelDocumentation(name) }))
+    .map((name) => ({
+      name,
+      reference: strudelDocumentation(name),
+      types: strudelTypeReference(name),
+    }))
     .filter((item) => item.reference !== null)
     .slice(0, 20);
   const diagnostics = files.map((file) => ({
@@ -22,7 +27,12 @@ export function agentContext(instruction: string, files: SourceFile[]) {
       .slice(0, 5)
       .map(({ line, column, message }) => ({ line, column, message })),
   }));
-  return { documentation, diagnostics };
+  return {
+    documentation,
+    diagnostics,
+    typeNotes:
+      "Types come from the installed Strudel IntelliSense declarations. PatternArgument accepts mini-notation and computed patterns. Unknown means runtime-dependent, not invalid. Diagnostics here check syntax only; no playback has been evaluated.",
+  };
 }
 
 /** No music is evaluated. Reject newly introduced parse failures in parseable files. */

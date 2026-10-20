@@ -84,7 +84,7 @@ describe("assistant edit flow", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Message the assistant" }), {
       target: { value: "Add a snare and raise the bass" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Propose changes" }));
     await screen.findByText("Ready to review");
     const applyButtons = screen.getAllByRole("button", { name: "Apply file" });
     fireEvent.click(applyButtons[0]!);

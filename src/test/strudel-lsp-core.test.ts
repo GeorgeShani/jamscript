@@ -206,7 +206,7 @@ describe("Strudel language service", () => {
         position: { line: 2, character: 11 },
       }),
     );
-    expect(JSON.stringify(signature)).toContain("s(sound: PatternInput<string>");
+    expect(JSON.stringify(signature)).toContain("s(sound: PatternArgument<string>");
     expect(
       service.handle(
         request(6, "textDocument/completion", {

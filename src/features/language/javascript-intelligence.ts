@@ -283,11 +283,11 @@ export class JavaScriptIntelligence {
     return { changes };
   }
 
-  diagnostics(uri: string) {
+  diagnostics(uri: string, limit = 40) {
     return this.service
       .getSemanticDiagnostics(fileName(uri))
       .filter((item) => item.start !== undefined && item.length !== undefined)
-      .slice(0, 40)
+      .slice(0, limit)
       .map((item) => ({
         range: this.range(uri, { start: item.start!, length: item.length! }),
         severity: 2,

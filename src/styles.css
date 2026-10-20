@@ -2540,7 +2540,8 @@
   background: color-mix(in oklch, var(--card) 92%, var(--background));
 }
 .jam-chat-dock-meta {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px 10px;
 }
 .jam-chat-context {
@@ -2555,12 +2556,16 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--background);
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
 }
 .jam-chat-mode > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   min-width: 44px;
-  height: 24px;
+  height: 30px;
   padding: 0 10px;
   border: 0;
   border-radius: 4px;
@@ -2569,15 +2574,24 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  transition:
+    color 160ms ease-out,
+    background-color 160ms ease-out;
 }
 .jam-chat-mode > button:hover {
   color: var(--foreground);
 }
 .jam-chat-mode > button.is-active {
-  background: var(--muted);
-  color: var(--foreground);
+  background: color-mix(in oklch, var(--primary) 16%, var(--background));
+  color: var(--primary);
+}
+.jam-chat-mode > button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 .jam-chat-mode > select {
+  flex: 1;
+  min-width: 0;
   height: 24px;
   margin-left: 2px;
   border: 0;
@@ -2592,7 +2606,7 @@
 .jam-chat-mode-help {
   margin: 5px 0 0;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 .jam-chat-turn-into-edit {
@@ -2600,10 +2614,14 @@
   color: var(--ai);
 }
 .jam-chat-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: flex-end;
   gap: 8px;
 }
 .jam-chat-composer textarea {
+  width: 100%;
+  min-width: 0;
   min-height: 52px;
   max-height: 140px;
   flex: 1;
@@ -2626,12 +2644,17 @@
 }
 .jam-chat-composer .jam-chat-send,
 .jam-chat-composer .jam-play {
+  justify-self: end;
   flex: none;
   min-width: 56px;
   height: 32px;
 }
 .jam-chat-add-file {
   position: relative;
+}
+.jam-chat-composer .jam-chat-send.is-edit {
+  justify-self: stretch;
+  width: 100%;
 }
 .jam-chat-add-file-btn {
   color: var(--muted-foreground);

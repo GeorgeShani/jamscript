@@ -87,6 +87,12 @@ describe("actual Ask/Edit HTTP handlers", () => {
     );
     expect(backend.stream.mock.calls[0]?.[0].userPayload.files).toEqual(files);
     expect(backend.generate).not.toHaveBeenCalled();
+    expect(backend.stream.mock.calls[0]?.[0].systemInstruction).toContain("ASK MODE");
+    expect(
+      backend.stream.mock.calls[0]?.[0].userPayload.context.documentation.find(
+        (item: { name: string }) => item.name === "gain",
+      ).types.method,
+    ).toContain("number");
   });
 
   it("returns a structured Edit proposal anchored to the exact source snapshot", async () => {
@@ -107,6 +113,10 @@ describe("actual Ask/Edit HTTP handlers", () => {
       },
     });
     expect(backend.generate.mock.calls[0]?.[0].jsonSchema).toBeDefined();
+    expect(backend.generate.mock.calls[0]?.[0].systemInstruction).toContain("EDIT MODE");
+    expect(backend.generate.mock.calls[0]?.[0].systemInstruction).toContain(
+      "consistent indentation",
+    );
     expect(backend.stream).not.toHaveBeenCalled();
   });
 

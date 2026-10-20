@@ -41,7 +41,7 @@ describe("assistant chat workflow", () => {
         if (!init) return Response.json({ available: true });
         requestBody = JSON.parse(String(init.body)) as Record<string, unknown>;
         return new Response(
-          `${JSON.stringify({ type: "text-delta", text: "The kick plays on the first step." })}\n${JSON.stringify({ type: "done", seenDocumentIds: ["drums", "bass"] })}\n`,
+          `${JSON.stringify({ type: "text-delta", text: 'The kick plays on the first step.\n\n```js\ns("bd")\n```' })}\n${JSON.stringify({ type: "done", seenDocumentIds: ["drums", "bass"] })}\n`,
           { headers: { "Content-Type": "application/x-ndjson" } },
         );
       }),
@@ -76,6 +76,7 @@ describe("assistant chat workflow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByText("The kick plays on the first step.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Insert at cursor" })).not.toBeInTheDocument();
     await waitFor(() =>
       expect(requestBody?.["files"]).toEqual([
         { id: "drums", name: "drums.js", source: 's("bd")' },

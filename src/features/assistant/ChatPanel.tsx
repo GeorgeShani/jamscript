@@ -1,7 +1,6 @@
+import { FilePenLine, MessageSquare } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import { isolateHistory } from "@codemirror/commands";
-import { Transaction } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { Button } from "@/components/ui/button";
 import { shareableDocumentName } from "@/features/collaboration/shareable";
 import { apiUrl } from "@/lib/app-api";
@@ -157,17 +156,6 @@ export function ChatPanel({
       if (!current) return current;
       return typeof next === "function" ? next(current) : next;
     });
-  };
-
-  const insertAtCursor = (code: string) => {
-    const view = views.get(documentId);
-    if (!view || !view.state.facet(EditorView.editable)) return;
-    const { from, to } = view.state.selection.main;
-    view.dispatch({
-      changes: { from, to, insert: code },
-      annotations: [Transaction.userEvent.of("input.agent-insert"), isolateHistory.of("full")],
-    });
-    view.focus();
   };
 
   const markProposal = (messageId: string, status: "applied" | "rejected" | "stale") => {
@@ -339,7 +327,7 @@ export function ChatPanel({
           }));
           if (atBottom) requestAnimationFrame(scrollToLatest);
         }
-        if (event.type === "proposal") {
+        if (event.type === "proposal" && mode === "edit") {
           updateThread((current) => ({
             ...current,
             messages: current.messages.map((message) =>
@@ -513,7 +501,7 @@ export function ChatPanel({
                 </span>
               </header>
               {message.content ? (
-                <ChatMarkdown text={message.content} onInsertCode={insertAtCursor} />
+                <ChatMarkdown text={message.content} />
               ) : pending && message.id === lastAssistant?.id ? (
                 <p className="jam-chat-streaming" aria-hidden={!pending}>
                   {status ?? "Thinking…"}
@@ -689,7 +677,7 @@ export function ChatPanel({
               aria-pressed={mode === "ask"}
               onClick={() => setMode("ask")}
             >
-              Ask
+              <MessageSquare size={13} aria-hidden="true" /> Ask
             </button>
             <button
               type="button"
@@ -698,7 +686,7 @@ export function ChatPanel({
               disabled={!editAllowed}
               onClick={() => setMode("edit")}
             >
-              Edit
+              <FilePenLine size={13} aria-hidden="true" /> Edit
             </button>
             <select
               aria-label="Files in assistant context"
@@ -715,8 +703,8 @@ export function ChatPanel({
           {!editAllowed
             ? "You can ask about this shared file. Editing requires editor access."
             : mode === "edit"
-              ? "Edit proposes changes to your files. Review them before applying."
-              : "Ask answers questions about the selected file context."}
+              ? "Review the diff, then choose what to apply. Your files stay unchanged until then."
+              : "Answers and code examples only. Switch to Edit to propose file changes."}
         </p>
 
         <div className="jam-chat-composer">
@@ -725,7 +713,11 @@ export function ChatPanel({
             aria-label="Message the assistant"
             rows={2}
             value={draft}
-            placeholder="Ask about this file… (/explain, /fix, /clear)"
+            placeholder={
+              mode === "edit"
+                ? "Describe the change you want to review…"
+                : "Ask about your music or Strudel…"
+            }
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape" && pending) {
@@ -758,11 +750,11 @@ export function ChatPanel({
             <Button
               size="sm"
               type="button"
-              className="jam-chat-send"
+              className={`jam-chat-send${mode === "edit" ? " is-edit" : ""}`}
               disabled={!draft.trim() && !draft.startsWith("/")}
               onClick={() => void send(draft)}
             >
-              Send
+              {mode === "edit" ? "Propose changes" : "Send"}
             </Button>
           )}
         </div>

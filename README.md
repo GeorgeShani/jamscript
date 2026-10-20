@@ -62,6 +62,10 @@ Browser and desktop editors share an offline JavaScript/Strudel language worker 
 
 Run `bun run language:generate` after upgrading Strudel or TypeScript to refresh the API catalog and bundled standard libraries. Analysis stays in a worker and never evaluates music. The editor/lens parser remains separate.
 
+Run `bun run language:audit` to check the installed packages' distinct JSDoc examples against the real language service, without its 40-diagnostic display limit. Add `--json` to list every excluded example and its runtime requirement. The current audit covers 416 examples; 26 require optional MIDI/OSC extensions, external REPL widgets, or a custom runtime-registered method. These exclusions are explicit test fixtures, not IDE diagnostic suppressions.
+
+The generator separates global and method signatures, follows pattern-returning source expressions and aliases, and discovers numbered controls, operators and distortion factories. Regression tests compile every catalogued signature, check all globals/methods/constructors are declared, and exercise representative chains plus invalid arguments. Undocumented utilities keep opaque types rather than inventing return values; the audit proves compatibility of the covered examples, not every possible JavaScript program.
+
 Remote sample banks use [Strudel's sample-map syntax](https://strudel.cc/learn/samples/), including GitHub shortcuts:
 
 ```js
@@ -73,6 +77,8 @@ s("bd sd hh sd").bank("crate");
 The shortcut defaults to `main`; append a branch if needed. Sample names come from the bank's `strudel.json` (`crate_bd`, or `bd` with `.bank('crate')`). Audio downloads are cached and reused; manifests refresh after one minute, with cached fallback when the network fails. A changed URL or version query loads a new asset. Temporary download failures get one retry with a ten-second timeout per attempt. Samples still load on first use, so a new sound can arrive after its first trigger. Public web hosts must permit CORS; desktop's isolated cache bridge remains restricted to GitHub raw content, jsDelivr and strudel.cc, with eight active downloads, 32 queued requests, a 12 MiB file limit and 128 MiB cache limit.
 
 `bun scripts/check-agent-live.ts` tests real Gemini Ask/Edit requests against the local dev server using synthetic music; pass a different origin as the final argument to test a deployment. It consumes model requests and never writes project files. Deterministic HTTP-handler, proposal safety, streaming retry, review/apply and undo coverage runs with `bun run test`.
+
+Ask returns explanations and copyable code examples without file-writing actions. Edit proposes changes to existing files for review and explicit application. Both modes receive bounded references from the same Strudel parameter and return declarations used by IntelliSense, plus syntax diagnostics for the selected source. This context does not execute music or verify audio at runtime.
 
 ## Database foundation
 

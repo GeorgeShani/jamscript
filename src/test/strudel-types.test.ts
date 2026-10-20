@@ -99,12 +99,13 @@ drums;`;
       const signature = service.signature(uri, source.length);
       expect(signature?.signatures).toHaveLength(2);
       expect(signature?.activeParameter).toBe(1);
-      expect(signature?.signatures[1]?.label).toContain("pattern: Pattern<unknown>");
+      expect(signature?.signatures[1]?.label).toContain("Pattern<unknown>");
+      expect(signature?.signatures[1]?.label).toContain("string");
       service.update(uri, 's("bd").gai', 2);
       const completion = service
         .completions(uri, 11, "gai")
         .items.find((entry) => entry.label === "gain");
-      expect(completion?.detail).toContain("PatternInput<number>");
+      expect(completion?.detail).toContain("PatternArgument<number>");
       expect(completion?.documentation.value).toContain("Pattern<ControlMap>");
     } finally {
       service.dispose();
