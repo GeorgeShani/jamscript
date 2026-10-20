@@ -11,6 +11,37 @@ function intelligence(source: string) {
 }
 
 describe("Strudel type declarations", () => {
+  it("infers numeric patterns from irand and keeps arithmetic and seg chainable", () => {
+    const source = `const random = irand(8).sub(3).seg(16);
+n(random);
+n(irand("<4 8>").sub(3).seg(16));
+random;`;
+    const { service, uri } = intelligence(source);
+    try {
+      expect(service.diagnostics(uri)).toEqual([]);
+      expect(service.hover(uri, source.lastIndexOf("random") + 2)?.contents.value).toContain(
+        "Pattern<number>",
+      );
+    } finally {
+      service.dispose();
+    }
+  });
+  it("accepts transformed mini-notation as masks, structures and conditions", () => {
+    const source = `const gate = "<[0 1] 1 1 1>/16".early(0.5);
+const drums = stack(s("bd"), s("hh")).bank("crate").mask(gate);
+s("bd").struct("x ~ x ~".early(0.5).slow(2));
+s("hh").when(gate, pattern => pattern.gain(0.5));
+drums;`;
+    const { service, uri } = intelligence(source);
+    try {
+      expect(service.diagnostics(uri)).toEqual([]);
+      expect(service.hover(uri, source.lastIndexOf("drums") + 2)?.contents.value).toContain(
+        "Pattern<ControlMap>",
+      );
+    } finally {
+      service.dispose();
+    }
+  });
   it("compiles every generated signature without implicit any or malformed JSDoc types", () => {
     const target = "/strudel.d.ts";
     const options: ts.CompilerOptions = {

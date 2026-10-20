@@ -34,7 +34,10 @@ const methodOverrides: Record<string, string> = {
   queryArc:
     "queryArc(begin: number | Fraction, end: number | Fraction, controls?: ControlMap): Hap<T>[];",
   withState: "withState(transform: (state: QueryState) => QueryState): Pattern<T>;",
-  when: "when(condition: PatternInput<number | boolean>, transform: PatternTransform<T>): Pattern<T>;",
+  // Strudel tests these values for truthiness (core/pattern.mjs: keepif/when).
+  // Mini-notation transforms yield Pattern<unknown>; their values are not limited
+  // to numbers/booleans (struct also supports tokens such as "x").
+  when: "when(condition: PatternInput<unknown>, transform: PatternTransform<T>): Pattern<T>;",
   sometimes: "sometimes(transform: PatternTransform<T>): Pattern<T>;",
   rarely: "rarely(transform: PatternTransform<T>): Pattern<T>;",
   often: "often(transform: PatternTransform<T>): Pattern<T>;",
@@ -51,12 +54,15 @@ const methodOverrides: Record<string, string> = {
   rangex: "rangex(min: PatternInput<number>, max: PatternInput<number>): Pattern<number>;",
   range2: "range2(min: PatternInput<number>, max: PatternInput<number>): Pattern<number>;",
   ply: "ply(factor: PatternInput<number>): Pattern<T>;",
-  struct: "struct(...structure: PatternInput<number | boolean>[]): Pattern<T>;",
-  mask: "mask(...mask: PatternInput<number | boolean>[]): Pattern<T>;",
+  struct: "struct(...structure: PatternInput<unknown>[]): Pattern<T>;",
+  mask: "mask(...mask: PatternInput<unknown>[]): Pattern<T>;",
 };
 for (const name of ["add", "sub", "mul", "div", "mod", "pow"])
   methodOverrides[name] = `${name}(value: PatternInput<number>): Pattern<T>;`;
 const globalOverrides: Record<string, string> = {
+  // signal.mjs reifies the bound, then joins numeric random-value patterns.
+  irand: "declare function irand(max: PatternInput<number>): Pattern<number>;",
+  _irand: "declare function _irand(max: number): Pattern<number>;",
   pure: "declare function pure<T>(value: T): Pattern<T>;",
   reify: "declare function reify<T>(value: PatternInput<T>): Pattern<T>;",
   samples:
