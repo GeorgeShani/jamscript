@@ -592,6 +592,20 @@
   line-height: 1.65;
   animation: jam-code-appear 0.25s ease both;
 }
+.jam-site-faq details p a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-underline-offset: 3px;
+}
+.jam-site-faq details p a:hover {
+  color: var(--primary);
+}
+.jam-site-faq details code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
 .jam-site-final {
   position: relative;
   padding: 86px 30px;
@@ -731,21 +745,27 @@
 }
 .jam-site-final-playhead {
   position: absolute;
-  /* Start at the first pad's center, including the label/gaps and half the line width. */
-  inset: 10px auto 10px
-    calc(var(--track-label-width) + (var(--beat-gap) + var(--beat-pitch)) / 2 - 1px);
+  /* Center the resting playhead in the pads; animate symmetrically around it. */
+  inset: 10px auto 10px calc((100% + var(--track-label-width) + var(--beat-gap)) / 2 - 1px);
   width: 2px;
   background: var(--primary);
   box-shadow: 0 0 12px var(--primary);
   pointer-events: none;
 }
-.jam-site-final-inner.is-visible .jam-site-final-playhead {
+.jam-site-final-playhead {
   animation: jam-final-playhead 4s steps(8, end) infinite;
+  animation-play-state: paused;
+}
+.jam-site-final-inner.is-in-view .jam-site-final-playhead {
+  animation-play-state: running;
 }
 @keyframes jam-final-playhead {
+  from {
+    transform: translateX(calc(var(--beat-pitch) * -3.5));
+  }
   to {
-    /* Eight equal advances; steps(8) displays centers 0–7 before wrapping. */
-    transform: translateX(calc(100cqw - var(--track-label-width)));
+    /* Eight equal advances show pad centers 0–7 before wrapping. */
+    transform: translateX(calc(var(--beat-pitch) * 4.5));
   }
 }
 .jam-site-footer {
@@ -1174,17 +1194,17 @@
 .jam-site-feature-grid article:hover .jam-site-feature-icon svg {
   transform: rotate(-12deg) scale(1.1);
 }
-.jam-site-mix-visual.is-visible i {
+.jam-site-mix-visual.is-in-view i {
   animation: jam-fader-fill 0.9s 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   transform-origin: bottom;
 }
-.jam-site-mix-visual.is-visible > div:nth-child(2) i {
+.jam-site-mix-visual.is-in-view > div:nth-child(2) i {
   animation-delay: 0.38s;
 }
-.jam-site-mix-visual.is-visible > div:nth-child(3) i {
+.jam-site-mix-visual.is-in-view > div:nth-child(3) i {
   animation-delay: 0.51s;
 }
-.jam-site-mix-visual.is-visible > div:nth-child(4) i {
+.jam-site-mix-visual.is-in-view > div:nth-child(4) i {
   animation-delay: 0.64s;
 }
 .jam-site-roadmap li {
@@ -1287,5 +1307,8 @@
   .jam-site-scroll-progress,
   .jam-site-band::after {
     display: none;
+  }
+  .jam-site-final-playhead {
+    transform: none;
   }
 }

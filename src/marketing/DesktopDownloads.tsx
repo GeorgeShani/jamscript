@@ -53,8 +53,8 @@ export function DesktopDownloads() {
         <p className="jam-site-kicker">JAMSCRIPT ON YOUR DESKTOP</p>
         <h2 id="download-title">Your music, closer to home.</h2>
         <p>
-          The desktop edition opens local folders and saves directly to disk. Choose your platform
-          when a public installer is ready; the browser workbench is available now.
+          The desktop edition opens local folders and saves directly to disk. Download JamScript for
+          Windows, macOS or Linux, or open the browser workbench to start right away.
         </p>
       </div>
       <div className="jam-site-downloads-panel" data-reveal>

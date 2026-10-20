@@ -79,26 +79,23 @@ export function MarketingHome() {
 
   useEffect(() => {
     const root = site.current;
-    if (
-      !root ||
-      !window.IntersectionObserver ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    )
-      return;
+    if (!root || !window.IntersectionObserver) return;
     const sections = root.querySelectorAll<HTMLElement>("[data-reveal]");
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
+          entry.target.classList.toggle("is-in-view", entry.isIntersecting);
+          if (entry.isIntersecting) entry.target.classList.add("is-visible");
         }
       },
       { rootMargin: "0px 0px -7% 0px", threshold: 0.08 },
     );
     root.classList.add("jam-motion-ready");
     sections.forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      root.classList.remove("jam-motion-ready");
+    };
   }, []);
 
   return (
@@ -362,8 +359,8 @@ export function MarketingHome() {
             <p className="jam-site-kicker">PRODUCT STATUS</p>
             <h2>What is ready, and what is next.</h2>
             <p>
-              The browser workbench is available now. Desktop installers await a public release;
-              connected features depend on their configured services.
+              JamScript is available in your browser and as a desktop app. Connected features depend
+              on their configured services.
             </p>
           </div>
           <ul data-reveal>
@@ -372,8 +369,8 @@ export function MarketingHome() {
               <div>
                 <strong>Desktop edition</strong>
                 <p>
-                  Native folder workflows are implemented; public installers and cross-platform
-                  verification are next.
+                  Download installers for Windows, macOS and Linux. Open local folders, save to disk
+                  and use optional Git integration.
                 </p>
               </div>
             </li>
@@ -405,8 +402,10 @@ export function MarketingHome() {
                 Where are my projects saved?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                Browser workspaces are stored in this browser’s IndexedDB and autosave locally.
-                Clearing site data removes them. Account-backed sync is planned.
+                Local browser workspaces autosave in this browser. Clearing site data removes them,
+                so export files you want to keep. The desktop app can open folders and save files
+                directly to disk. Shared workspaces use cloud storage and are separate from your
+                local projects.
               </p>
             </details>
             <details>
@@ -414,8 +413,9 @@ export function MarketingHome() {
                 Do I need an account or Git?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                No. You can create and play local browser workspaces without either. Git is an
-                optional desktop tool.
+                No. You can create, edit and play local workspaces in the browser or desktop app
+                without an account. Sign in to use shared workspaces and collaboration. Git is
+                optional and available in the desktop app.
               </p>
             </details>
             <details>
@@ -423,9 +423,9 @@ export function MarketingHome() {
                 Can I edit Strudel code directly?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                Yes. Code is the source of every session. Visual controls currently edit selected
-                rhythm tokens and numeric gain, room and filter values; other expressions stay
-                editable in code.
+                Yes. Code is the source of every session. Knobs, sliders and rhythm grids write
+                supported changes back into that code. Expressions that cannot be safely edited with
+                a control remain available to edit directly.
               </p>
             </details>
             <details>
@@ -433,8 +433,84 @@ export function MarketingHome() {
                 Is the desktop app available now?<span aria-hidden="true">+</span>
               </summary>
               <p>
-                The native desktop shell exists, but no public installers have been published yet.
-                The Download section checks for real release files before showing links.
+                Yes. JamScript has desktop installers for Windows, macOS and Linux. Visit the{" "}
+                <a href="#download">Download section</a> to choose your platform, or find all
+                formats and release notes on{" "}
+                <a href="https://github.com/GeorgeShani/jamscript/releases">GitHub Releases</a>.
+              </p>
+            </details>
+            <details>
+              <summary>
+                What is different about the desktop app?<span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                Desktop adds local folder access, file saving, disk-change detection and Git
+                integration. Both versions provide the music editor, playback, source-linked
+                controls and IntelliSense. The browser keeps local workspaces in its own storage.
+              </p>
+            </details>
+            <details>
+              <summary>
+                Can I make music offline?<span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                The desktop app supports local editing and playback with audio assets already
+                available on your device. Downloading new sample packs, signing in, collaboration
+                and AI assistance require an internet connection.
+              </p>
+            </details>
+            <details>
+              <summary>
+                How do I collaborate with someone?<span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                Sign in, open a shared workspace and invite collaborators by email. Participants
+                need a JamScript account. Owners manage access with editor and viewer roles;
+                connected collaborators can see shared code changes and each other’s cursors.
+                Opening a local folder does not share it automatically.
+              </p>
+            </details>
+            <details>
+              <summary>
+                When do my changes affect the music?<span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                During playback, supported knob, slider, rhythm-grid and tempo changes update
+                upcoming musical events. Apply typed code with Ctrl+Enter on Windows and Linux, or
+                Cmd+Enter on macOS. Autosave keeps your source independently of playback; sounds and
+                effect tails already playing can continue naturally.
+              </p>
+            </details>
+            <details>
+              <summary>
+                Can I use my own Strudel patterns and sample packs?
+                <span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                Yes. Paste Strudel code into a document and load external sample packs with calls
+                such as <code>samples('github:eddyflux/crate')</code>. External packs need reachable
+                download URLs. Complex patterns remain editable as code even when a visual control
+                is unavailable.
+              </p>
+            </details>
+            <details>
+              <summary>
+                What can the AI assistant do?<span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                Ask mode answers questions using the source context you choose. Edit mode proposes
+                file changes as a diff for you to review before applying. AI assistance needs a
+                connection to the configured service; it does not run arbitrary shell commands.
+              </p>
+            </details>
+            <details>
+              <summary>
+                Where can I learn the controls?<span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                Start with a built-in song or beat, then explore the{" "}
+                <Link to="/docs">documentation</Link> for the editor, playback, desktop workflows
+                and collaboration. You can also open Help inside the workbench.
               </p>
             </details>
           </div>
