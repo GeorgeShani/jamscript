@@ -2,30 +2,153 @@
   min-height: 100dvh;
   background: var(--background);
   color: var(--foreground);
-  padding: 32px;
+  padding: 32px clamp(24px, 5vw, 72px) 48px;
 }
 .jam-connect-brand {
-  display: inline-flex;
+  display: flex;
+  width: min(100%, 1040px);
+  margin: 0 auto;
 }
 .jam-connect-content {
-  width: min(100%, 440px);
-  margin: clamp(40px, 10vh, 100px) auto 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+  align-items: start;
+  gap: clamp(40px, 7vw, 100px);
+  width: min(100%, 1040px);
+  margin: clamp(64px, 12vh, 120px) auto 0;
 }
-.jam-connect-symbol {
-  color: var(--primary);
-  margin-bottom: 20px;
+.jam-connect-overview {
+  padding-top: 24px;
 }
 .jam-connect-content h1 {
-  font-size: clamp(28px, 4vw, 36px);
+  max-width: 430px;
+  font-size: clamp(32px, 3.5vw, 44px);
   font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
   margin: 0;
 }
 .jam-connect-intro {
+  max-width: 370px;
   color: var(--muted-foreground);
+  font-size: 17px;
   line-height: 1.6;
-  margin: 14px 0 32px;
+  margin: 20px 0 32px;
+}
+.jam-connect-device {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.jam-connect-device > svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.jam-connect-device > div {
+  display: grid;
+  gap: 7px;
+}
+.jam-connect-device span {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.jam-connect-device code {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+}
+.jam-connect-panel {
+  min-width: 0;
+  padding: 28px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.jam-connect-panel > [role="alert"],
+.jam-connect-panel > [role="status"] {
+  margin: 0;
+  line-height: 1.6;
+}
+/* Keep these overrides outside Clerk's CSS layer: the shared theme supplies
+   utility classes that otherwise reset borders and clip focus rings. */
+.jam-connect-panel .cl-rootBox,
+.jam-connect-panel .cl-cardBox {
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+.jam-connect-panel .cl-cardBox,
+.jam-connect-panel .cl-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+.jam-connect-panel .cl-card {
+  padding: 0;
+  gap: 24px;
+}
+.jam-connect-panel .cl-socialButtons {
+  gap: 12px;
+}
+.jam-connect-panel .cl-socialButtonsBlockButton,
+.jam-connect-panel .cl-formFieldInput {
+  min-height: 46px;
+  border: 1px solid var(--input);
+  border-radius: 7px;
+  background: var(--background);
+  box-shadow: none;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 14px;
+}
+.jam-connect-panel .cl-socialButtonsBlockButton {
+  padding: 12px 16px;
+  transition:
+    background-color 160ms,
+    border-color 160ms;
+}
+.jam-connect-panel .cl-socialButtonsBlockButton:hover {
+  background: var(--accent);
+  border-color: var(--muted-foreground);
+}
+.jam-connect-panel .cl-socialButtonsBlockButtonText {
+  font-weight: 500;
+  color: var(--foreground);
+}
+.jam-connect-panel .cl-formFieldInput {
+  padding: 10px 12px;
+}
+.jam-connect-panel .cl-formFieldLabel {
+  font-size: 13px;
+  font-weight: 500;
+}
+.jam-connect-panel .cl-formButtonPrimary {
+  min-height: 46px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.jam-connect-panel :is(button, a, input):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.jam-connect-panel .cl-footer {
+  background: transparent;
+  padding-top: 24px;
+  gap: 20px;
+}
+.jam-connect-panel .cl-footerAction {
+  padding: 0;
+}
+.jam-connect-panel .cl-footerActionText,
+.jam-connect-panel .cl-footerActionLink {
+  font-size: 13px;
 }
 .jam-connect-person {
   display: flex;
@@ -53,7 +176,7 @@
 .jam-connect-continue,
 .jam-connect-other > button {
   width: 100%;
-  min-height: 44px;
+  min-height: 46px;
   justify-content: space-between;
 }
 .jam-connect-other {
@@ -74,18 +197,46 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 32px 0 0;
+  margin: 24px 0 0;
+}
+.jam-connect-footnote svg {
+  flex-shrink: 0;
 }
 .jam-connect-signin {
   display: flex;
   justify-content: center;
 }
-.jam-connect-signin .cl-rootBox,
-.jam-connect-signin .cl-cardBox {
-  width: 100%;
+@media (max-width: 800px) {
+  .jam-connect-content {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 440px;
+    gap: 32px;
+    margin-top: 48px;
+  }
+  .jam-connect-overview {
+    padding-top: 0;
+  }
+  .jam-connect-intro {
+    margin: 16px 0 24px;
+    font-size: 16px;
+  }
+  .jam-connect-device {
+    padding: 16px 0;
+  }
+  .jam-connect-footnote {
+    margin-top: 16px;
+  }
 }
 @media (max-width: 480px) {
   .jam-connect-page {
-    padding: 24px 20px;
+    padding: 24px 20px 32px;
+  }
+  .jam-connect-content {
+    margin-top: 36px;
+    gap: 24px;
+  }
+  .jam-connect-panel {
+    padding: 22px 20px;
+    border-radius: 12px;
   }
 }

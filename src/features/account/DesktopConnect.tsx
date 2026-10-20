@@ -14,7 +14,7 @@ const appearance: NonNullable<ComponentProps<typeof SignIn>["appearance"]> = {
   options: { socialButtonsVariant: "blockButton" },
   elements: {
     rootBox: { width: "100%" },
-    cardBox: { width: "100%", boxShadow: "none" },
+    cardBox: { width: "100%", boxShadow: "none", overflow: "visible" },
     card: { background: "transparent", boxShadow: "none", padding: 0 },
     header: { display: "none" },
     logoBox: { display: "none" },
@@ -42,25 +42,38 @@ export function DesktopConnect({
         <img src="/brand/logo.svg" alt="JamScript" width={133} height={28} />
       </a>
       <section className="jam-connect-content" aria-labelledby="connect-title">
-        <Monitor size={28} className="jam-connect-symbol" aria-hidden="true" />
-        <h1 id="connect-title">Connect to JamScript Desktop</h1>
-        <p className="jam-connect-intro">
-          Choose the account you want to use in JamScript Desktop.
-        </p>
-        {userCode ? (
-          import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"] ? (
-            <AccountChoice userCode={userCode} mode={mode} />
-          ) : (
-            <p role="alert">Account sign-in is not configured on this website.</p>
-          )
-        ) : (
-          <p role="alert">
-            Open this page using “Continue in browser” in JamScript Desktop to start a new sign-in.
+        <div className="jam-connect-overview">
+          <h1 id="connect-title">Connect to JamScript Desktop</h1>
+          <p className="jam-connect-intro">
+            Choose the account you want to use in JamScript Desktop.
           </p>
-        )}
-        <p className="jam-connect-footnote">
-          <ShieldCheck size={15} aria-hidden="true" /> Local music stays on your device.
-        </p>
+          {userCode && (
+            <div className="jam-connect-device">
+              <Monitor size={24} aria-hidden="true" />
+              <div>
+                <span>Desktop connection code</span>
+                <code>{userCode}</code>
+              </div>
+            </div>
+          )}
+          <p className="jam-connect-footnote">
+            <ShieldCheck size={16} aria-hidden="true" /> Local music stays on your device.
+          </p>
+        </div>
+        <div className="jam-connect-panel">
+          {userCode ? (
+            import.meta.env["VITE_CLERK_PUBLISHABLE_KEY"] ? (
+              <AccountChoice userCode={userCode} mode={mode} />
+            ) : (
+              <p role="alert">Account sign-in is not configured on this website.</p>
+            )
+          ) : (
+            <p role="alert">
+              Open this page using “Continue in browser” in JamScript Desktop to start a new
+              sign-in.
+            </p>
+          )}
+        </div>
       </section>
     </main>
   );
