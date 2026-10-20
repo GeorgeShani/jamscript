@@ -156,7 +156,7 @@ export function AccountChoice({
         </>
       )}
       {verify && (
-        <Button variant="ghost" onClick={() => setVerify(false)}>
+        <Button className="jam-connect-back" variant="ghost" onClick={() => setVerify(false)}>
           Back to account choice
         </Button>
       )}

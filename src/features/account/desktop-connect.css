@@ -206,6 +206,10 @@
   display: flex;
   justify-content: center;
 }
+.jam-connect-back {
+  display: flex;
+  margin: 12px auto 0;
+}
 @media (max-width: 800px) {
   .jam-connect-content {
     grid-template-columns: minmax(0, 1fr);
