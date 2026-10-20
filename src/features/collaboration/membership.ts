@@ -261,43 +261,37 @@ export async function listWorkspaceMembers(
   workspaceId: string,
   actorId: string,
 ) {
-  if (!(await memberRole(db, workspaceId, actorId))) throw new Error("No access to this workspace");
-  const members = await db
+  const requester = alias(workspaceMembers, "requesting_member");
+  const rows = await db
     .select({
       userId: workspaceMembers.clerkUserId,
       role: workspaceMembers.role,
       joinedAt: workspaceMembers.joinedAt,
-    })
-    .from(workspaceMembers)
-    .where(eq(workspaceMembers.workspaceId, workspaceId));
-  const accepted = await db
-    .select({
-      userId: workspaceInvitations.acceptedByClerkUserId,
       email: workspaceInvitations.invitedEmail,
     })
-    .from(workspaceInvitations)
-    .where(
+    .from(workspaceMembers)
+    .innerJoin(
+      requester,
       and(
-        eq(workspaceInvitations.workspaceId, workspaceId),
+        eq(requester.workspaceId, workspaceMembers.workspaceId),
+        eq(requester.clerkUserId, actorId),
+      ),
+    )
+    .leftJoin(
+      workspaceInvitations,
+      and(
+        eq(workspaceInvitations.workspaceId, workspaceMembers.workspaceId),
+        eq(workspaceInvitations.acceptedByClerkUserId, workspaceMembers.clerkUserId),
         isNull(workspaceInvitations.revokedAt),
       ),
-    );
-  const emailByUser = new Map(
-    accepted
-      .filter((row): row is { userId: string; email: string } => !!row.userId)
-      .map((row) => [row.userId, row.email]),
-  );
-  return members
-    .map((member) => ({
-      userId: member.userId,
-      role: member.role,
-      email: emailByUser.get(member.userId) ?? null,
-      joinedAt: member.joinedAt,
-    }))
-    .sort((left, right) => {
-      const rank = { owner: 0, editor: 1, viewer: 2 } as const;
-      return rank[left.role] - rank[right.role] || left.userId.localeCompare(right.userId);
-    });
+    )
+    .where(eq(workspaceMembers.workspaceId, workspaceId));
+  // Authorization stays inside the query. A real member always contributes a row.
+  if (!rows.length) throw new Error("No access to this workspace");
+  return [...new Map(rows.map((row) => [row.userId, row])).values()].sort((left, right) => {
+    const rank = { owner: 0, editor: 1, viewer: 2 } as const;
+    return rank[left.role] - rank[right.role] || left.userId.localeCompare(right.userId);
+  });
 }
 
 export async function workspaceNameForOwner(

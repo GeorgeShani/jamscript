@@ -48,6 +48,39 @@ async function database(logQuery: () => void = () => {}) {
 }
 
 describe("shared project membership", () => {
+  it("lists members with authorization and accepted emails in one database round trip", async () => {
+    const logQuery = vi.fn();
+    const db = await database(logQuery);
+    const project = await createSharedProject(db, {
+      name: "Latency check",
+      ownerId: "owner",
+      documentName: "song.js",
+      source: 's("bd")',
+    });
+    // Rejoining with a second invitation must not duplicate the member row.
+    for (let index = 0; index < 2; index++) {
+      const invite = await createInvitation(db, {
+        workspaceId: project.workspaceId,
+        actorId: "owner",
+        email: "editor@example.com",
+        role: "editor",
+      });
+      await acceptInvitation(db, {
+        token: invite.token,
+        userId: "editor",
+        email: "editor@example.com",
+      });
+    }
+    logQuery.mockClear();
+    const members = await listWorkspaceMembers(db, project.workspaceId, "owner");
+    expect(members).toHaveLength(2);
+    expect(members[0]).toMatchObject({ userId: "owner", role: "owner", email: null });
+    expect(members[1]).toMatchObject({ userId: "editor", email: "editor@example.com" });
+    expect(logQuery).toHaveBeenCalledTimes(1);
+    await expect(listWorkspaceMembers(db, project.workspaceId, "outsider")).rejects.toThrow(
+      "No access",
+    );
+  });
   it("opens an authorized workspace in one database round trip", async () => {
     const logQuery = vi.fn();
     const db = await database(logQuery);

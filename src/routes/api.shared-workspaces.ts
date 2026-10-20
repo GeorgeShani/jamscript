@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { withCollaborationDb } from "@/features/collaboration/database";
 
 /** Authenticated metadata only; document content stays behind later room permissions. */
 export const Route = createFileRoute("/api/shared-workspaces")({
@@ -20,16 +21,9 @@ export const Route = createFileRoute("/api/shared-workspaces")({
             { status: 503, headers },
           );
 
-        const [{ drizzle }, { eq }, { default: postgres }, schema] = await Promise.all([
-          import("drizzle-orm/postgres-js"),
-          import("drizzle-orm"),
-          import("postgres"),
-          import("@/db/schema"),
-        ]);
-        const client = postgres(url, { max: 1, prepare: false });
-        try {
-          const db = drizzle(client);
-          const rows = await db
+        const [{ eq }, schema] = await Promise.all([import("drizzle-orm"), import("@/db/schema")]);
+        const rows = await withCollaborationDb((db) =>
+          db
             .select({
               id: schema.workspaces.id,
               name: schema.workspaces.name,
@@ -41,11 +35,9 @@ export const Route = createFileRoute("/api/shared-workspaces")({
               schema.workspaces,
               eq(schema.workspaces.id, schema.workspaceMembers.workspaceId),
             )
-            .where(eq(schema.workspaceMembers.clerkUserId, userId));
-          return Response.json(rows, { headers });
-        } finally {
-          await client.end();
-        }
+            .where(eq(schema.workspaceMembers.clerkUserId, userId)),
+        );
+        return Response.json(rows, { headers });
       },
     },
   },

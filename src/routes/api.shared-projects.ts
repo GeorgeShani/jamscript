@@ -90,7 +90,17 @@ export const Route = createFileRoute("/api/shared-projects")({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const started = performance.now();
         const current = await actor();
+        const authenticated = performance.now();
+        const json = (body: unknown, status = 200) =>
+          Response.json(body, {
+            status,
+            headers: {
+              ...headers,
+              "Server-Timing": `auth;dur=${(authenticated - started).toFixed(1)}, database;dur=${(performance.now() - authenticated).toFixed(1)}`,
+            },
+          });
         if ("error" in current && current.error) return current.error;
         const url = new URL(request.url);
         const invitationWorkspace = url.searchParams.get("workspaceId");
@@ -99,9 +109,9 @@ export const Route = createFileRoute("/api/shared-projects")({
             const invitations = await withCollaborationDb((db) =>
               listActiveInvitations(db, invitationWorkspace, current.userId),
             );
-            return Response.json(invitations, { headers });
+            return json(invitations);
           } catch {
-            return Response.json({ error: "No access to invitations" }, { status: 403, headers });
+            return json({ error: "No access to invitations" }, 403);
           }
         }
         if (invitationWorkspace && url.searchParams.get("members") === "1") {
@@ -109,9 +119,9 @@ export const Route = createFileRoute("/api/shared-projects")({
             const members = await withCollaborationDb((db) =>
               listWorkspaceMembers(db, invitationWorkspace, current.userId),
             );
-            return Response.json(members, { headers });
+            return json(members);
           } catch {
-            return Response.json({ error: "No access to members" }, { status: 403, headers });
+            return json({ error: "No access to members" }, 403);
           }
         }
         const documentId = url.searchParams.get("documentId");
@@ -122,26 +132,22 @@ export const Route = createFileRoute("/api/shared-projects")({
           const opened = await withCollaborationDb((db) =>
             openSharedWorkspace(db, documentId, current.userId),
           );
-          if (!opened)
-            return Response.json({ error: "No access to this document" }, { status: 403, headers });
+          if (!opened) return json({ error: "No access to this document" }, 403);
           const { access, documents: files } = opened;
-          return Response.json(
-            {
-              documentId,
-              workspaceId: access.workspaceId,
-              workspaceName: access.workspaceName,
-              name: access.name,
-              source: files.find((file) => file.id === documentId)?.source ?? access.source,
-              role: access.role,
-              documents: files,
-            },
-            { headers },
-          );
+          return json({
+            documentId,
+            workspaceId: access.workspaceId,
+            workspaceName: access.workspaceName,
+            name: access.name,
+            source: files.find((file) => file.id === documentId)?.source ?? access.source,
+            role: access.role,
+            documents: files,
+          });
         }
         const documents = await withCollaborationDb((db) =>
           listVisibleDocuments(db, current.userId),
         );
-        return Response.json(documents, { headers });
+        return json(documents);
       },
       POST: async ({ request }) => {
         const current = await actor();
