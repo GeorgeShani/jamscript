@@ -5,18 +5,19 @@ import { canProxyAssetUrl } from "./asset-cache";
 let nextAssetId = 0;
 const assetPending = new Map<
   number,
-  { resolve: (value: Response) => void; reject: (cause: Error) => void }
+  { resolve: (value: Response) => void; reject: (cause: Error) => void; timeout: number }
 >();
 configureIsolatedAssetFetch(async (url) => {
   if (!canProxyAssetUrl(url)) return null;
+  if (assetPending.size >= 40) throw new Error("Sample download queue is full");
   const id = ++nextAssetId;
   return new Promise<Response>((resolve, reject) => {
-    assetPending.set(id, { resolve, reject });
-    window.parent.postMessage({ channel: "jamscript-audio", type: "asset-request", id, url }, "*");
-    window.setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       if (!assetPending.delete(id)) return;
       reject(new Error("Sample request timed out"));
-    }, 30_000);
+    }, 120_000);
+    assetPending.set(id, { resolve, reject, timeout });
+    window.parent.postMessage({ channel: "jamscript-audio", type: "asset-request", id, url }, "*");
   });
 });
 
@@ -92,6 +93,7 @@ window.addEventListener("message", async (event: MessageEvent<unknown>) => {
   if (data.type === "asset-response") {
     const pending = assetPending.get(id);
     if (!pending) return;
+    window.clearTimeout(pending.timeout);
     assetPending.delete(id);
     if (data.ok && data.bytes instanceof ArrayBuffer)
       pending.resolve(

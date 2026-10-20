@@ -75,9 +75,17 @@ function ensureFrame() {
       if (data.channel !== "jamscript-audio") return;
       if (data.type === "asset-request" && Number.isSafeInteger(data.id)) {
         const id = data.id as number;
-        if (typeof data.url !== "string" || inFlightAssets >= 8) {
+        // The loader queues eight active plus 32 waiting downloads. Bound bridge
+        // callers too, including duplicate URLs sent by executable song code.
+        if (typeof data.url !== "string" || inFlightAssets >= 40) {
           iframe.contentWindow?.postMessage(
-            { channel: "jamscript-audio", type: "asset-response", id, ok: false },
+            {
+              channel: "jamscript-audio",
+              type: "asset-response",
+              id,
+              ok: false,
+              detail: "Invalid sample request or download queue full",
+            },
             "*",
           );
           return;
