@@ -36,6 +36,7 @@
   --muted: oklch(0.285 0.032 278); /* #26293A hover row, rest cell */
   --muted-foreground: oklch(0.75 0.02 278); /* #ABADBB paper dim */
   --border: oklch(0.335 0.03 278); /* #333546 hairline (decorative) */
+  --floating-border: color-mix(in oklch, var(--border) 70%, var(--muted-foreground));
   --input: oklch(0.56 0.03 278); /* #707386 control edge, 3:1 or more */
 
   /* Action */
@@ -1203,10 +1204,13 @@
   gap: 12px;
   width: min(420px, 100%);
   padding: 24px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--floating-border);
   border-radius: 10px;
   background: var(--card);
-  box-shadow: 0 24px 64px #0009;
+  box-shadow: none;
+}
+.jam-floating-panel {
+  border: 1px solid var(--floating-border);
 }
 .jam-save-as-dialog h2 {
   margin: 0;
@@ -3247,10 +3251,10 @@
 .jam-command-palette {
   width: min(100%, 500px);
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--floating-border);
   border-radius: 8px;
   background: var(--popover);
-  box-shadow: 0 16px 40px #0008;
+  box-shadow: none;
 }
 .jam-command-palette input {
   width: 100%;

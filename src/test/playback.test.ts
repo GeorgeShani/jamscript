@@ -9,6 +9,9 @@ const web = vi.hoisted(() => ({
   samples: vi.fn(),
   getSuperdoughAudioController: vi.fn().mockReturnValue(null),
   getAudioContext: vi.fn().mockReturnValue(null),
+  getSound: vi.fn(),
+  getSampleInfo: vi.fn(),
+  getSampleBuffer: vi.fn(),
 }));
 vi.mock("@strudel/web", () => ({ ...web, Pattern: class MockPattern {} }));
 beforeEach(() => {
@@ -21,6 +24,90 @@ beforeEach(() => {
 });
 
 describe("Live playback adapter", () => {
+  it("fades Stop smoothly and cancels that fade on a quick restart", async () => {
+    const gain = {
+      value: 0.7,
+      cancelAndHoldAtTime: vi.fn(),
+      cancelScheduledValues: vi.fn(),
+      setValueAtTime: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+      setTargetAtTime: vi.fn(),
+    };
+    web.getAudioContext.mockReturnValue({ currentTime: 3 });
+    web.getSuperdoughAudioController.mockReturnValue({
+      output: { destinationGain: { gain } },
+      nodes: {},
+    });
+    const playback = await import("@/engine/playback");
+    expect(await playback.play('s("bd")')).toBe(true);
+    await playback.stop();
+    expect(web.hush).toHaveBeenCalledOnce();
+    expect(gain.cancelAndHoldAtTime).toHaveBeenCalledWith(3);
+    expect(gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 3.35);
+    expect(gain.setValueAtTime).not.toHaveBeenCalledWith(0, 3);
+    expect(await playback.play('s("bd")')).toBe(true);
+    expect(gain.cancelAndHoldAtTime).toHaveBeenCalledTimes(2);
+    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 3, 0.015);
+    await playback.stop();
+  });
+  it("waits for cold sample buffers before allowing the first scheduler start", async () => {
+    let finish!: () => void;
+    web.getSound.mockReturnValue({ data: { type: "sample", samples: ["kick.wav"] } });
+    web.getSampleInfo.mockReturnValue({ url: "kick.wav" });
+    web.getSampleBuffer.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const started = vi.fn();
+    web.evaluate.mockImplementation(async () => {
+      const config = web.initStrudel.mock.calls[0]![0];
+      config.editPattern({ queryArc: () => [{ value: { s: "bd", bank: "crate" } }] });
+      await config.beforeStart();
+      started();
+    });
+    const playback = await import("@/engine/playback");
+    const playing = playback.play('samples("github:eddyflux/crate"); s("bd").bank("crate")');
+    await vi.waitFor(() => expect(web.getSampleBuffer).toHaveBeenCalled());
+    expect(started).not.toHaveBeenCalled();
+    finish();
+    expect(await playing).toBe(true);
+    expect(started).toHaveBeenCalledOnce();
+    expect(web.getSound).toHaveBeenCalledWith("crate_bd");
+    await playback.stop();
+  });
+
+  it("does not start stale code when a new Play arrives during manifest loading", async () => {
+    let finishManifest!: () => void;
+    const manifest = new Promise<void>((resolve) => {
+      finishManifest = resolve;
+    });
+    const started = vi.fn();
+    web.evaluate
+      .mockImplementationOnce(async () => {
+        await manifest;
+        const config = web.initStrudel.mock.calls[0]![0];
+        config.editPattern({ queryArc: () => [] });
+        await config.beforeStart();
+        started("old");
+      })
+      .mockImplementationOnce(async () => {
+        const config = web.initStrudel.mock.calls[0]![0];
+        config.editPattern({ queryArc: () => [] });
+        await config.beforeStart();
+        started("new");
+      });
+    const playback = await import("@/engine/playback");
+    const old = playback.play('s("bd")');
+    await vi.waitFor(() => expect(web.evaluate).toHaveBeenCalledOnce());
+    const newer = playback.play('s("sd")');
+    finishManifest();
+    expect(await old).toBe(false);
+    expect(await newer).toBe(true);
+    expect(started.mock.calls).toEqual([["new"]]);
+    await playback.stop();
+  });
   it("accepts Strudel editor visualization calls without requiring their UI", async () => {
     const playback = await import("@/engine/playback");
     expect(await playback.play('s("bd")._punchcard({ vertical: 0 })._scope()')).toBe(true);

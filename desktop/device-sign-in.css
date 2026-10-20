@@ -1,18 +1,14 @@
 .jam-device-popover {
   width: min(384px, calc(100vw - 24px));
   padding: 0;
-  box-shadow: none;
-  background: transparent;
+  background: var(--card);
 }
 .jam-desktop-device-panel {
   width: 100%;
   max-height: calc(100dvh - 96px);
   overflow: auto;
-  border-radius: var(--radius);
+  border-radius: inherit;
   background: var(--card);
-  box-shadow:
-    0 12px 32px oklch(0.1 0.02 278 / 55%),
-    0 0 0 1px var(--border);
   color: var(--foreground);
   font-family: var(--font-sans);
   font-size: 13px;

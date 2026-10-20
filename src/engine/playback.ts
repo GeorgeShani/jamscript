@@ -12,6 +12,7 @@ import {
   type MovedPattern,
 } from "./mix-source";
 import { registerBundledSoundfonts } from "./register-soundfonts";
+import { preloadPatternAssets, type PreloadPattern } from "./preload-pattern";
 import type { PlaybackRange } from "@/components/jam/playback-highlights";
 
 let initPromise: Promise<StrudelWeb> | null = null;
@@ -21,6 +22,10 @@ let revision = 0;
 let allowed = false;
 let work: Promise<boolean> = Promise.resolve(false);
 let activeStrudel: StrudelWeb | null = null;
+let preparation: AbortController | null = null;
+let evaluationRevision = 0;
+let evaluationSignal: AbortSignal | undefined;
+let fading = false;
 let mixTracks: MixTrack[] = [];
 let movedPattern: MovedPattern | undefined;
 let mixLevels: Record<string, number> = {};
@@ -80,7 +85,15 @@ function applyMix() {
   const context = activeStrudel?.getAudioContext?.() as AudioContext | undefined;
   if (!controller || !context) return;
   const master = controller.output?.destinationGain?.gain as AudioParam | undefined;
-  if (master) master.setTargetAtTime(masterLevel, context.currentTime, 0.015);
+  if (master) {
+    // A quick restart must cancel the previous Stop's fade-to-zero automation.
+    if (fading) {
+      if (master.cancelAndHoldAtTime) master.cancelAndHoldAtTime(context.currentTime);
+      else master.cancelScheduledValues?.(context.currentTime);
+      fading = false;
+    }
+    master.setTargetAtTime(masterLevel, context.currentTime, 0.015);
+  }
   for (const track of mixTracks) {
     const gain = controller.nodes?.[track.orbit]?.output?.gain as AudioParam | undefined;
     if (!gain) continue;
@@ -116,15 +129,27 @@ function message(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Stop the scheduler and hard-mute its output so long effect tails cannot leak. */
-function silence(strudel: StrudelWeb) {
+/** Stop new notes immediately; user Stop fades tails, errors mute immediately. */
+function silence(strudel: StrudelWeb, smooth = false) {
   try {
     const context = strudel.getAudioContext?.() as AudioContext | undefined;
     const gain = strudel.getSuperdoughAudioController?.()?.output?.destinationGain?.gain as
       AudioParam | undefined;
     if (context && gain) {
-      gain.cancelScheduledValues?.(context.currentTime);
-      gain.setValueAtTime?.(0, context.currentTime);
+      const now = context.currentTime;
+      if (smooth && gain.linearRampToValueAtTime) {
+        if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
+        else {
+          gain.cancelScheduledValues?.(now);
+          gain.setValueAtTime?.(gain.value, now);
+        }
+        gain.linearRampToValueAtTime(0, now + 0.35);
+        fading = true;
+      } else {
+        gain.cancelScheduledValues?.(now);
+        gain.setValueAtTime?.(0, now);
+        fading = false;
+      }
     }
   } catch {
     // A broken audio graph must not prevent the scheduler from stopping.
@@ -132,7 +157,7 @@ function silence(strudel: StrudelWeb) {
   try {
     strudel.hush();
   } catch {
-    // The master mute above still prevents output if the scheduler fails.
+    // The master gain still reaches silence if the scheduler fails.
   }
 }
 
@@ -145,6 +170,7 @@ export function initPlayback(): Promise<StrudelWeb> {
       if (import.meta.env.SSR) throw new Error("playback is browser-only");
       installAudioCache();
       const strudel = await import("@strudel/web");
+      let upcoming: PreloadPattern | null = null;
       // Strudel REPL snippets can include editor-only visual widgets. They do
       // not affect the sound; JamScript renders its own output visualization.
       const patternMethods = strudel.Pattern.prototype as unknown as Record<string, unknown>;
@@ -158,6 +184,20 @@ export function initPlayback(): Promise<StrudelWeb> {
           });
       }
       await strudel.initStrudel({
+        editPattern: (pattern: PreloadPattern) => {
+          upcoming = pattern;
+          return pattern;
+        },
+        beforeStart: async () => {
+          const startingRevision = evaluationRevision;
+          if (upcoming)
+            await preloadPatternAssets(
+              upcoming,
+              strudel,
+              () => allowed && revision === startingRevision,
+              evaluationSignal,
+            );
+        },
         onEvalError: (error: unknown) => {
           evaluationError = message(error);
         },
@@ -203,6 +243,9 @@ export function initPlayback(): Promise<StrudelWeb> {
 /** Evaluates the session code like the Strudel REPL. Never throws: errors go to onError. */
 export function play(code: string): Promise<boolean> {
   const request = ++revision;
+  preparation?.abort();
+  const startup = new AbortController();
+  preparation = startup;
   allowed = true;
   mixEnabled = false;
   work = work
@@ -221,6 +264,8 @@ export function play(code: string): Promise<boolean> {
         movedPattern = mix.moved;
         miniLocations.clear();
         mixTracks = mix.mixable === false ? [] : mix.tracks;
+        evaluationRevision = request;
+        evaluationSignal = startup.signal;
         await strudel.evaluate(mix.code);
         if (!allowed) {
           mixEnabled = false;
@@ -266,6 +311,7 @@ export function play(code: string): Promise<boolean> {
 /** Stops all playing patterns. */
 export async function stop(): Promise<void> {
   allowed = false;
+  preparation?.abort();
   mixEnabled = false;
   clearHighlightTimers();
   if (mixTimer) clearInterval(mixTimer);
@@ -273,7 +319,7 @@ export async function stop(): Promise<void> {
   const stoppedAt = ++revision;
   // Release the transport immediately even if a sample manifest or worklet is
   // still loading. A stale initialization hushes only if no newer Play won.
-  if (activeStrudel) silence(activeStrudel);
+  if (activeStrudel) silence(activeStrudel, true);
   else if (initPromise)
     void initPromise
       .then((strudel) => {

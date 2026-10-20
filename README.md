@@ -56,6 +56,8 @@ The chooser offers a new workspace and an explicit Night bus template. The Files
 
 Browser workspaces do not request filesystem permissions. Clearing this site's browser storage deletes the local workspaces. JamScript manages workspaces independently of Git; native folder operations and optional Git integration are reserved for the desktop app. Repo, Takes, Rework, presence, Share, and AI controls return only after their backing services work.
 
+Playback prepares sample buffers and General MIDI soundfonts before starting the scheduler, scanning up to 64 cycles and 128 distinct assets with six concurrent loads. Later, unseen assets in open-ended patterns still load on demand. Stop cancels preparation immediately and fades existing audio over 350 ms; restarting cancels the old fade. Evaluation errors still mute immediately.
+
 ### IntelliSense and assistant checks
 
 Browser and desktop editors share an offline JavaScript/Strudel language worker powered by TypeScript's language service. It provides inferred local/object types, standard JavaScript members, completion documentation, signatures, definitions (`F12`), references (`Shift+F12`) and local symbol rename (`F2`). `Ctrl+Space` opens suggestions; `Ctrl+Shift+Space` opens parameter hints. The catalog comes from the installed Strudel packages; signatures remain permissive for dynamic patterns. Navigation covers documents currently open in the language service, not a full disk/project import index.

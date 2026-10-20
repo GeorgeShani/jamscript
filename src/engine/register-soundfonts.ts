@@ -1,6 +1,18 @@
-// @strudel/web 1.3.0 bundles its own Web Audio registry and omits the
+// The packaged @strudel/web runtime omits the
 // soundfont registration done by the REPL. Register the same GM trigger in
 // that registry; the soundfont decoder and GM map come from @strudel/soundfonts.
+export async function preloadBundledSoundfont(
+  font: string,
+  value: Record<string, unknown>,
+  context: AudioContext,
+) {
+  const { getFontBufferSource } = await import("@strudel/soundfonts");
+  // This fills the decoder's own pitch/buffer cache. The source is never
+  // connected or started, so preparation cannot produce audible notes.
+  const source = await getFontBufferSource(font, value, context);
+  source.disconnect();
+}
+
 export async function registerBundledSoundfonts(strudel: typeof import("@strudel/web")) {
   const [{ getFontBufferSource }, { default: gm }] = await Promise.all([
     import("@strudel/soundfonts"),
