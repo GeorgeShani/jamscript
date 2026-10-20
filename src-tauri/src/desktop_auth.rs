@@ -28,6 +28,8 @@ pub struct AuthProfile {
     pub id: String,
     pub name: String,
     pub email: Option<String>,
+    #[serde(rename = "imageUrl")]
+    pub image_url: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -36,6 +38,7 @@ struct ClerkUserInfo {
     sub: Option<String>,
     name: Option<String>,
     email: Option<String>,
+    picture: Option<String>,
 }
 
 fn profile_from_user_info(info: ClerkUserInfo) -> Result<AuthProfile, String> {
@@ -53,6 +56,7 @@ fn profile_from_user_info(info: ClerkUserInfo) -> Result<AuthProfile, String> {
         id,
         name,
         email: info.email,
+        image_url: info.picture.filter(|url| url.starts_with("https://")),
     })
 }
 
@@ -86,6 +90,24 @@ pub struct DeviceBegin {
 #[derive(Serialize)]
 pub struct DevicePoll {
     pub status: String,
+    #[serde(rename = "retryAfterMs", skip_serializing_if = "Option::is_none")]
+    pub retry_after_ms: Option<u64>,
+}
+
+impl DevicePoll {
+    fn finished(status: &str) -> Self {
+        Self {
+            status: status.into(),
+            retry_after_ms: None,
+        }
+    }
+
+    fn pending(next_poll: u64, current: u64) -> Self {
+        Self {
+            status: "pending".into(),
+            retry_after_ms: Some(next_poll.saturating_sub(current).max(1)),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -138,6 +160,10 @@ struct PendingDevice {
     device: DeviceBegin,
     expires_at: u64,
     next_poll: u64,
+    // Keep the seconds field for saved grants from older versions, but use
+    // milliseconds so focus checks cannot poll just before Clerk's minimum interval.
+    #[serde(default)]
+    next_poll_ms: u64,
     interval: u64,
 }
 
@@ -489,6 +515,7 @@ pub fn begin() -> Result<DeviceBegin, String> {
         device: device.clone(),
         expires_at: now() + response.expires_in,
         next_poll: now() + interval,
+        next_poll_ms: now_ms() + interval * 1000,
         interval,
     };
     // Persist the grant before showing its code, so a desktop:dev rebuild can resume it.
@@ -531,31 +558,38 @@ fn now() -> u64 {
         .as_secs()
 }
 
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
 pub fn poll() -> Result<DevicePoll, String> {
     let id = client_id().ok_or("Desktop sign-in is not configured")?;
     if restore_pending()?.is_none() {
-        return Ok(DevicePoll {
-            status: "expired".into(),
-        });
+        return Ok(DevicePoll::finished("expired"));
     }
     let mut guard = PENDING.lock().map_err(|e| e.to_string())?;
     let pending = guard.as_mut().ok_or("Start JamScript sign-in first")?;
     if now() >= pending.expires_at {
         drop(guard);
         clear_pending()?;
-        return Ok(DevicePoll {
-            status: "expired".into(),
-        });
+        return Ok(DevicePoll::finished("expired"));
     }
-    if now() < pending.next_poll {
-        return Ok(DevicePoll {
-            status: "pending".into(),
-        });
+    let next_poll_ms = if pending.next_poll_ms == 0 {
+        pending.next_poll * 1000
+    } else {
+        pending.next_poll_ms
+    };
+    if now_ms() < next_poll_ms {
+        return Ok(DevicePoll::pending(next_poll_ms, now_ms()));
     }
     let endpoint = pending.token_endpoint.clone();
     let code = pending.code.clone();
     let interval = pending.interval;
     pending.next_poll = now() + interval;
+    pending.next_poll_ms = now_ms() + interval * 1000;
     store_pending(pending)?;
     drop(guard);
     let response = auth_agent().post(&endpoint).send_form(&[
@@ -577,30 +611,26 @@ pub fn poll() -> Result<DevicePoll, String> {
             expires_at: now() + body.expires_in.unwrap_or(3600),
         })?;
         clear_pending()?;
-        return Ok(DevicePoll {
-            status: "complete".into(),
-        });
+        return Ok(DevicePoll::finished("complete"));
     }
     match body.error.as_deref() {
-        Some("authorization_pending") => Ok(DevicePoll {
-            status: "pending".into(),
-        }),
+        Some("authorization_pending") => {
+            Ok(DevicePoll::pending(now_ms() + interval * 1000, now_ms()))
+        }
         Some("slow_down") => {
             let mut guard = PENDING.lock().map_err(|e| e.to_string())?;
             if let Some(pending) = guard.as_mut() {
                 pending.interval = body.interval.unwrap_or(interval + 5).max(interval + 5);
                 pending.next_poll = now() + pending.interval;
+                pending.next_poll_ms = now_ms() + pending.interval * 1000;
                 store_pending(pending)?;
             }
-            Ok(DevicePoll {
-                status: "pending".into(),
-            })
+            let next = guard.as_ref().map_or(now_ms() + (interval + 5) * 1000, |p| p.next_poll_ms);
+            Ok(DevicePoll::pending(next, now_ms()))
         }
         Some("access_denied") | Some("expired_token") => {
             clear_pending()?;
-            Ok(DevicePoll {
-                status: "expired".into(),
-            })
+            Ok(DevicePoll::finished("expired"))
         }
         Some(error) => Err(format!("Clerk refused sign-in ({error})")),
         None => Err("Clerk did not issue a desktop token".into()),
@@ -685,6 +715,13 @@ pub fn api_request(path: &str, method: &str, body: Option<&str>) -> Result<ApiRe
 #[cfg(test)]
 mod tests {
     #[test]
+    fn polling_returns_the_remaining_wait_instead_of_another_full_interval() {
+        assert_eq!(super::DevicePoll::pending(105000, 104000).retry_after_ms, Some(1000));
+        assert_eq!(super::DevicePoll::pending(115000, 100000).retry_after_ms, Some(15000));
+        assert_eq!(super::DevicePoll::pending(105500, 105100).retry_after_ms, Some(400));
+        assert_eq!(super::DevicePoll::finished("complete").retry_after_ms, None);
+    }
+    #[test]
     fn consecutive_api_calls_reuse_the_http_connection() {
         use std::io::{BufRead, BufReader, Write};
         use std::net::TcpListener;
@@ -764,15 +801,18 @@ mod tests {
             sub: None,
             name: None,
             email: Some("player@example.com".into()),
+            picture: Some("https://img.clerk.com/avatar.png".into()),
         })
         .unwrap();
         assert_eq!(person.id, "user_123");
+        assert_eq!(person.image_url.as_deref(), Some("https://img.clerk.com/avatar.png"));
         assert_eq!(person.name, "player@example.com");
         assert!(profile_from_user_info(ClerkUserInfo {
             user_id: None,
             sub: None,
             name: None,
             email: None,
+            picture: None,
         })
         .is_err());
     }
@@ -792,6 +832,7 @@ mod tests {
             },
             expires_at: 123456,
             next_poll: 123400,
+            next_poll_ms: 0,
             interval: 5,
         };
         let restored: PendingDevice =

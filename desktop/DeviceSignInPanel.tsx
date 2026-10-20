@@ -7,6 +7,7 @@ export function DeviceSignInPanel({
   code,
   link,
   switching,
+  approved = false,
   error,
   openBrowser,
   dismiss,
@@ -14,6 +15,7 @@ export function DeviceSignInPanel({
   code: string;
   link: string;
   switching: boolean;
+  approved?: boolean;
   error: string | null;
   openBrowser(): Promise<void>;
   dismiss(): void;
@@ -69,7 +71,7 @@ export function DeviceSignInPanel({
         )}
         <div className="jam-device-waiting" role="status">
           <span aria-hidden="true" />
-          Waiting for browser approval
+          {approved ? "Approved · Loading your profile" : "Waiting for browser approval"}
         </div>
         {error && (
           <p role="alert" className="jam-error">

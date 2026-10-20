@@ -14,6 +14,73 @@ afterEach(() => {
 });
 
 describe("desktop guest save notice", () => {
+  it("shows the Clerk photo and falls back to initials when loading fails", async () => {
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status") return { signedIn: true, available: true };
+      if (command === "desktop_auth_profile")
+        return {
+          id: "photo-user",
+          name: "Test Player",
+          imageUrl: "https://img.clerk.com/test-photo.png",
+        };
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    const trigger = await screen.findByRole("button", { name: "Open account profile" });
+    const image = trigger.querySelector("img")!;
+    expect(image).toHaveAttribute("src", "https://img.clerk.com/test-photo.png");
+    fireEvent.error(image);
+    expect(trigger).toHaveTextContent("TP");
+    fireEvent.click(trigger);
+    expect(screen.getByRole("dialog").querySelector("img")).toHaveAttribute(
+      "src",
+      "https://img.clerk.com/test-photo.png",
+    );
+  });
+
+  it("checks approval immediately on focus and follows the native retry delay", async () => {
+    vi.useFakeTimers();
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === "desktop_auth_status")
+        return {
+          signedIn: false,
+          available: true,
+          pending: {
+            userCode: "POLL-CODE",
+            verificationUri: "https://clerk.example/device",
+            interval: 5,
+            expiresIn: 600,
+          },
+        };
+      if (command === "desktop_auth_poll") return { status: "pending", retryAfterMs: 10_000 };
+      return undefined;
+    });
+    render(
+      <DesktopAuthProvider>
+        <AuthControls />
+      </DesktopAuthProvider>,
+    );
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.focus(window);
+    });
+    const polls = () =>
+      vi.mocked(invoke).mock.calls.filter(([command]) => command === "desktop_auth_poll");
+    expect(polls()).toHaveLength(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9999);
+    });
+    expect(polls()).toHaveLength(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(polls()).toHaveLength(2);
+  });
+
   it("bounds automatic checks when DNS stays unavailable", async () => {
     vi.useFakeTimers();
     vi.mocked(invoke).mockImplementation(async (command) => {

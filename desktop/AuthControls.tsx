@@ -13,6 +13,7 @@ export function AuthControls() {
     loading,
     available,
     device,
+    approvalReceived,
     error,
     connectionIssue,
     begin,
@@ -96,6 +97,7 @@ export function AuthControls() {
             code={device.userCode}
             link={verificationLink}
             switching={signedIn}
+            approved={approvalReceived}
             error={error}
             openBrowser={openVerification}
             dismiss={() => setDismissed(true)}

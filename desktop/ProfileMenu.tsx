@@ -10,7 +10,7 @@ export function ProfileMenu({
   switchAccount,
   signOut,
 }: {
-  person: { name: string; email?: string | null };
+  person: { name: string; email?: string | null; imageUrl?: string | null };
   canSwitch: boolean;
   switchAccount: () => void;
   signOut: () => Promise<void>;
@@ -35,7 +35,7 @@ export function ProfileMenu({
           aria-label="Open account profile"
           title={person.email ?? person.name}
         >
-          <span aria-hidden="true">{initials}</span>
+          <ProfileAvatar imageUrl={person.imageUrl ?? null} initials={initials} />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -45,9 +45,7 @@ export function ProfileMenu({
         aria-label="JamScript profile"
       >
         <div className="jam-profile-identity">
-          <span className="jam-profile-avatar" aria-hidden="true">
-            {initials}
-          </span>
+          <ProfileAvatar imageUrl={person.imageUrl ?? null} initials={initials} large />
           <div className="jam-profile-details">
             <strong>{name}</strong>
             {person.email && <span>{person.email}</span>}
@@ -85,5 +83,28 @@ export function ProfileMenu({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function ProfileAvatar({
+  imageUrl,
+  initials,
+  large = false,
+}: {
+  imageUrl?: string | null;
+  initials: string;
+  large?: boolean;
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const url = imageUrl ?? "";
+  const showImage = url.startsWith("https://") && failedUrl !== url;
+  return (
+    <span className={large ? "jam-profile-avatar" : "jam-profile-photo"} aria-hidden="true">
+      {showImage ? (
+        <img src={url} alt="" referrerPolicy="no-referrer" onError={() => setFailedUrl(url)} />
+      ) : (
+        initials
+      )}
+    </span>
   );
 }

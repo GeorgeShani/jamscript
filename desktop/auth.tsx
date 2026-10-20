@@ -10,7 +10,7 @@ import {
 } from "react";
 import { desktopAuthError } from "./auth-errors";
 
-type Person = { id: string; name: string; email?: string | null };
+type Person = { id: string; name: string; email?: string | null; imageUrl?: string | null };
 type Status = { signedIn: boolean; available: boolean; pending?: Device; warning?: string };
 type Device = {
   userCode: string;
@@ -28,6 +28,7 @@ type DesktopAuth = {
   loading: boolean;
   available: boolean;
   device: Device | null;
+  approvalReceived: boolean;
   error: string | null;
   connectionIssue: boolean;
   begin(): Promise<void>;
@@ -51,6 +52,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [available, setAvailable] = useState(false);
   const [device, setDevice] = useState<Device | null>(null);
+  const [approvalReceived, setApprovalReceived] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionIssue, setConnectionIssue] = useState(false);
   const accountEpoch = useRef(0);
@@ -161,44 +163,61 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
     if (!device) return;
     let active = true;
     let polling = false;
-    const interval = window.setInterval(
-      () => {
-        if (polling) return;
-        polling = true;
-        let completed = false;
-        void invoke<{ status: string }>("desktop_auth_poll")
-          .then(async ({ status }) => {
-            if (!active) return;
-            if (status === "complete") {
-              accountEpoch.current++;
-              profileRequest.current = null;
-              completed = true;
-              window.clearInterval(interval);
-              await verifyProfile(() => active);
-              if (active) setDevice(null);
-            } else if (status === "expired") {
-              window.clearInterval(interval);
-              setDevice(null);
-              setError("Sign-in expired or was declined. Try again.");
-            } else {
-              setError(null);
-            }
-          })
-          .catch((cause: unknown) => {
-            if (active) {
-              if (completed) setDevice(null);
-              reportError(cause);
-            }
-          })
-          .finally(() => {
-            polling = false;
-          });
-      },
-      Math.max(1, device.interval) * 1000,
-    );
+    let timer: ReturnType<typeof setTimeout>;
+    let failures = 0;
+    const schedule = (delay: number) => {
+      clearTimeout(timer);
+      if (active) timer = setTimeout(() => void poll(), delay);
+    };
+    const poll = async () => {
+      if (!active || polling) return;
+      clearTimeout(timer);
+      polling = true;
+      let terminal = false;
+      try {
+        const result = await invoke<{ status: string; retryAfterMs?: number }>("desktop_auth_poll");
+        if (!active) return;
+        failures = 0;
+        if (result.status === "complete") {
+          terminal = true;
+          accountEpoch.current++;
+          profileRequest.current = null;
+          setApprovalReceived(true);
+          setHasToken(true);
+          await verifyProfile(() => active);
+          if (active) setDevice(null);
+        } else if (result.status === "expired") {
+          terminal = true;
+          setDevice(null);
+          setError("Sign-in expired or was declined. Try again.");
+        } else {
+          setError(null);
+          schedule(Math.max(1000, result.retryAfterMs ?? device.interval * 1000));
+        }
+      } catch (cause) {
+        if (active) {
+          reportError(cause);
+          failures++;
+          schedule(Math.max(1000, device.interval * 1000) * Math.min(failures, 3));
+        }
+      } finally {
+        polling = false;
+        if (terminal) clearTimeout(timer);
+      }
+    };
+    // Native code owns the OAuth rate limit, including slow_down responses.
+    // Checking on resume avoids background-webview timer throttling delaying approval.
+    const resume = () => {
+      if (document.visibilityState !== "hidden") void poll();
+    };
+    schedule(Math.max(1, device.interval) * 1000);
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
     return () => {
       active = false;
-      window.clearInterval(interval);
+      clearTimeout(timer);
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
     };
   }, [device, verifyProfile, reportError]);
 
@@ -206,6 +225,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
     accountEpoch.current++;
     profileRequest.current = null;
     setConnectionIssue(false);
+    setApprovalReceived(false);
     setError(null);
     if (!signedIn) setHasToken(false);
     try {
@@ -246,6 +266,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
         loading,
         available,
         device,
+        approvalReceived,
         error,
         connectionIssue,
         begin,
