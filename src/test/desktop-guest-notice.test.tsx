@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { invoke } from "@tauri-apps/api/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DesktopAuthProvider, useDesktopAuth } from "../../desktop/auth";
+import { DesktopAuthProvider } from "../../desktop/auth";
+import { useDesktopAuth } from "../../desktop/auth-context";
 import { AuthControls, GuestWorkspaceNotice } from "../../desktop/AuthControls";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));

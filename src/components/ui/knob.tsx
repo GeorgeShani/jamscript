@@ -117,7 +117,7 @@ const THOUSANDS = /\d\s*k/iu;
 const THOUSAND = 1000;
 
 /** The first number in the text. "−" counts as a minus and "k" as thousands. */
-export const parseKnobValue = (text: string): number | null => {
+const parseKnobValue = (text: string): number | null => {
   const normalized = text.replaceAll("\u2212", "-");
   const match = NUMBER.exec(normalized);
   if (!match) {
@@ -1244,5 +1244,3 @@ export const Knob = ({
     </KnobContext.Provider>
   );
 };
-
-export { knobCapVariants, knobVariants };

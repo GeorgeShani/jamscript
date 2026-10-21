@@ -1,4 +1,4 @@
-import { AudioContextProvider } from "@/hooks/use-audio-context";
+import { AudioContextProvider } from "@/components/ui/audio-context-provider";
 import { useAudioAnalyser } from "@/hooks/use-audio-analyser";
 import { LevelMeter } from "@/components/ui/level-meter";
 import { Spectrum } from "@/components/ui/spectrum";

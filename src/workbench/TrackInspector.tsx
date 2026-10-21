@@ -21,7 +21,8 @@ import {
 import { PARAMS, type MusicTrack, type ParamLens } from "@/engine/music-document";
 import type { MixTrack } from "@/engine/mix-source";
 import { MixerPanel } from "./MixerPanel";
-import { PanControl, formatPan } from "@/components/ui/pan-control";
+import { PanControl } from "@/components/ui/pan-control";
+import { formatPan } from "@/lib/pan";
 
 export function TrackInspector({
   track,

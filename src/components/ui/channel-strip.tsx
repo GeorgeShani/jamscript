@@ -9,7 +9,8 @@ import { createContext, useCallback, useContext, useEffect, useId, useMemo, useR
 import type { ComponentProps, CSSProperties } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { AudioConfigProvider, useAudioConfig } from "@/hooks/use-audio-config";
+import { AudioConfigProvider } from "@/components/ui/audio-config-provider";
+import { useAudioConfig } from "@/hooks/use-audio-config";
 import type { AudioSize } from "@/hooks/use-audio-config";
 import type { Orientation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -31,10 +32,6 @@ const useChannelStripContext = (part: string) => {
   }
   return context;
 };
-
-/** The state of the surrounding channel strip, for custom parts. */
-export const useChannelStrip = (): ChannelStripContextValue =>
-  useChannelStripContext("useChannelStrip");
 
 const channelStripVariants = cva(
   "group/channel-strip data-selected:ring-ring/40 relative min-w-0 transition-[opacity,box-shadow] outline-none data-disabled:opacity-60 data-selected:ring-2",
@@ -402,5 +399,3 @@ export const ChannelStripNotice = ({
     {...props}
   />
 );
-
-export { channelStripLayoutVariants, channelStripVariants };

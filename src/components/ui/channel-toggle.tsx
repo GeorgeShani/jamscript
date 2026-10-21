@@ -75,5 +75,3 @@ export const SoloToggle = (props: ChannelTogglePresetProps) => (
 export const MonitorToggle = (props: ChannelTogglePresetProps) => (
   <ChannelToggle aria-label="Monitor" data-slot="monitor-toggle" tone="monitor" {...props} />
 );
-
-export { channelToggleVariants };

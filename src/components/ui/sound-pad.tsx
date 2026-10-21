@@ -497,5 +497,3 @@ export const SoundPadProgress = ({
     </div>
   );
 };
-
-export { soundPadVariants };

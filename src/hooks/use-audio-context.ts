@@ -1,11 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useSyncExternalStore } from "react";
-import type { ReactNode } from "react";
 
 export type AudioContextStatus = AudioContextState | "unsupported";
 
-const ProvidedContext = createContext<AudioContext | null>(null);
+export const AudioContextContext = createContext<AudioContext | null>(null);
 
 let sharedContext: AudioContext | null = null;
 
@@ -19,17 +18,6 @@ export const getSharedAudioContext = (): AudioContext | null => {
   }
   return sharedContext;
 };
-
-export interface AudioContextProviderProps {
-  /** Use your own context instead of the shared one. */
-  context: AudioContext;
-  children: ReactNode;
-}
-
-/** Makes every audiocn hook below it use `context`. */
-export const AudioContextProvider = ({ context, children }: AudioContextProviderProps) => (
-  <ProvidedContext.Provider value={context}>{children}</ProvidedContext.Provider>
-);
 
 const GESTURE_EVENTS = ["pointerdown", "keydown", "touchend"] as const;
 
@@ -53,7 +41,7 @@ export interface UseAudioContextResult {
  * first click or key press, which browsers require before audio can start.
  */
 export const useAudioContext = (): UseAudioContextResult => {
-  const provided = useContext(ProvidedContext);
+  const provided = useContext(AudioContextContext);
 
   const context = useSyncExternalStore(
     () => noop,

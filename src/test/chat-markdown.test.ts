@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, parseMarkdownBlocks } from "@/features/assistant/chat-markdown";
+import { escapeHtml, parseMarkdownBlocks } from "@/features/assistant/markdown-parser";
 
 describe("chat markdown sanitization", () => {
   it("escapes raw HTML and only parses safe markdown structures", () => {

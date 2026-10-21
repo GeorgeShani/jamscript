@@ -7,6 +7,7 @@ import { useFrameSource } from "@/hooks/use-frame-source";
 import { formatDb, SILENCE_DB } from "@/lib/decibels";
 import type { FrameSource, MeterFrame, MeterZone } from "@/lib/types";
 import { DEFAULT_ZONES, zoneForDb } from "@/lib/zones";
+import { readChannel } from "@/lib/meter-frame";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_INTERVAL_MS = 250;
@@ -66,29 +67,6 @@ export interface DbReadoutProps extends Omit<ComponentProps<"span">, "children">
   /** Replaces all formatting. */
   format?: (db: number) => string;
 }
-
-/** The level a readout shows from one frame. */
-export const readChannel = (
-  frame: MeterFrame,
-  measure: "peak" | "rms",
-  channel: number | "max",
-) => {
-  const read = (index: number) => {
-    const level = frame.channels[index];
-    if (!level) {
-      return SILENCE_DB;
-    }
-    return measure === "rms" ? (level.rmsDb ?? level.peakDb) : level.peakDb;
-  };
-  if (channel !== "max") {
-    return read(channel);
-  }
-  let loudest = SILENCE_DB;
-  for (let index = 0; index < frame.channels.length; index += 1) {
-    loudest = Math.max(loudest, read(index));
-  }
-  return loudest;
-};
 
 export const DbReadout = ({
   value,

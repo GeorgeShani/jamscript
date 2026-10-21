@@ -10,7 +10,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -647,19 +646,7 @@ const useFaderWheel = (
     commit: (db: number) => void;
   },
 ) => {
-  const onWheel = useEffectEvent((event: globalThis.WheelEvent, root: HTMLDivElement) => {
-    const focused = root.contains(document.activeElement);
-    if (handlers.disabled || !focused || event.deltaY === 0) {
-      return;
-    }
-    event.preventDefault();
-    const next = handlers.nudge(
-      event.deltaY < 0 ? 1 : -1,
-      event.altKey ? handlers.fineStep : handlers.step,
-    );
-    handlers.change(next, { event, reason: "wheel" });
-    handlers.commit(next);
-  });
+  const handlersRef = useLatest(handlers);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -667,13 +654,21 @@ const useFaderWheel = (
       return;
     }
     const listener = (event: globalThis.WheelEvent) => {
-      onWheel(event, root);
+      const current = handlersRef.current;
+      if (current.disabled || !root.contains(document.activeElement) || event.deltaY === 0) return;
+      event.preventDefault();
+      const next = current.nudge(
+        event.deltaY < 0 ? 1 : -1,
+        event.altKey ? current.fineStep : current.step,
+      );
+      current.change(next, { event, reason: "wheel" });
+      current.commit(next);
     };
     root.addEventListener("wheel", listener, { passive: false });
     return () => {
       root.removeEventListener("wheel", listener);
     };
-  }, [enabled, rootRef]);
+  }, [enabled, handlersRef, rootRef]);
 };
 
 /** Orientation, size and disabled, from props or the surrounding strip. */
@@ -849,5 +844,3 @@ export const Fader = ({
     </FaderContext.Provider>
   );
 };
-
-export { faderVariants };

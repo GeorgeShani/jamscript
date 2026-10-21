@@ -1,49 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { desktopAuthError } from "./auth-errors";
-
-type Person = { id: string; name: string; email?: string | null; imageUrl?: string | null };
-type Status = { signedIn: boolean; available: boolean; pending?: Device; warning?: string };
-type Device = {
-  userCode: string;
-  verificationUri: string;
-  verificationUriComplete?: string;
-  accountSelectionUri?: string;
-  interval: number;
-  expiresIn: number;
-};
-
-type DesktopAuth = {
-  person: Person | null;
-  signedIn: boolean;
-  hasToken: boolean;
-  loading: boolean;
-  available: boolean;
-  device: Device | null;
-  approvalReceived: boolean;
-  error: string | null;
-  connectionIssue: boolean;
-  begin(): Promise<void>;
-  openVerification(): Promise<void>;
-  retryProfile(): Promise<void>;
-  signOut(): Promise<void>;
-};
-
-const Context = createContext<DesktopAuth | null>(null);
-
-export function useDesktopAuth() {
-  const value = useContext(Context);
-  if (!value) throw new Error("Desktop authentication provider is missing");
-  return value;
-}
+import { Context, type Person, type Status, type Device } from "./auth-context";
 
 export function DesktopAuthProvider({ children }: { children: ReactNode }) {
   const [person, setPerson] = useState<Person | null>(null);

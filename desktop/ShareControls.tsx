@@ -10,7 +10,7 @@ import type { DocumentRecord } from "@/workspaces/storage";
 import { detachLocalWorkspace } from "@/features/collaboration/detach-local-workspace";
 import { SharedWorkspaceRow } from "@/features/collaboration/SharedWorkspaceRow";
 import { SharedWorkspaceHeading } from "@/features/collaboration/SharedWorkspaceHeading";
-import { useDesktopAuth } from "./auth";
+import { useDesktopAuth } from "./auth-context";
 import { collaborationApi } from "./collaboration-api";
 import { desktopStorage } from "./storage";
 

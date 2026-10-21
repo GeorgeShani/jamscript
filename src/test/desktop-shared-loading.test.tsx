@@ -5,7 +5,7 @@ import { SharedProjectList } from "../../desktop/ShareControls";
 import { collaborationApi } from "../../desktop/collaboration-api";
 
 const auth = vi.hoisted(() => ({ person: { id: "user_1", name: "Musician" } }));
-vi.mock("../../desktop/auth", () => ({ useDesktopAuth: () => auth }));
+vi.mock("../../desktop/auth-context", () => ({ useDesktopAuth: () => auth }));
 vi.mock("../../desktop/collaboration-api", () => ({ collaborationApi: vi.fn() }));
 
 const projects = [

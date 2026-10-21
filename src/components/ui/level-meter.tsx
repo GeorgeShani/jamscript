@@ -17,7 +17,8 @@ import type { ComponentProps, CSSProperties, Ref, RefObject } from "react";
 
 import { ClipIndicator } from "@/components/ui/clip-indicator";
 import type { ClipIndicatorProps } from "@/components/ui/clip-indicator";
-import { DbReadout, readChannel } from "@/components/ui/db-readout";
+import { DbReadout } from "@/components/ui/db-readout";
+import { readChannel } from "@/lib/meter-frame";
 import type { DbReadoutProps } from "@/components/ui/db-readout";
 import { DbScale } from "@/components/ui/db-scale";
 import type { DbScaleProps } from "@/components/ui/db-scale";
@@ -867,5 +868,3 @@ export const LevelMeter = ({
     </LevelMeterContext.Provider>
   );
 };
-
-export { levelMeterVariants };

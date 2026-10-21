@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
-import { useDesktopAuth } from "./auth";
+import { useDesktopAuth } from "./auth-context";
 import { ProfileMenu } from "./ProfileMenu";
 import { DeviceSignInPanel } from "./DeviceSignInPanel";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";

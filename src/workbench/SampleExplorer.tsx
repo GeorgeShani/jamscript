@@ -39,15 +39,16 @@ export function SampleExplorer({
     setBusy(null);
   };
   useEffect(() => {
+    const previewEpoch = epoch;
     const stopped = () => {
-      epoch.current++;
+      previewEpoch.current++;
       setPlaying(false);
       setBusy(null);
     };
     window.addEventListener("jamscript:preview-stopped", stopped);
     return () => {
       window.removeEventListener("jamscript:preview-stopped", stopped);
-      epoch.current++;
+      previewEpoch.current++;
       audio.current?.stopSamplePreview();
     };
   }, []);

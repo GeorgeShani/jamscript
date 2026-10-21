@@ -1,30 +1,6 @@
 "use client";
-
-import { createContext, useContext, useMemo } from "react";
-import type { ReactNode } from "react";
-
-import type { BallisticsInput } from "@/lib/ballistics";
-import type { MeterZone, Orientation } from "@/lib/types";
-
-export type AudioSize = "sm" | "default" | "lg";
-
-/**
- * Settings a container (a mixer or channel strip) passes down to the audiocn
- * components inside it. Explicit props on a component always win.
- */
-export interface AudioConfig {
-  orientation?: Orientation | undefined;
-  size?: AudioSize | undefined;
-  disabled?: boolean;
-  /** Muted or silenced by another channel's solo: meters render dimmed. */
-  dimmed?: boolean;
-  minDb?: number | undefined;
-  maxDb?: number | undefined;
-  zones?: MeterZone[] | undefined;
-  ballistics?: BallisticsInput | undefined;
-}
-
-const AudioConfigContext = createContext<AudioConfig>({});
+import { useContext, useMemo, type ReactNode } from "react";
+import { AudioConfigContext, type AudioConfig } from "@/hooks/use-audio-config";
 
 export interface AudioConfigProviderProps {
   value: AudioConfig;
@@ -52,6 +28,3 @@ export const AudioConfigProvider = ({ value, children }: AudioConfigProviderProp
 
   return <AudioConfigContext.Provider value={merged}>{children}</AudioConfigContext.Provider>;
 };
-
-/** The config from the nearest mixer or channel strip, or `{}`. */
-export const useAudioConfig = (): AudioConfig => useContext(AudioConfigContext);

@@ -20,7 +20,7 @@ const MAJOR_STEP = 12;
  * Hides labels that would touch a more important one, so narrow scales stay
  * readable: 0 dB first, then the ends, then multiples of 12, then the rest.
  */
-export const thinDbScaleLabels = (scale: HTMLElement) => {
+const thinDbScaleLabels = (scale: HTMLElement) => {
   const horizontal = scale.dataset["orientation"] !== "vertical";
   const entries: { label: HTMLElement; rank: number; value: number }[] = [];
   for (const tick of scale.querySelectorAll<HTMLElement>("[data-slot=db-scale-tick]")) {

@@ -4,7 +4,7 @@
 import { createContext, useContext, useId, useMemo } from "react";
 import type { ComponentProps, KeyboardEvent } from "react";
 
-import { AudioConfigProvider } from "@/hooks/use-audio-config";
+import { AudioConfigProvider } from "@/components/ui/audio-config-provider";
 import type { AudioSize } from "@/hooks/use-audio-config";
 import type { BallisticsInput } from "@/lib/ballistics";
 import type { MeterZone, Orientation } from "@/lib/types";
@@ -27,9 +27,6 @@ const useMixerPart = (part: string) => {
   }
   return context;
 };
-
-/** The surrounding mixer's layout, for custom parts. */
-export const useMixerContext = (): MixerContextValue => useMixerPart("useMixerContext");
 
 export interface MixerProps extends ComponentProps<"div"> {
   /**

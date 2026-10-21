@@ -327,7 +327,7 @@ export function SessionWorkbench({
     return () => {
       current = false;
     };
-  }, [workspaceId]);
+  }, [workspaceId, listDocuments, listWorkspaces]);
 
   useEffect(() => {
     // Move runtime/worklet/registry loading off the first Play gesture. This
@@ -362,7 +362,7 @@ export function SessionWorkbench({
         void pb.stop();
       });
     };
-  }, [liveUpdates]);
+  }, [liveUpdates, saveDocument]);
 
   useEffect(() => {
     activeIdRef.current = activeId;
