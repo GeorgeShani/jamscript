@@ -28,8 +28,8 @@
   "main": "@tanstack/react-start/server-entry",
   "routes": [
     {
-      "pattern": "jamscript.dev",
-      "custom_domain": true,
+      "pattern": "jamscript.dev/*",
+      "zone_name": "jamscript.dev",
     },
   ],
   "workers_dev": true,
