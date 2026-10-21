@@ -66,13 +66,28 @@ export async function sendInvitationEmail(input: InvitationMessage): Promise<boo
     name?: unknown;
   } | null;
   const detail = typeof body?.message === "string" ? body.message : `HTTP ${response.status}`;
-  if (response.status === 401 || response.status === 403)
-    throw new Error("Resend rejected the API key. Check RESEND_API_KEY on the server.");
-  if (response.status === 422 || /from|domain|verified/i.test(detail))
+  if (/only send testing emails|only.*your own email address/i.test(detail))
     throw new Error(
-      "Resend rejected the sender. Verify MAIL_FROM on a Resend domain (or use onboarding@resend.dev while testing).",
+      "Resend rejected delivery from its testing sender. Verify a sending domain in Resend and set MAIL_FROM to an address on that domain. You can still share the invitation link.",
     );
-  throw new Error(`Resend rejected the invitation email (${detail}).`);
+  if (
+    body?.name === "invalid_permission" ||
+    (body?.name === "restricted_api_key" && /only send emails|permission|scope/i.test(detail))
+  )
+    throw new Error(
+      "Resend rejected email sending permissions. Give RESEND_API_KEY Sending access for the MAIL_FROM domain.",
+    );
+  if (
+    response.status === 401 ||
+    body?.name === "suspended_api_key" ||
+    /api key.*(?:invalid|not active|suspended)/i.test(detail)
+  )
+    throw new Error("Resend rejected the API key. Check RESEND_API_KEY on the server.");
+  if (/from|domain|verified/i.test(detail))
+    throw new Error(
+      "Resend rejected the sender. Verify MAIL_FROM on a Resend domain and use an address on that verified domain.",
+    );
+  throw new Error(`Resend rejected the invitation email (HTTP ${response.status}).`);
 }
 
 /** Preserve the invite when mail is unavailable; only the authenticated owner sees its link. */

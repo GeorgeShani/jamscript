@@ -124,3 +124,67 @@ it("explains unverified sender domains without exposing raw provider text", asyn
     invitationError: expect.stringContaining("Verify MAIL_FROM on a Resend domain"),
   });
 });
+
+it.each([
+  [
+    "You can only send testing emails to your own email address (owner@example.com). To send emails to other recipients, please verify a domain.",
+    /testing sender.*Verify a sending domain/,
+  ],
+  ["The jamscript.dev domain is not verified", /Verify MAIL_FROM on a Resend domain/],
+])("does not mislabel sender restrictions as invalid keys: %s", async (message, expected) => {
+  clearMail();
+  vi.stubEnv("RESEND_API_KEY", "re_valid");
+  vi.stubEnv("MAIL_FROM", "JamScript <onboarding@resend.dev>");
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ name: "validation_error", message }), { status: 403 }),
+      ),
+  );
+  const result = await deliverInvitation(invitation);
+  expect(result).toMatchObject({ delivery: "link", url: invitation.url });
+  expect(result.invitationError).toMatch(expected);
+  expect(result.invitationError).not.toContain("Check RESEND_API_KEY");
+  expect(result.invitationError).not.toContain("owner@example.com");
+});
+
+it("does not expose raw provider messages for unknown rejections", async () => {
+  clearMail();
+  vi.stubEnv("RESEND_API_KEY", "re_valid");
+  vi.stubEnv("MAIL_FROM", "JamScript <invite@jamscript.dev>");
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ message: "Internal detail re_valid" }), { status: 500 }),
+      ),
+  );
+  const result = await deliverInvitation(invitation);
+  expect(result.invitationError).toContain("HTTP 500");
+  expect(result.invitationError).not.toContain("Internal detail");
+  expect(result.invitationError).not.toContain("re_valid");
+});
+
+it.each([
+  ["restricted_api_key", "API key is not active", /Check RESEND_API_KEY/],
+  ["suspended_api_key", "This API key is suspended", /Check RESEND_API_KEY/],
+  ["invalid_permission", "Access token is missing required scopes", /Sending access/],
+  ["validation_error", "Unexpected provider detail", /HTTP 403/],
+])(
+  "classifies forbidden responses without guessing from status alone: %s",
+  async (name, message, expected) => {
+    clearMail();
+    vi.stubEnv("RESEND_API_KEY", "re_test");
+    vi.stubEnv("MAIL_FROM", "JamScript <invite@jamscript.dev>");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ name, message }), { status: 403 })),
+    );
+    const result = await deliverInvitation(invitation);
+    expect(result).toMatchObject({ delivery: "link", url: invitation.url });
+    expect(result.invitationError).toMatch(expected);
+  },
+);
