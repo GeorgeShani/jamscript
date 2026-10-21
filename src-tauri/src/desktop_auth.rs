@@ -525,7 +525,7 @@ pub fn begin() -> Result<DeviceBegin, String> {
 }
 
 fn account_selection_url(user_code: &str) -> String {
-    let origin = api_origin().unwrap_or_else(|_| "https://jamscript.lukavacheishvili.workers.dev".into());
+    let origin = api_origin().unwrap_or_else(|_| "https://jamscript.dev".into());
     ureq::get(&format!("{origin}/desktop/connect"))
         .query("user_code", user_code).url().to_owned()
 }

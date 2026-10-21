@@ -511,7 +511,7 @@ async fn desktop_auth_profile() -> Result<desktop_auth::AuthProfile, String> {
 #[tauri::command]
 async fn desktop_open_licenses() -> Result<(), String> {
     blocking::run(move || {
-        open::that("https://jamscript.lukavacheishvili.workers.dev/licenses/THIRD_PARTY_NOTICES.txt")
+        open::that("https://jamscript.dev/licenses/THIRD_PARTY_NOTICES.txt")
             .map_err(|error| format!("Could not open JamScript licenses: {error}"))
     }).await
 }

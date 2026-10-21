@@ -3,8 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 
 const WEB_LICENSES_PATH = "/licenses/THIRD_PARTY_NOTICES.txt";
-const DESKTOP_LICENSES_URL =
-  "https://jamscript.lukavacheishvili.workers.dev/licenses/THIRD_PARTY_NOTICES.txt";
+const DESKTOP_LICENSES_URL = "https://jamscript.dev/licenses/THIRD_PARTY_NOTICES.txt";
 
 export function LicensesLink() {
   const desktop = import.meta.env.MODE === "desktop";

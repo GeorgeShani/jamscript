@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MarketingHome } from "@/marketing/MarketingHome";
 
-const siteOrigin = "https://jamscript.lukavacheishvili.workers.dev";
+const siteOrigin = "https://jamscript.dev";
 
 export const Route = createFileRoute("/")({
   head: () => ({

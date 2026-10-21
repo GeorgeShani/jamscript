@@ -2,6 +2,8 @@
 
 Code is the source. Lenses are how you play it.
 
+Use JamScript at [jamscript.dev](https://jamscript.dev) or get the [desktop app](https://github.com/GeorgeShani/jamscript/releases/latest). Desktop sign-in and collaboration connect to the same website.
+
 JamScript serves a public product site at `/` and a browser music workbench at `/app`. Create an app-managed workspace, edit multiple documents, set BPM, play the active source, and inspect supported track parameters and actual output. Workspaces autosave in this browser's IndexedDB. Desktop folder editing, initial shared projects, and reviewed assistant edits are implemented; assistant availability requires server configuration.
 
 ## Development
@@ -38,7 +40,7 @@ The [Desktop workflow](.github/workflows/desktop.yml) verifies the project and b
 
 The workflow uses the repository-scoped `GITHUB_TOKEN`; only the release job receives `contents: write`. No release PAT or `RELEASES_TOKEN` is needed. The canonical repository, release archive, API, and asset URL base are stored in [`src/marketing/desktop-release-config.json`](src/marketing/desktop-release-config.json). The marketing site's Download section offers only assets in the latest stable release. The unsigned macOS DMG from `v0.1.0` was removed after macOS refused to open it. The separate [macOS preview workflow](.github/workflows/macos-preview.yml) can build an ad-hoc signed Apple Silicon DMG from an existing tag and publish it as a clearly labeled prerelease; prereleases are not offered by the site's stable Download section.
 
-Public macOS releases require a paid Apple Developer membership, a **Developer ID Application** certificate, and notarization credentials. Configure these repository Actions secrets before running the normal tag or manual release build: `APPLE_CERTIFICATE` (base64-encoded exported `.p12`), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY` (the full Developer ID Application identity), `APPLE_API_ISSUER`, `APPLE_API_KEY` (App Store Connect key ID), `APPLE_API_PRIVATE_KEY` (the downloaded `.p8` contents), and `KEYCHAIN_PASSWORD` (a strong temporary CI keychain password). The normal release workflow refuses to publish without them, then checks the app with `codesign`, `spctl`, and `stapler`. Keep private keys out of Git and chat. The ad-hoc signed macOS preview still requires the user to override Gatekeeper; it is not a substitute for notarization. Windows installers are currently unsigned and can trigger SmartScreen; signing and real-device smoke tests are still needed before calling every platform production-ready.
+Current desktop releases use ad-hoc signing on macOS and unsigned Windows installers. macOS and Windows may show security warnings on first launch. macOS notarization requires a paid Apple Developer membership and Developer ID credentials; these demo builds are not notarized. Test installers on real devices before treating every platform as production-ready.
 
 To publish a version, update `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` to the same version, refresh and commit `src-tauri/Cargo.lock`, push to `main`, then create and push its matching `v` tag (for example, `v0.2.0`). Wait for all three desktop package jobs and the release job to pass. Do not tag a commit before its installers have been validated.
 
