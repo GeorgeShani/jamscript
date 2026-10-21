@@ -18,7 +18,8 @@ permissions:
 
 concurrency:
   group: desktop-${{ inputs.release_tag || github.ref }}
-  cancel-in-progress: false
+  # Preserve release builds; supersede outdated main and pull-request runs.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
 
 jobs:
   verify:
