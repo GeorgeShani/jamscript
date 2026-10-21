@@ -1,4 +1,4 @@
-name: Desktop
+name: CI/CD
 
 on:
   push:
@@ -23,6 +23,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
@@ -37,7 +38,75 @@ jobs:
         run: bunx prettier --write src/workbench/GitPanel.tsx
       - run: bun run lint
       - run: bun run test
+      - name: Load public web build settings
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import JSON5 from 'json5';
+          const { vars } = JSON5.parse(readFileSync('wrangler.jsonc', 'utf8'));
+          for (const [name, value] of Object.entries(vars)) {
+            if (!name.startsWith('VITE_')) continue;
+            if (typeof value !== 'string' || /[\r\n]/.test(value)) throw new Error(`Invalid public setting: ${name}`);
+            appendFileSync(process.env.GITHUB_ENV, `${name}=${value}\n`);
+          }
+          NODE
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          expected="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          test "$TAG" = "$expected" || { echo "Tag $TAG does not match $expected" >&2; exit 1; }
       - run: bun run build
+      - name: Save verified web build
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            dist/client
+            dist/server
+            !dist/**/.dev.vars*
+            !dist/**/.env*
+
+  deploy:
+    name: Deploy website
+    if: github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://jamscript.dev
+    concurrency:
+      group: production-web
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check deployment configuration
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Set the production CLOUDFLARE_API_TOKEN secret"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Set the CLOUDFLARE_ACCOUNT_ID repository variable"; exit 1; }
+          # An old tag must not silently roll back the current production website.
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo "::error::Only the current main commit can deploy production"; exit 1; }
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: dist
+      - name: Deploy verified Worker and assets
+        run: bunx wrangler deploy --config dist/server/wrangler.json
+      - name: Verify live website and authentication boundary
+        run: node scripts/check-deployment.mjs
 
   package:
     needs: verify
@@ -55,6 +124,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bundles: msi,nsis
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         with:
@@ -117,9 +187,13 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
 
   release:
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'v'))
-    needs: package
+    if: >-
+      always() && needs.package.result == 'success' &&
+      ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.deploy.result == 'success') ||
+       (github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'v')))
+    needs: [package, deploy]
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
@@ -137,8 +211,14 @@ jobs:
           fi
       - uses: actions/download-artifact@v4
         with:
+          pattern: jamscript-*
           path: installers
           merge-multiple: true
+      - name: Verify complete installer set
+        run: |
+          for suffix in .dmg .AppImage .deb -setup.exe .msi; do
+            test -n "$(find installers -type f -name "*$suffix" -print -quit)" || { echo "::error::Missing $suffix installer"; exit 1; }
+          done
       - name: Publish installers to this repository's release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -155,11 +235,11 @@ jobs:
             gh release edit "$TAG" \
               --prerelease=false \
               --latest \
-              --title "JamScript $TAG" \
-              --notes "JamScript $TAG installers for macOS (ad-hoc signed, not notarized), Windows (unsigned), and Linux. These are demo builds: macOS and Windows may show a security warning on first launch."
+              --title "JamScript $TAG"
           else
             gh release create "$TAG" "${files[@]}" \
               --verify-tag \
               --title "JamScript $TAG" \
+              --notes "Installers for Windows (unsigned), macOS Apple Silicon (ad-hoc signed, not notarized), and Linux. macOS and Windows may show a security warning on first launch." \
               --generate-notes
           fi
