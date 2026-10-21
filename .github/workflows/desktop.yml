@@ -106,6 +106,8 @@ jobs:
           path: dist
       - name: Deploy verified Worker and assets
         run: bunx wrangler deploy --config dist/server/wrangler.json
+      - name: Deploy www redirect
+        run: bunx wrangler deploy --config wrangler.www.jsonc
       - name: Verify live website and authentication boundary
         run: node scripts/check-deployment.mjs
 

@@ -7,19 +7,22 @@ const checks = [
   ["/api/shared-projects", 401],
 ];
 
-for (const [path, expected] of checks) {
+async function check(url, expected, location) {
   let failure;
   for (let attempt = 1; attempt <= 5; attempt += 1) {
     try {
-      const response = await fetch(new URL(path, origin), {
+      const response = await fetch(url, {
         redirect: "manual",
         signal: AbortSignal.timeout(15_000),
       });
       await response.body?.cancel();
       if (response.status !== expected) {
-        throw new Error(`${path}: expected HTTP ${expected}, received ${response.status}`);
+        throw new Error(`${url}: expected HTTP ${expected}, received ${response.status}`);
       }
-      console.log(`${path}: HTTP ${response.status}`);
+      if (location && response.headers.get("location") !== location) {
+        throw new Error(`${url}: expected redirect to ${location}`);
+      }
+      console.log(`${url}: HTTP ${response.status}`);
       failure = undefined;
       break;
     } catch (error) {
@@ -30,4 +33,12 @@ for (const [path, expected] of checks) {
     }
   }
   if (failure) throw failure;
+}
+
+for (const [path, expected] of checks) {
+  await check(new URL(path, origin), expected);
+}
+
+for (const path of ["/", "/app/library?from=www", "/brand/logo.svg"]) {
+  await check(`https://www.jamscript.dev${path}`, 308, `${origin}${path}`);
 }

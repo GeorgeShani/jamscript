@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jamscript-www",
+  "main": "workers/www-redirect.ts",
+  "compatibility_date": "2026-10-17",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "www.jamscript.dev", "custom_domain": true }],
+}
