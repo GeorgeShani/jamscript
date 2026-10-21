@@ -31,6 +31,7 @@ import {
   type MusicTrack,
 } from "@/engine/music-document";
 import { createTrackControls, trackShape, updateTrackControls } from "./live-lenses";
+import { destroyInlineParameters } from "./inline-parameter";
 import { playbackHighlightExtension } from "./playback-highlights";
 
 export const musicModel = StateField.define<MusicDocument>({
@@ -94,6 +95,7 @@ class TrackWidget extends WidgetType {
   }
   toDOM(view: EditorView) {
     return createTrackControls(this.track, {
+      canEdit: () => view.state.facet(EditorView.editable),
       model: () => view.state.field(musicModel),
       edit: (edit, gesture) => {
         dispatchLensEdit(view, edit, gesture);
@@ -109,6 +111,9 @@ class TrackWidget extends WidgetType {
     if (dom.dataset["shape"] !== trackShape(this.track)) return false;
     updateTrackControls(dom, this.track);
     return true;
+  }
+  override destroy(dom: HTMLElement) {
+    destroyInlineParameters(dom);
   }
   override ignoreEvent() {
     return true;

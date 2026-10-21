@@ -32,6 +32,7 @@ import { TempoControl } from "@/features/tempo/TempoControl";
 import { readTempo } from "@/features/tempo/tempo";
 import { changeEditorTempo } from "@/features/tempo/tempo-editor";
 import { deriveMusic } from "@/engine/music-document";
+import { sampleReplacement } from "@/engine/sample-insertion";
 import { prepareMix, renameTrackPatch } from "@/engine/mix-source";
 import type { EditorView } from "@codemirror/view";
 import type { FrameSource, MeterFrame, VisualFrame } from "@/lib/types";
@@ -327,6 +328,19 @@ export function SessionWorkbench({
       current = false;
     };
   }, [workspaceId]);
+
+  useEffect(() => {
+    // Move runtime/worklet/registry loading off the first Play gesture. This
+    // never evaluates the document or starts music, including in the sandbox.
+    const timer = window.setTimeout(() => {
+      void import("@/engine/playback")
+        .then((playback) => playback.warmPlayback())
+        .catch(() => {
+          // Play retries initialization and reports a useful error if needed.
+        });
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const evaluationCounter = evaluation;
@@ -2337,6 +2351,26 @@ export function SessionWorkbench({
           </div>
           {outputOpen && (
             <OutputPanel
+              onReplaceSound={(name, index) => {
+                const view = views.current.get(activeIdRef.current ?? "");
+                if (!view || !view.state.facet(CodeMirrorView.editable)) return false;
+                const patch = sampleReplacement(
+                  view.state.doc.toString(),
+                  view.state.selection.main.head,
+                  name,
+                  index,
+                );
+                if (!patch) return false;
+                view.dispatch({
+                  changes: patch,
+                  annotations: [
+                    Transaction.userEvent.of("input.type.lens"),
+                    isolateHistory.of("full"),
+                  ],
+                });
+                view.focus();
+                return true;
+              }}
               error={playError ?? error}
               problems={problems}
               onSelectProblem={(problem) => {

@@ -6,6 +6,7 @@ const backend = vi.hoisted(() => ({
   list: vi.fn(),
   members: vi.fn(),
   invitations: vi.fn(),
+  management: vi.fn(),
   database: vi.fn(),
 }));
 vi.mock("@clerk/tanstack-react-start/server", () => ({ auth: backend.auth }));
@@ -15,6 +16,7 @@ vi.mock("@/features/collaboration/membership", async (original) => ({
   listVisibleDocuments: backend.list,
   listWorkspaceMembers: backend.members,
   listActiveInvitations: backend.invitations,
+  listWorkspaceManagement: backend.management,
 }));
 
 beforeEach(() => {
@@ -30,6 +32,7 @@ beforeEach(() => {
   backend.list.mockResolvedValue([]);
   backend.members.mockResolvedValue([]);
   backend.invitations.mockResolvedValue([]);
+  backend.management.mockResolvedValue({ members: [], invitations: [] });
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -54,7 +57,8 @@ describe("shared project latency visibility", () => {
     expect(await response.json()).toEqual({ members: [], invitations: [] });
     expect(backend.auth).toHaveBeenCalledTimes(1);
     expect(backend.database).toHaveBeenCalledTimes(1);
-    backend.invitations.mockRejectedValueOnce(new Error("Owner required"));
+    expect(backend.management).toHaveBeenCalledTimes(1);
+    backend.management.mockRejectedValueOnce(new Error("Owner required"));
     backend.members.mockClear();
     expect((await get("?workspaceId=private&management=1")).status).toBe(403);
     expect(backend.members).not.toHaveBeenCalled();

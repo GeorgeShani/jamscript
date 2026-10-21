@@ -74,14 +74,10 @@
         "document_revisions_document_id_documents_id_fk": {
           "name": "document_revisions_document_id_documents_id_fk",
           "tableFrom": "document_revisions",
-          "columnsFrom": [
-            "document_id"
-          ],
+          "columnsFrom": ["document_id"],
           "tableTo": "documents",
           "schemaTo": "jamscript",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -176,14 +172,10 @@
         "documents_workspace_id_workspaces_id_fk": {
           "name": "documents_workspace_id_workspaces_id_fk",
           "tableFrom": "documents",
-          "columnsFrom": [
-            "workspace_id"
-          ],
+          "columnsFrom": ["workspace_id"],
           "tableTo": "workspaces",
           "schemaTo": "jamscript",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -327,14 +319,10 @@
         "workspace_invitations_workspace_id_workspaces_id_fk": {
           "name": "workspace_invitations_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_invitations",
-          "columnsFrom": [
-            "workspace_id"
-          ],
+          "columnsFrom": ["workspace_id"],
           "tableTo": "workspaces",
           "schemaTo": "jamscript",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -437,14 +425,10 @@
         "workspace_members_workspace_id_workspaces_id_fk": {
           "name": "workspace_members_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_members",
-          "columnsFrom": [
-            "workspace_id"
-          ],
+          "columnsFrom": ["workspace_id"],
           "tableTo": "workspaces",
           "schemaTo": "jamscript",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -452,10 +436,7 @@
       "compositePrimaryKeys": {
         "workspace_members_workspace_id_clerk_user_id_pk": {
           "name": "workspace_members_workspace_id_clerk_user_id_pk",
-          "columns": [
-            "workspace_id",
-            "clerk_user_id"
-          ]
+          "columns": ["workspace_id", "clerk_user_id"]
         }
       },
       "uniqueConstraints": {},

@@ -630,6 +630,191 @@
   align-items: center;
   gap: 8px;
 }
+.jam-audio-param [data-slot="knob"] {
+  --knob-size: 28px;
+  gap: 0;
+}
+.jam-audio-param [data-slot="pan-control"] {
+  width: 72px;
+}
+.jam-source-pan {
+  display: grid;
+  gap: 12px;
+  padding: 8px 0 14px;
+}
+.jam-source-pan > span {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.jam-mixer [data-slot="mixer"] {
+  gap: 10px;
+}
+.jam-mixer [data-slot="channel-strip"] {
+  display: block;
+  border-radius: 5px;
+  box-shadow: none;
+}
+.jam-mixer [data-slot="channel-strip-layout"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: none;
+  grid-template-rows: none;
+  grid-auto-flow: row;
+  gap: 6px;
+}
+.jam-mixer [data-slot="channel-strip"] {
+  min-width: 0;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+}
+.jam-mixer .jam-master-strip {
+  border: 0;
+  padding: 8px 0;
+}
+.jam-mixer .jam-mix-track.is-selected {
+  border-color: var(--primary);
+}
+.jam-mixer .jam-mix-track-heading {
+  flex-wrap: nowrap;
+}
+.jam-mixer .jam-mix-track-name {
+  flex-basis: auto;
+}
+.jam-mixer .jam-mix-track-actions {
+  width: auto;
+  justify-content: flex-end;
+}
+.jam-mixer .jam-mix-track-actions button {
+  min-width: 24px;
+}
+.jam-master-strip {
+  border: 0;
+  padding: 8px 0;
+  background: transparent;
+}
+.jam-mixer .jam-mix-level {
+  grid-template-columns: 30px minmax(0, 1fr);
+}
+.jam-mixer .jam-runtime-fader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  gap: 7px;
+}
+.jam-mixer .jam-runtime-fader [data-slot="fader-value"],
+.jam-mixer .jam-runtime-fader [data-slot="fader-value-input"] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding-inline: 0;
+  font-size: 11px;
+}
+.jam-output-view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 6px;
+}
+.jam-output-view > label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.jam-output-view select,
+.jam-sample-explorer select {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.jam-output-view > [data-slot] {
+  flex: 1;
+  min-height: 32px;
+}
+.jam-sample-explorer {
+  padding: 12px 16px;
+}
+.jam-sample-toolbar,
+.jam-sample-transport {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.jam-sample-toolbar label {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 12px;
+  font-size: 12px;
+}
+.jam-sample-toolbar input {
+  min-width: 100px;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--background);
+  padding: 6px 8px;
+}
+.jam-sample-toolbar button,
+.jam-sample-clip > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+.jam-sample-pads {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.jam-sample-pads [data-slot="sound-pad"] {
+  min-height: 58px;
+  min-width: 0;
+  border-radius: 5px;
+}
+.jam-sample-pads [data-slot="sound-pad-label"] {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+.jam-sample-explorer p {
+  font-size: 12px;
+  margin: 10px 0;
+}
+.jam-sample-clip {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.jam-sample-transport {
+  font-size: 12px;
+}
+.jam-sample-transport label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.jam-sample-clip [data-slot="waveform"] {
+  height: 64px;
+  margin: 12px 0;
+}
+.jam-sample-clip > span {
+  font-size: 11px;
+}
 .jam-live-param .jam-knob {
   position: relative;
   flex-shrink: 0;
@@ -1258,8 +1443,12 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.jam-desktop-auth-error > button { flex-shrink: 0; }
-.jam-desktop-auth-error.is-network-issue { border-color: var(--primary); }
+.jam-desktop-auth-error > button {
+  flex-shrink: 0;
+}
+.jam-desktop-auth-error.is-network-issue {
+  border-color: var(--primary);
+}
 
 .jam-profile-trigger,
 .jam-profile-avatar {
@@ -1661,19 +1850,73 @@
   font-size: 12px;
   line-height: 1.5;
 }
-.jam-git-changes > header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; font-size: 12px; font-weight: 500; }
-.jam-git-changes > header span:last-child { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
-.jam-git-empty { display: flex; align-items: flex-start; gap: 10px; padding: 14px 0 10px; border-top: 1px solid var(--border); }
-.jam-git-empty > svg { flex: none; color: var(--muted-foreground); margin-top: 1px; }
-.jam-git-empty strong { display: block; font-size: 13px; font-weight: 500; line-height: 1.5; }
-.jam-git-empty p { margin: 5px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
-.jam-git-commit { display: grid; gap: 8px; }
-.jam-git-commit > label { font-size: 12px; font-weight: 500; }
-.jam-git-remote { min-width: 0; font-size: 12px; }
-.jam-git-remote > summary { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted-foreground); list-style: none; }
-.jam-git-remote > summary::-webkit-details-marker { display: none; }
-.jam-git-remote > form { margin-top: 10px; }
-.jam-git-sidebar button:focus-visible, .jam-git-sidebar summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.jam-git-changes > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.jam-git-changes > header span:last-child {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.jam-git-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 0 10px;
+  border-top: 1px solid var(--border);
+}
+.jam-git-empty > svg {
+  flex: none;
+  color: var(--muted-foreground);
+  margin-top: 1px;
+}
+.jam-git-empty strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.jam-git-empty p {
+  margin: 5px 0 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.jam-git-commit {
+  display: grid;
+  gap: 8px;
+}
+.jam-git-commit > label {
+  font-size: 12px;
+  font-weight: 500;
+}
+.jam-git-remote {
+  min-width: 0;
+  font-size: 12px;
+}
+.jam-git-remote > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  list-style: none;
+}
+.jam-git-remote > summary::-webkit-details-marker {
+  display: none;
+}
+.jam-git-remote > form {
+  margin-top: 10px;
+}
+.jam-git-sidebar button:focus-visible,
+.jam-git-sidebar summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
 .jam-git-auth {
   margin-top: 2px;
   padding-top: 12px;
@@ -1692,7 +1935,10 @@
 .jam-git-auth > summary::-webkit-details-marker {
   display: none;
 }
-.jam-git-auth > .jam-git-stack, .jam-git-auth > button { margin-top: 12px; }
+.jam-git-auth > .jam-git-stack,
+.jam-git-auth > button {
+  margin-top: 12px;
+}
 .jam-git-link {
   justify-self: start;
   border: 0;
@@ -2648,17 +2894,14 @@
 }
 .jam-chat-composer .jam-chat-send,
 .jam-chat-composer .jam-play {
-  justify-self: end;
+  width: 100%;
+  justify-self: stretch;
   flex: none;
   min-width: 56px;
   height: 32px;
 }
 .jam-chat-add-file {
   position: relative;
-}
-.jam-chat-composer .jam-chat-send.is-edit {
-  justify-self: stretch;
-  width: 100%;
 }
 .jam-chat-add-file-btn {
   color: var(--muted-foreground);

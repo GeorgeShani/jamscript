@@ -5,7 +5,11 @@ import { canProxyAssetUrl } from "./asset-cache";
 let nextAssetId = 0;
 const assetPending = new Map<
   number,
-  { resolve: (value: Response) => void; reject: (cause: Error) => void; timeout: number }
+  {
+    resolve: (value: Response) => void;
+    reject: (cause: Error) => void;
+    timeout: number;
+  }
 >();
 configureIsolatedAssetFetch(async (url) => {
   if (!canProxyAssetUrl(url)) return null;
@@ -17,14 +21,25 @@ configureIsolatedAssetFetch(async (url) => {
       reject(new Error("Sample request timed out"));
     }, 120_000);
     assetPending.set(id, { resolve, reject, timeout });
-    window.parent.postMessage({ channel: "jamscript-audio", type: "asset-request", id, url }, "*");
+    window.parent.postMessage(
+      {
+        channel: "jamscript-audio",
+        type: "asset-request",
+        id,
+        url,
+      },
+      "*",
+    );
   });
 });
 
 let meterTimer: number | null = null;
+let disconnectMeter: (() => void) | null = null;
 function stopMeter() {
   if (meterTimer !== null) window.clearInterval(meterTimer);
   meterTimer = null;
+  disconnectMeter?.();
+  disconnectMeter = null;
 }
 function startMeter() {
   stopMeter();
@@ -34,6 +49,7 @@ function startMeter() {
   analyser.fftSize = 1024;
   analyser.smoothingTimeConstant = 0.55;
   output.node.connect(analyser);
+  disconnectMeter = () => output.node.disconnect(analyser);
   const time = new Float32Array(analyser.fftSize);
   const freq = new Uint8Array(analyser.frequencyBinCount);
   meterTimer = window.setInterval(() => {
@@ -52,7 +68,9 @@ function startMeter() {
       const start = Math.floor((band / bands.length) * freq.length);
       const end = Math.max(start + 1, Math.floor(((band + 1) / bands.length) * freq.length));
       let max = 0;
-      for (let index = start; index < end; index += 1) max = Math.max(max, freq[index] ?? 0);
+      for (let index = start; index < end; index += 1) {
+        max = Math.max(max, freq[index] ?? 0);
+      }
       bands[band] = max / 255;
     }
     send({
@@ -60,6 +78,7 @@ function startMeter() {
       peakDb: peak > 0 ? 20 * Math.log10(peak) : null,
       rmsDb: rms > 0 ? 20 * Math.log10(rms) : null,
       bands,
+      timeDomain: Array.from(time.subarray(0, 256)),
     });
   }, 50);
 }
@@ -67,7 +86,19 @@ function startMeter() {
 type Request = {
   channel: "jamscript-audio";
   id: number;
-  command: "play" | "stop" | "mix";
+  command:
+    | "play"
+    | "warm"
+    | "stop"
+    | "mix"
+    | "list-samples"
+    | "audition-sample"
+    | "stop-preview"
+    | "preview-volume";
+  sampleName?: string;
+  index?: number;
+  offset?: number;
+  volume?: number;
   code?: string;
   levels?: Record<string, number>;
   solo?: string | null;
@@ -88,25 +119,55 @@ window.addEventListener("message", async (event: MessageEvent<unknown>) => {
     contentType?: string;
     detail?: string;
   };
-  if (data.channel !== "jamscript-audio" || !Number.isSafeInteger(data.id)) return;
+  if (data.channel !== "jamscript-audio" || !Number.isSafeInteger(data.id)) {
+    return;
+  }
   const id = data.id as number;
   if (data.type === "asset-response") {
     const pending = assetPending.get(id);
     if (!pending) return;
     window.clearTimeout(pending.timeout);
     assetPending.delete(id);
-    if (data.ok && data.bytes instanceof ArrayBuffer)
+    if (data.ok && data.bytes instanceof ArrayBuffer) {
       pending.resolve(
         new Response(data.bytes, {
           status: 200,
-          headers: { "Content-Type": data.contentType ?? "application/octet-stream" },
+          headers: {
+            "Content-Type": data.contentType ?? "application/octet-stream",
+          },
         }),
       );
-    else pending.reject(new Error(data.detail ?? "Sample unavailable"));
+    } else pending.reject(new Error(data.detail ?? "Sample unavailable"));
     return;
   }
   try {
-    if (data.command === "play" && typeof data.code === "string" && data.code.length <= 1_000_000) {
+    if (data.command === "warm") {
+      await playback.warmPlayback();
+      send({ type: "result", id, ok: true });
+    } else if (data.command === "list-samples") {
+      send({
+        type: "sample-result",
+        id,
+        value: await playback.listRegisteredSamples(),
+      });
+    } else if (
+      data.command === "audition-sample" &&
+      typeof data.sampleName === "string" &&
+      data.sampleName.length <= 200
+    ) {
+      const value = await playback.auditionSample(data.sampleName, data.index, data.offset);
+      send({ type: "sample-result", id, value });
+    } else if (data.command === "stop-preview") {
+      playback.stopSamplePreview();
+      send({ type: "sample-result", id, value: null });
+    } else if (data.command === "preview-volume" && typeof data.volume === "number") {
+      playback.setSamplePreviewVolume(data.volume);
+      send({ type: "sample-result", id, value: null });
+    } else if (
+      data.command === "play" &&
+      typeof data.code === "string" &&
+      data.code.length <= 1_000_000
+    ) {
       const ok = await playback.play(data.code);
       if (ok) startMeter();
       send({ type: "result", id, ok });
@@ -133,7 +194,22 @@ window.addEventListener("message", async (event: MessageEvent<unknown>) => {
       send({ type: "result", id, ok: true });
     }
   } catch (cause) {
-    send({ type: "error", detail: cause instanceof Error ? cause.message : String(cause) });
+    if (
+      ["list-samples", "audition-sample", "stop-preview", "preview-volume"].includes(
+        data.command ?? "",
+      )
+    ) {
+      send({
+        type: "sample-result",
+        id,
+        error: cause instanceof Error ? cause.message : String(cause),
+      });
+      return;
+    }
+    send({
+      type: "error",
+      detail: cause instanceof Error ? cause.message : String(cause),
+    });
     send({ type: "result", id, ok: false });
   }
 });

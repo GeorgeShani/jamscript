@@ -9,6 +9,8 @@ const backend = vi.hoisted(() => ({
   stream: vi.fn(),
   auth: vi.fn(),
   role: vi.fn(),
+  database: vi.fn(),
+  readFiles: vi.fn(),
 }));
 vi.mock("@/features/assistant/agent-model", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/assistant/agent-model")>()),
@@ -18,11 +20,13 @@ vi.mock("@/features/assistant/agent-model", async (importOriginal) => ({
 }));
 vi.mock("@clerk/tanstack-react-start/server", () => ({ auth: backend.auth }));
 vi.mock("@/features/collaboration/database", () => ({
-  withCollaborationDb: (run: (db: object) => unknown) => run({}),
+  withCollaborationDb: backend.database,
 }));
 vi.mock("@/features/collaboration/membership", () => ({
-  roleForDocument: backend.role,
-  listWorkspaceDocuments: vi.fn(),
+  openSharedWorkspace: backend.role,
+}));
+vi.mock("@/features/collaboration/liveblocks-document", () => ({
+  readLiveblocksDocuments: backend.readFiles,
 }));
 
 const files = [{ id: "song", name: "song.js", source: '// Keep this groove\ns("bd").gain(0.42)' }];
@@ -65,6 +69,8 @@ async function events(response: Response) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  backend.database.mockImplementation((run: (db: object) => unknown) => run({}));
+  backend.readFiles.mockImplementation((_client: unknown, documents: unknown) => documents);
   vi.stubEnv("CLERK_SECRET_KEY", "");
   vi.stubEnv("DATABASE_URL", "");
   vi.stubEnv("LIVEBLOCKS_SECRET_KEY", "");
@@ -76,6 +82,21 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("actual Ask/Edit HTTP handlers", () => {
+  it.each(["ask", "edit"] as const)("loads authorized shared files once for %s", async (mode) => {
+    for (const name of ["CLERK_SECRET_KEY", "DATABASE_URL"]) vi.stubEnv(name, "test");
+    vi.stubEnv("LIVEBLOCKS_SECRET_KEY", "sk_unit_test_not_a_real_key");
+    backend.auth.mockResolvedValue({ isAuthenticated: true, userId: "editor" });
+    const storedFiles = [{ ...files[0]!, source: files[0]!.source + "\n// server snapshot" }];
+    backend.role.mockResolvedValue({ access: { role: "editor" }, documents: storedFiles });
+    const response = await post(mode);
+    expect(response.status).toBe(200);
+    await events(response);
+    expect(backend.database).toHaveBeenCalledTimes(1);
+    expect(backend.role).toHaveBeenCalledWith({}, "song", "editor");
+    expect(backend.readFiles.mock.calls[0]?.[1]).toEqual(storedFiles);
+    const model = mode === "ask" ? backend.stream : backend.generate;
+    expect(model.mock.calls[0]?.[0].userPayload.files).toEqual(storedFiles);
+  });
   it("streams Ask with the selected source and never returns an edit proposal", async () => {
     const response = await post("ask");
     expect(response.status).toBe(200);
@@ -135,7 +156,7 @@ describe("actual Ask/Edit HTTP handlers", () => {
     vi.stubEnv("DATABASE_URL", "test");
     vi.stubEnv("LIVEBLOCKS_SECRET_KEY", "test");
     backend.auth.mockResolvedValue({ isAuthenticated: true, userId: "viewer" });
-    backend.role.mockResolvedValue({ role: "viewer", workspaceId: "workspace" });
+    backend.role.mockResolvedValue({ access: { role: "viewer" }, documents: files });
     expect((await post("edit")).status).toBe(403);
     expect(backend.generate).not.toHaveBeenCalled();
   });

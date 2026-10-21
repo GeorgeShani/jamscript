@@ -3,7 +3,7 @@ import { Liveblocks } from "@liveblocks/node";
 
 import { withCollaborationDb } from "@/features/collaboration/database";
 import { readLiveblocksDocuments } from "@/features/collaboration/liveblocks-document";
-import { listWorkspaceDocuments, roleForDocument } from "@/features/collaboration/membership";
+import { openSharedWorkspace } from "@/features/collaboration/membership";
 import { shareableDocumentName } from "@/features/collaboration/shareable";
 import { validateProposal } from "@/features/assistant/proposal";
 import { agentContext, proposalSyntaxCheck } from "@/features/assistant/agent-context";
@@ -104,10 +104,10 @@ export const Route = createFileRoute("/api/agent-proposal")({
             { error: "Choose a document and describe the change" },
             { status: 400, headers },
           );
-        const access = await withCollaborationDb((db) =>
-          roleForDocument(db, input.documentId as string, userId),
+        const opened = await withCollaborationDb((db) =>
+          openSharedWorkspace(db, input.documentId as string, userId),
         );
-        if (!access || access.role === "viewer")
+        if (!opened || opened.access.role === "viewer")
           return Response.json({ error: "Editing access required" }, { status: 403, headers });
         let allowed = false;
         try {
@@ -129,10 +129,7 @@ export const Route = createFileRoute("/api/agent-proposal")({
             { error: "Proposal limit reached. Try again in a minute." },
             { status: 429, headers },
           );
-        const metadata = await withCollaborationDb((db) =>
-          listWorkspaceDocuments(db, access.workspaceId, userId),
-        );
-        const selected = (metadata ?? [])
+        const selected = opened.documents
           .filter((file) => shareableDocumentName(file.name))
           .sort((a, b) => Number(b.id === input.documentId) - Number(a.id === input.documentId))
           .slice(0, input.scope === "active" ? 1 : 8);

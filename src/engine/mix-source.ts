@@ -107,9 +107,15 @@ export function prepareMix(
 ): { code: string; tracks: MixTrack[]; mixable?: boolean; moved?: MovedPattern } {
   const tree = parsedTree ?? javascriptLanguage.parser.parse(source);
   let invalid = false;
+  let authoredRouting = false;
   tree.iterate({
     enter: (node) => {
       if (node.type.isError) invalid = true;
+      if (node.name !== "CallExpression") return;
+      const callee = node.node.firstChild;
+      const name = callee?.name === "MemberExpression" ? callee.lastChild : callee;
+      if (name && ["orbit", "duck", "duckorbit"].includes(source.slice(name.from, name.to)))
+        authoredRouting = true;
     },
   });
   if (invalid) return { code: source, tracks: [] };
@@ -151,7 +157,9 @@ export function prepareMix(
   }
 
   const targets: Target[] = [];
-  let mixable = true;
+  // Appending an orbit overrides authored routing, leaving duck targets missing.
+  // Preserve the whole graph, including routing inside helper functions.
+  let mixable = !authoredRouting;
   const names = new Set<string>();
   const add = (name: string, expression: SyntaxNode) => {
     const base = name.trim() || `Track ${targets.length + 1}`;

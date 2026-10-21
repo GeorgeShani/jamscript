@@ -76,12 +76,8 @@
           "tableFrom": "document_revisions",
           "tableTo": "documents",
           "schemaTo": "jamscript",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -178,12 +174,8 @@
           "tableFrom": "documents",
           "tableTo": "workspaces",
           "schemaTo": "jamscript",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -329,12 +321,8 @@
           "tableFrom": "workspace_invitations",
           "tableTo": "workspaces",
           "schemaTo": "jamscript",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -439,12 +427,8 @@
           "tableFrom": "workspace_members",
           "tableTo": "workspaces",
           "schemaTo": "jamscript",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -452,10 +436,7 @@
       "compositePrimaryKeys": {
         "workspace_members_workspace_id_clerk_user_id_pk": {
           "name": "workspace_members_workspace_id_clerk_user_id_pk",
-          "columns": [
-            "workspace_id",
-            "clerk_user_id"
-          ]
+          "columns": ["workspace_id", "clerk_user_id"]
         }
       },
       "uniqueConstraints": {},

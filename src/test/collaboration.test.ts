@@ -14,6 +14,7 @@ import {
   listVisibleDocuments,
   listWorkspaceDocuments,
   listWorkspaceMembers,
+  listWorkspaceManagement,
   listActiveInvitations,
   workspaceNameForOwner,
   leaveSharedWorkspace,
@@ -50,6 +51,52 @@ async function database(logQuery: () => void = () => {}) {
 }
 
 describe("shared project membership", () => {
+  it("loads owner management in one SQL statement without multiplying members by invitations", async () => {
+    const logQuery = vi.fn();
+    const db = await database(logQuery);
+    const project = await createSharedProject(db, {
+      name: "Single trip",
+      ownerId: "owner",
+      documentName: "song.js",
+      source: 's("bd")',
+    });
+    expect(await listWorkspaceManagement(db, project.workspaceId, "owner")).toMatchObject({
+      members: [{ userId: "owner", role: "owner" }],
+      invitations: [],
+    });
+    const joined = await createInvitation(db, {
+      workspaceId: project.workspaceId,
+      actorId: "owner",
+      email: "player@example.com",
+      role: "editor",
+    });
+    await acceptInvitation(db, {
+      token: joined.token,
+      userId: "editor",
+      email: "player@example.com",
+    });
+    for (const email of ["first@example.com", "second@example.com"])
+      await createInvitation(db, {
+        workspaceId: project.workspaceId,
+        actorId: "owner",
+        email,
+        role: "viewer",
+      });
+    const expected = {
+      members: await listWorkspaceMembers(db, project.workspaceId, "owner"),
+      invitations: await listActiveInvitations(db, project.workspaceId, "owner"),
+    };
+    logQuery.mockClear();
+    const result = await listWorkspaceManagement(db, project.workspaceId, "owner");
+    expect(result.members).toEqual(expected.members);
+    expect(result.invitations).toEqual(expect.arrayContaining(expected.invitations));
+    expect(result.invitations).toHaveLength(2);
+    expect(logQuery).toHaveBeenCalledTimes(1);
+    for (const actor of ["editor", "outsider"])
+      await expect(listWorkspaceManagement(db, project.workspaceId, actor)).rejects.toThrow(
+        "Only the owner",
+      );
+  });
   it("authorizes document, invitation and workspace-name reads within a single query each", async () => {
     const logQuery = vi.fn();
     const db = await database(logQuery);

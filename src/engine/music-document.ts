@@ -9,6 +9,7 @@ export interface SourceRange {
 export const PARAMS = {
   gain: { min: 0, max: 1, step: 0.01, decimals: 2, log: false },
   room: { min: 0, max: 1, step: 0.01, decimals: 2, log: false },
+  pan: { min: 0, max: 1, step: 0.01, decimals: 2, log: false },
   lpf: { min: 50, max: 20000, step: 10, decimals: 2, log: true },
   hpf: { min: 50, max: 20000, step: 10, decimals: 2, log: true },
   fast: { min: 0.125, max: 16, step: 0.125, decimals: 3, log: true },

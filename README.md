@@ -126,6 +126,25 @@ Document listing, active invitations and owner workspace-name lookup each author
 
 Remaining priorities are completing the production Ireland cutover, activating Hyperdrive, and measuring authenticated deployed requests through `Server-Timing`. The Liveblocks authorization route still loads the Clerk profile and requests a Liveblocks token after its permission query; those external-service times need a separate authenticated trace. Desktop browser approval uses Clerk OAuth polling, not Supabase: the app follows the native retry delay, checks on window focus/visibility resume, and distinguishes approval received from profile verification.
 
+21 October measurements and optimizations: `bun run perf:database` runs read-only probes, including three alternating before/after comparisons. It prints timings and row counts without credentials, user identities or document contents. On this machine, the Ireland connection took 1,134 ms to open and warm network round trips took 204–205 ms; the workspace-list SQL itself took 0.107 ms. The existing indexes are used, so adding more indexes would not address the observed connection delay.
+
+| Path measured locally                                | Before         | After          | Change                                                                                      |
+| ---------------------------------------------------- | -------------- | -------------- | ------------------------------------------------------------------------------------------- |
+| Share management queries, same open connection       | 818–921 ms     | 323–410 ms     | Members and invitations in one authorized SQL statement; no members × invitations expansion |
+| Shared AI database reads, including connection setup | 2,545–2,868 ms | 1,229–1,536 ms | Ask/Edit and legacy proposal routes use the existing joined workspace-open query once       |
+
+These are database-path measurements on a small existing workspace, not end-to-end AI generation or production latency guarantees. Membership is checked on every request; private responses and authorization results are not cached. The diagnostic retains the previous read paths for comparison. Hyperdrive is still unconfigured: local improvements do not remove the cross-region handshake from every new Worker request. Provisioning it requires an authenticated Cloudflare account; changing local environment files alone does not provision it or update the deployed Worker.
+
+## Audio controls in the IDE
+
+The Inspector mixer uses audiocn dB faders and mute/solo controls while storing linear gain in workspace settings. Inline audiocn knobs and literal pan controls edit the same CodeMirror source through checked patches and undo; typed changes still apply with Ctrl/Cmd+Enter. Dynamic expressions stay editable in code.
+
+During playback, Output can show Spectrum, frequency Bars or an actual Waveform. The desktop bridge supplies bounded waveform frames and honestly reports its combined meter as mono. Track faders remain unavailable for combined routing such as Coastline's post-stack effects and programs with authored `orbit`/`duck` routing. Those programs retain their original buses; declared duck targets are prepared before the first note.
+
+Opening a workspace prepares the audio runtime without evaluating its code or starting music. Play waits for assets in the opening two cycles, then prepares later sections in the background. Cached assets are reused on subsequent starts; a first download or decode can still delay an uncached opening sound.
+
+Open **Samples** in the bottom panel, then **Load sample banks**. Play a song first to register its custom sample packs, then refresh the banks. Filter and tap a Sound Pad to audition without replacing your song. Choose a variant, seek its decoded waveform or adjust preview volume; number shortcuts work only with focus inside the pad grid. **Replace selected sound** only replaces an editable single literal sound selected in the editor, with undo. It rejects pattern strings and banked expressions. See [the integration plan](AUDIOCN_INTEGRATION_PLAN.md) for completed and deferred scope.
+
 ## Contributors
 
 - [Luka Vacheishvili](https://github.com/lukavache)

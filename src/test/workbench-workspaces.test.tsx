@@ -16,6 +16,7 @@ import {
 import * as playback from "@/engine/playback";
 
 vi.mock("@/engine/playback", () => ({
+  warmPlayback: vi.fn().mockResolvedValue(undefined),
   onError: vi.fn(),
   onAsset: vi.fn(),
   onHighlight: vi.fn(),

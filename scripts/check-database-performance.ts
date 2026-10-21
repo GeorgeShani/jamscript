@@ -7,7 +7,11 @@ import {
   listWorkspaceDocuments,
   listActiveInvitations,
   workspaceNameForOwner,
+  listWorkspaceManagement,
+  roleForDocument,
+  openSharedWorkspace,
 } from "../src/features/collaboration/membership";
+import { withCollaborationDb } from "../src/features/collaboration/database";
 
 // Read-only diagnostic. Prints timings and counts, never URLs, identities or source.
 // bun --env-file=.env --env-file=.env.local scripts/check-database-performance.ts
@@ -38,6 +42,37 @@ try {
       console.log(
         JSON.stringify({ phase: "workspace list", ms: elapsed(start), rows: files.length }),
       );
+      // Same open connection, alternating old/new paths to expose round-trip cost.
+      for (let index = 0; index < 3; index++) {
+        start = performance.now();
+        await listActiveInvitations(scopedDb, member.workspace_id, member.clerk_user_id);
+        await listWorkspaceMembers(scopedDb, member.workspace_id, member.clerk_user_id);
+        console.log(JSON.stringify({ phase: "management legacy two queries", ms: elapsed(start) }));
+        start = performance.now();
+        await listWorkspaceManagement(scopedDb, member.workspace_id, member.clerk_user_id);
+        console.log(JSON.stringify({ phase: "management one query", ms: elapsed(start) }));
+      }
+      const file = files[0];
+      if (file) {
+        for (let index = 0; index < 3; index++) {
+          start = performance.now();
+          const access = await withCollaborationDb((db) =>
+            roleForDocument(db, file.documentId, member.clerk_user_id),
+          );
+          if (access)
+            await withCollaborationDb((db) =>
+              listWorkspaceDocuments(db, access.workspaceId, member.clerk_user_id),
+            );
+          console.log(
+            JSON.stringify({ phase: "shared AI legacy two connections", ms: elapsed(start) }),
+          );
+          start = performance.now();
+          await withCollaborationDb((db) =>
+            openSharedWorkspace(db, file.documentId, member.clerk_user_id),
+          );
+          console.log(JSON.stringify({ phase: "shared AI one connection", ms: elapsed(start) }));
+        }
+      }
       start = performance.now();
       const people = await listWorkspaceMembers(
         scopedDb,

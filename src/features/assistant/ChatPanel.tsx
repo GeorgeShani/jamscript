@@ -750,7 +750,7 @@ export function ChatPanel({
             <Button
               size="sm"
               type="button"
-              className={`jam-chat-send${mode === "edit" ? " is-edit" : ""}`}
+              className="jam-chat-send"
               disabled={!draft.trim() && !draft.startsWith("/")}
               onClick={() => void send(draft)}
             >

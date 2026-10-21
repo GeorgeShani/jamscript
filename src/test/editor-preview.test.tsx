@@ -8,6 +8,17 @@ const source = (container: HTMLElement) =>
   [...container.querySelectorAll(".cm-line")].map((line) => line.textContent).join("\n");
 
 describe("Editable code and live controls", () => {
+  it("converts the inline audiocn pan range into source values with undo", () => {
+    const initial = 'drums: s("bd").pan(0.5)';
+    const changed = vi.fn();
+    const { container } = render(<EditorSlot initialCode={initial} onChange={changed} />);
+    const control = screen.getByRole("slider", { name: / pan$/ });
+    fireEvent.keyDown(control, { key: "Home" });
+    expect(source(container)).toBe('drums: s("bd").pan(0)');
+    expect(changed.mock.calls.at(-1)?.[2]).toBe(true);
+    fireEvent.keyDown(control, { key: "z", ctrlKey: true });
+    expect(source(container)).toBe(initial);
+  });
   it("starts with editable source without stealing focus", () => {
     const { container } = render(<EditorSlot />);
     expect(screen.getByRole("textbox", { name: "Music code" })).toHaveAttribute(

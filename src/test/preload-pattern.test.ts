@@ -22,6 +22,108 @@ function runtime() {
 beforeEach(() => vi.clearAllMocks());
 
 describe("cold playback assets", () => {
+  it("starts with opening assets ready while a later section is still downloading", async () => {
+    const audio = runtime();
+    let release!: () => void;
+    audio.getSampleBuffer.mockImplementation((value: Record<string, unknown>) =>
+      value["s"] === "later"
+        ? new Promise<void>((resolve) => {
+            release = resolve;
+          })
+        : Promise.resolve({ buffer: {} }),
+    );
+    const pattern = { queryArc: (cycle: number) => [hap({ s: cycle < 16 ? "bd" : "later" })] };
+    const pending = preloadPatternAssets(pattern, audio, () => true, undefined, {
+      waitForAll: false,
+    });
+    try {
+      await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+      const ready = await Promise.race([
+        pending.then(() => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 100)),
+      ]);
+      expect(ready).toBe(true);
+    } finally {
+      release();
+      await pending;
+    }
+  });
+
+  it("reports future asset failures without rejecting an already prepared opening", async () => {
+    const audio = runtime();
+    const onBackgroundError = vi.fn();
+    audio.getSampleBuffer.mockImplementation((value: Record<string, unknown>) =>
+      value["s"] === "later"
+        ? Promise.reject(new Error("Later sample unavailable"))
+        : Promise.resolve({ buffer: {} }),
+    );
+    await expect(
+      preloadPatternAssets(
+        { queryArc: (cycle: number) => [hap({ s: cycle < 16 ? "bd" : "later" })] },
+        audio,
+        () => true,
+        undefined,
+        { waitForAll: false, onBackgroundError },
+      ),
+    ).resolves.toBeUndefined();
+    await vi.waitFor(() =>
+      expect(onBackgroundError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Later sample unavailable" }),
+      ),
+    );
+  });
+
+  it("does not create orbits for missing duck targets", async () => {
+    const getOrbit = vi.fn();
+    await preloadPatternAssets(
+      { queryArc: () => [hap({ s: "bd", duckorbit: [2, 3] })] },
+      { ...runtime(), getSuperdoughAudioController: () => ({ getOrbit }) },
+      () => true,
+    );
+    expect(getOrbit).not.toHaveBeenCalled();
+  });
+
+  it("retains multichannel orbit destinations during preparation", async () => {
+    const getOrbit = vi.fn();
+    await preloadPatternAssets(
+      { queryArc: () => [hap({ s: "bd", duckorbit: 2 }), hap({ s: "sine", orbit: 2 })] },
+      {
+        ...runtime(),
+        multiChannelOrbits: true,
+        getSuperdoughAudioController: () => ({ getOrbit }),
+      },
+      () => true,
+    );
+    expect(getOrbit).toHaveBeenCalledExactlyOnceWith(2, [2, 3]);
+  });
+
+  it("creates declared duck targets before the first hit, retaining output channels", async () => {
+    const getOrbit = vi.fn();
+    const audio = {
+      ...runtime(),
+      getSuperdoughAudioController: () => ({ getOrbit }),
+      getDefaultValue: () => [1, 2],
+    };
+    const pattern = {
+      queryArc: (begin: number) => [
+        hap({ s: "bd", duckorbit: [2, 3, 4] }),
+        ...(begin >= 16
+          ? [
+              hap({ s: "sine", orbit: 2 }),
+              hap({ s: "sine", orbit: 3, channels: [3, 4] }),
+              hap({ s: "sine", orbit: 4 }),
+            ]
+          : []),
+      ],
+    };
+    await preloadPatternAssets(pattern, audio, () => true);
+    expect(getOrbit.mock.calls).toEqual([
+      [2, [0, 1]],
+      [3, [2, 3]],
+      [4, [0, 1]],
+    ]);
+  });
+
   it("prepares bank samples and masked GM sections before their first scheduled note", async () => {
     const audio = runtime();
     const pattern = {

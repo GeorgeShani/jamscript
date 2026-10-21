@@ -8,6 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { changeEditorTempo } from "@/features/tempo/tempo-editor";
 
 vi.mock("@/engine/playback", () => ({
+  warmPlayback: vi.fn().mockResolvedValue(undefined),
   onError: vi.fn(),
   onHighlight: vi.fn(),
   play: vi.fn().mockResolvedValue(true),

@@ -2,9 +2,14 @@ import { AudioContextProvider } from "@/hooks/use-audio-context";
 import { useAudioAnalyser } from "@/hooks/use-audio-analyser";
 import { LevelMeter } from "@/components/ui/level-meter";
 import { Spectrum } from "@/components/ui/spectrum";
+import { BarVisualizer } from "@/components/ui/bar-visualizer";
+import { SmoothWaveform } from "@/components/ui/smooth-waveform";
 import { GripHorizontal } from "lucide-react";
 import type { KeyboardEventHandler, PointerEventHandler } from "react";
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
+const SampleExplorer = lazy(() =>
+  import("./SampleExplorer").then((module) => ({ default: module.SampleExplorer })),
+);
 import type { SyntaxProblem } from "@/features/language/syntax-problems";
 import type { TakeRecord } from "@/features/takes/take-store";
 import type { FrameSource, MeterFrame, VisualFrame } from "@/lib/types";
@@ -24,32 +29,47 @@ function TelemetryOutput({
 }: {
   frames: { meter: FrameSource<MeterFrame>; visual: FrameSource<VisualFrame> };
 }) {
+  const [view, setView] = useState("spectrum");
   return (
     <div className="jam-output-visuals">
       <div className="jam-level-wrap">
         <span>MASTER</span>
         <LevelMeter source={frames.meter} aria-label="Master output level" orientation="vertical" />
       </div>
-      <Spectrum source={frames.visual} aria-label="Master output spectrum" />
+      <div className="jam-output-view">
+        <label>
+          Monitor{" "}
+          <select
+            aria-label="Output visualization"
+            value={view}
+            onChange={(event) => setView(event.target.value)}
+          >
+            <option value="spectrum">Spectrum</option>
+            <option value="bars">Frequency bars</option>
+            <option value="scope">Waveform</option>
+          </select>
+        </label>
+        {view === "spectrum" ? (
+          <Spectrum source={frames.visual} aria-label="Master output spectrum" />
+        ) : view === "bars" ? (
+          <BarVisualizer
+            source={frames.visual}
+            barCount={32}
+            minLevel={0}
+            idle="static"
+            aria-label="Master frequency bars"
+          />
+        ) : (
+          <SmoothWaveform source={frames.visual} mode="scope" aria-label="Master output waveform" />
+        )}
+      </div>
     </div>
   );
 }
 
 function LiveOutput({ node }: { node: AudioNode }) {
   const analyser = useAudioAnalyser(node, { channels: "stereo", bands: 32 });
-  return (
-    <div className="jam-output-visuals">
-      <div className="jam-level-wrap">
-        <span>MASTER</span>
-        <LevelMeter
-          source={analyser.meter}
-          aria-label="Master output level"
-          orientation="vertical"
-        />
-      </div>
-      <Spectrum source={analyser.visual} aria-label="Master output spectrum" />
-    </div>
-  );
+  return <TelemetryOutput frames={analyser} />;
 }
 
 export function OutputPanel({
@@ -68,6 +88,7 @@ export function OutputPanel({
   onRestoreTake,
   onReturnToLive,
   canRestoreTake,
+  onReplaceSound,
 }: {
   error: string | null;
   output: { context: AudioContext; node: AudioNode } | null;
@@ -84,8 +105,9 @@ export function OutputPanel({
   onRestoreTake: (take: TakeRecord) => void;
   onReturnToLive: () => void;
   canRestoreTake: boolean;
+  onReplaceSound?: ((name: string, index: number) => boolean) | undefined;
 }) {
-  const [tab, setTab] = useState<"output" | "problems" | "takes">("output");
+  const [tab, setTab] = useState<"output" | "problems" | "takes" | "samples">("output");
   const [selectedTakeId, setSelectedTakeId] = useState<string | null>(null);
   const selectedTake = takes.find((take) => take.id === selectedTakeId);
   return (
@@ -117,6 +139,14 @@ export function OutputPanel({
       <div className="jam-output-tabs" role="tablist" aria-label="Bottom panel">
         <button
           role="tab"
+          aria-selected={tab === "samples"}
+          aria-controls="jam-samples-content"
+          onClick={() => setTab("samples")}
+        >
+          Samples
+        </button>
+        <button
+          role="tab"
           aria-selected={tab === "output"}
           aria-controls="jam-output-content"
           onClick={() => setTab("output")}
@@ -140,7 +170,13 @@ export function OutputPanel({
           Problems{problems.length ? ` (${problems.length})` : ""}
         </button>
       </div>
-      {tab === "output" ? (
+      {tab === "samples" ? (
+        <div id="jam-samples-content" role="tabpanel" className="jam-output-body">
+          <Suspense fallback={<p className="jam-muted">Opening sample browser…</p>}>
+            <SampleExplorer onReplaceSound={onReplaceSound} />
+          </Suspense>
+        </div>
+      ) : tab === "output" ? (
         <div id="jam-output-content" role="tabpanel" className="jam-output-body">
           {error && (
             <div role="alert" className="jam-output-error">

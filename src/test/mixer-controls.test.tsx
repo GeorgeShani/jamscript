@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { listDocuments, listWorkspaces } from "@/workspaces/storage";
 
 vi.mock("@/engine/playback", () => ({
+  warmPlayback: vi.fn().mockResolvedValue(undefined),
   onError: vi.fn(),
   onHighlight: vi.fn(),
   play: vi.fn().mockResolvedValue(true),
@@ -46,11 +47,9 @@ describe("track controls", () => {
     expect(mixer).toHaveTextContent("1. DRUMS");
     expect(mixer).not.toHaveTextContent("Dusty, unquantized");
     fireEvent.click(screen.getByRole("button", { name: "Inspect 1. DRUMS" }));
-    fireEvent.change(screen.getByRole("slider", { name: "1. DRUMS level" }), {
-      target: { value: "65" },
-    });
+    fireEvent.keyDown(screen.getByRole("slider", { name: "1. DRUMS level" }), { key: "ArrowDown" });
     expect(onSelect).toHaveBeenCalledWith(name);
-    expect(onLevel).toHaveBeenCalledWith(name, 0.65);
+    expect(onLevel).toHaveBeenCalledWith(name, 10 ** (-0.5 / 20));
   });
 
   it("opens the inspector on a track that already has numeric parameters", async () => {
@@ -83,15 +82,16 @@ describe("track controls", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Show inspector" }, { timeout: 5000 }),
     );
-    fireEvent.change(screen.getByRole("slider", { name: "drums level" }), {
-      target: { value: "65" },
-    });
+    fireEvent.keyDown(screen.getByRole("slider", { name: "drums level" }), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("button", { name: "Rename drums" }));
     fireEvent.change(screen.getByRole("textbox", { name: "New name for drums" }), {
       target: { value: "kick" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(screen.getByRole("slider", { name: "kick level" })).toHaveValue("65");
+    expect(screen.getByRole("slider", { name: "kick level" })).toHaveAttribute(
+      "aria-valuetext",
+      expect.stringContaining("0.5"),
+    );
     expect(
       Array.from(document.querySelectorAll(".jam-editor-pane:not([hidden]) .cm-line"))
         .map((line) => line.textContent)
@@ -108,7 +108,7 @@ describe("track controls", () => {
     await waitFor(async () => {
       const docs = await listDocuments(workspace.id);
       expect(docs[0]?.source).toContain('kick: s("bd');
-      expect(docs[0]?.mix?.levels["kick"]).toBe(0.65);
+      expect(docs[0]?.mix?.levels["kick"]).toBeCloseTo(10 ** (-0.5 / 20));
       expect(docs[0]?.mix?.colors?.["64"]).toBe(2);
     });
   });

@@ -5,8 +5,11 @@ import tailwindcss from "@tailwindcss/vite";
 import { parseStrudelSoundfontsWithoutEval } from "./vite.strudel-soundfonts";
 
 // Static workbench assets are served by the Tauri webview.
-export default defineConfig({
+export default defineConfig(({ command, mode }) => ({
   root: "desktop",
+  cacheDir: fileURLToPath(
+    new URL(`./node_modules/.vite-desktop/${command}-${mode}`, import.meta.url),
+  ),
   envDir: fileURLToPath(new URL(".", import.meta.url)),
   publicDir: fileURLToPath(new URL("./public", import.meta.url)),
   envPrefix: "JAMSCRIPT_DESKTOP_PUBLIC_",
@@ -38,4 +41,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

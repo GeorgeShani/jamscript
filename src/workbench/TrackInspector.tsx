@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from "react";
 import { isolateHistory } from "@codemirror/commands";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { dispatchLensEdit } from "@/components/jam/code-editor";
 import {
   Knob,
@@ -21,6 +21,7 @@ import {
 import { PARAMS, type MusicTrack, type ParamLens } from "@/engine/music-document";
 import type { MixTrack } from "@/engine/mix-source";
 import { MixerPanel } from "./MixerPanel";
+import { PanControl, formatPan } from "@/components/ui/pan-control";
 
 export function TrackInspector({
   track,
@@ -62,6 +63,7 @@ export function TrackInspector({
   extra?: ReactNode;
 }) {
   const gestures = useRef(new Map<string, number>());
+  const editable = !!view?.state.facet(EditorView.editable);
   const edit = (lens: ParamLens, value: number, reason: string) => {
     if (!view) return;
     let time = gestures.current.get(lens.id);
@@ -141,9 +143,27 @@ export function TrackInspector({
               <div className="jam-parameter-list">
                 {parameters.map((lens) => {
                   const spec = PARAMS[lens.name];
+                  if (lens.name === "pan")
+                    return (
+                      <div className="jam-source-pan" key={lens.id}>
+                        <span>
+                          PAN <output>{formatPan(2 * lens.value - 1)}</output>
+                        </span>
+                        <PanControl
+                          step={spec.step * 2}
+                          disabled={!editable}
+                          aria-label={`${track?.name} source pan`}
+                          value={2 * lens.value - 1}
+                          onValueChange={(value) => edit(lens, (value + 1) / 2, "drag")}
+                          onValueCommitted={() => commit(lens)}
+                          size="sm"
+                        />
+                      </div>
+                    );
                   return (
                     <div className="jam-parameter" key={lens.id}>
                       <Knob
+                        disabled={!editable}
                         min={spec.min}
                         max={spec.max}
                         step={spec.step}
@@ -162,6 +182,7 @@ export function TrackInspector({
                         <KnobLabel>{lens.name}</KnobLabel>
                       </Knob>
                       <ParameterSlider
+                        disabled={!editable}
                         min={spec.min}
                         max={spec.max}
                         step={spec.step}

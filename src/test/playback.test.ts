@@ -13,7 +13,12 @@ const web = vi.hoisted(() => ({
   getSampleInfo: vi.fn(),
   getSampleBuffer: vi.fn(),
 }));
-vi.mock("@strudel/web", () => ({ ...web, Pattern: class MockPattern {} }));
+vi.mock("@strudel/web", () => ({
+  ...web,
+  Pattern: class MockPattern {},
+  getDefaultValue: (name: string) => (name === "orbit" ? 0 : [1, 2]),
+  multiChannelOrbits: false,
+}));
 beforeEach(() => {
   vi.resetModules();
   vi.stubEnv("SSR", false);
@@ -24,6 +29,17 @@ beforeEach(() => {
 });
 
 describe("Live playback adapter", () => {
+  it("warms the runtime once without evaluating or starting the document", async () => {
+    const playback = await import("@/engine/playback");
+    await Promise.all([playback.warmPlayback(), playback.warmPlayback()]);
+    expect(web.initStrudel).toHaveBeenCalledOnce();
+    expect(web.initAudio).toHaveBeenCalledOnce();
+    expect(web.evaluate).not.toHaveBeenCalled();
+    expect(await playback.play('s("bd")')).toBe(true);
+    expect(web.initStrudel).toHaveBeenCalledOnce();
+    await playback.stop();
+  });
+
   it("fades Stop smoothly and cancels that fade on a quick restart", async () => {
     const gain = {
       value: 0.7,

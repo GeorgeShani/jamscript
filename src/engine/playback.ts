@@ -13,6 +13,18 @@ import {
 } from "./mix-source";
 import { registerBundledSoundfonts } from "./register-soundfonts";
 import { preloadPatternAssets, type PreloadPattern } from "./preload-pattern";
+import {
+  registeredSamples,
+  auditionRegisteredSample,
+  stopSamplePreview as stopPreviewVoice,
+} from "./sample-preview";
+export { setSamplePreviewVolume } from "./sample-preview";
+let previewRevision = 0;
+export function stopSamplePreview() {
+  previewRevision++;
+  stopPreviewVoice();
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("jamscript:preview-stopped"));
+}
 import type { PlaybackRange } from "@/components/jam/playback-highlights";
 
 let initPromise: Promise<StrudelWeb> | null = null;
@@ -196,6 +208,11 @@ export function initPlayback(): Promise<StrudelWeb> {
               strudel,
               () => allowed && revision === startingRevision,
               evaluationSignal,
+              {
+                waitForAll: false,
+                onBackgroundError: (error) =>
+                  errorCallback?.(`Could not prepare upcoming audio: ${message(error)}`),
+              },
             );
         },
         onEvalError: (error: unknown) => {
@@ -216,15 +233,17 @@ export function initPlayback(): Promise<StrudelWeb> {
           if (context) scheduleHighlight(hap, when, context);
         },
         prebake: async () => {
-          await registerBundledSoundfonts(strudel);
           // Match the REPL's default banks, including rim and other named drums.
           // These recording assets remain remote until self-hosted with their licences.
           const base = "https://raw.githubusercontent.com/felixroos/dough-samples/main";
-          await Promise.allSettled(
-            ["tidal-drum-machines", "piano", "Dirt-Samples", "EmuSP12", "vcsl", "mridangam"].map(
-              (bank) => strudel.samples(`${base}/${bank}.json`),
+          await Promise.all([
+            registerBundledSoundfonts(strudel),
+            Promise.allSettled(
+              ["tidal-drum-machines", "piano", "Dirt-Samples", "EmuSP12", "vcsl", "mridangam"].map(
+                (bank) => strudel.samples(`${base}/${bank}.json`),
+              ),
             ),
-          );
+          ]);
         },
       });
       // initStrudel installs a first-mousedown listener, but the first Play
@@ -238,6 +257,11 @@ export function initPlayback(): Promise<StrudelWeb> {
     });
   }
   return initPromise;
+}
+
+/** Prepare the runtime ahead of Play without evaluating user code or starting notes. */
+export async function warmPlayback(): Promise<void> {
+  await initPlayback();
 }
 
 /** Evaluates the session code like the Strudel REPL. Never throws: errors go to onError. */
@@ -310,6 +334,7 @@ export function play(code: string): Promise<boolean> {
 
 /** Stops all playing patterns. */
 export async function stop(): Promise<void> {
+  stopSamplePreview();
   allowed = false;
   preparation?.abort();
   mixEnabled = false;
@@ -328,6 +353,17 @@ export async function stop(): Promise<void> {
       .catch(() => {
         /* A failed initialization has no sound to stop. */
       });
+}
+
+/** Sample previews share Strudel's context/cache and never evaluate or replace the song. */
+export async function listRegisteredSamples() {
+  return registeredSamples(await initPlayback());
+}
+export async function auditionSample(name: string, index = 0, offset = 0) {
+  const current = ++previewRevision;
+  const runtime = await initPlayback();
+  if (current !== previewRevision) throw new DOMException("Preview cancelled", "AbortError");
+  return auditionRegisteredSample(runtime, name, index, offset);
 }
 
 /** Registers the single callback that receives evaluate() error messages. */

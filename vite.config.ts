@@ -5,7 +5,10 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { parseStrudelSoundfontsWithoutEval } from "./vite.strudel-soundfonts";
 
-export default defineConfig({
+export default defineConfig(({ command, mode }) => ({
+  // Web and desktop run concurrently with different aliases/dependencies.
+  // Sharing the optimizer cache invalidates modules in the other dev server.
+  cacheDir: `node_modules/.vite-web/${command}-${mode}`,
   resolve: {
     tsconfigPaths: true,
     // Use the published modular entry so the bundled runtime can be split and
@@ -27,11 +30,11 @@ export default defineConfig({
                 { name: "assistant", test: /src[\\/]features[\\/]assistant[\\/]/ },
                 {
                   name: "music-source",
-                  test: /src[\\/]engine[\\/](?:music-document|mix-source)\.ts$/,
+                  test: /src[\\/]engine[\\/](?:music-document|mix-source|sample-insertion)\.ts$/,
                 },
                 {
                   name: "music-controls",
-                  test: /src[\\/]components[\\/]ui[\\/](?:knob|level-meter|db-readout|db-scale)\.tsx$|src[\\/]workbench[\\/](?:MixerPanel|TrackInspector|OutputPanel|CommandPalette|ExportControl)\.tsx$/,
+                  test: /src[\\/]components[\\/]ui[\\/](?:knob|level-meter|db-readout|db-scale|fader|pan-control|channel-strip|channel-toggle|mixer|bar-visualizer|smooth-waveform)\.tsx$|src[\\/]components[\\/]jam[\\/]inline-parameter\.tsx$|src[\\/]workbench[\\/](?:MixerPanel|TrackInspector|OutputPanel|CommandPalette|ExportControl)\.tsx$/,
                 },
               ],
             },
@@ -47,4 +50,4 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-});
+}));

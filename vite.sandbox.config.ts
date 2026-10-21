@@ -4,8 +4,11 @@ import { parseStrudelSoundfontsWithoutEval } from "./vite.strudel-soundfonts";
 
 // Bundle the playback frame as one classic script. An opaque-origin sandbox
 // cannot import ES modules from the parent Tauri origin.
-export default defineConfig({
+export default defineConfig(({ command, mode }) => ({
   root: "desktop",
+  cacheDir: fileURLToPath(
+    new URL(`./node_modules/.vite-sandbox/${command}-${mode}`, import.meta.url),
+  ),
   define: {
     "process.env.NODE_ENV": JSON.stringify("production"),
     // An IIFE has no import.meta. Strudel's optional SharedWorker URL is
@@ -26,4 +29,4 @@ export default defineConfig({
       fileName: () => "sandbox.generated.js",
     },
   },
-});
+}));

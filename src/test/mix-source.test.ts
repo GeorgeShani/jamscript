@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import { editorOffsetFromPlayback, prepareMix, renameTrackPatch } from "@/engine/mix-source";
 
 describe("playback mix preparation", () => {
+  it.each([
+    'drums: s("bd*4").duckorbit("2:3:4");\nbass: s("sine").orbit(2);',
+    'stack(s("bd").duck(2), s("sine").orbit(2))',
+    'lead: s("sine").orbit("<2 3>");',
+    'const routed = p => p.orbit(2);\nlead: routed(s("sine"));',
+    'lead: orbit(2, s("sine"));',
+  ])("preserves authored orbit routing and duck targets: %s", (source) => {
+    const mix = prepareMix(source);
+    expect(mix.code).toBe(source);
+    expect(mix.mixable).toBe(false);
+  });
+
   it("routes labeled tracks without editing their source", () => {
     const source = 'setcps(.6);\ndrums: s("bd");\nhats: s("hh").gain(.5);';
     const mix = prepareMix(source);

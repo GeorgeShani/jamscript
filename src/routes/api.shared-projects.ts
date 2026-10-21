@@ -10,6 +10,7 @@ import {
   leaveSharedWorkspace,
   listActiveInvitations,
   listWorkspaceMembers,
+  listWorkspaceManagement,
   listVisibleDocuments,
   openSharedWorkspace,
   removeMember,
@@ -106,16 +107,9 @@ export const Route = createFileRoute("/api/shared-projects")({
         const invitationWorkspace = url.searchParams.get("workspaceId");
         if (invitationWorkspace && url.searchParams.get("management") === "1") {
           try {
-            const management = await withCollaborationDb(async (db) => {
-              // The owner-only query authorizes the entire management response.
-              const invitations = await listActiveInvitations(
-                db,
-                invitationWorkspace,
-                current.userId,
-              );
-              const members = await listWorkspaceMembers(db, invitationWorkspace, current.userId);
-              return { invitations, members };
-            });
+            const management = await withCollaborationDb((db) =>
+              listWorkspaceManagement(db, invitationWorkspace, current.userId),
+            );
             return json(management);
           } catch {
             return json({ error: "No access to workspace management" }, 403);

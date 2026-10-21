@@ -5,16 +5,22 @@ import type { EditorView } from "@codemirror/view";
 import { createMusicEditor, dispatchLensEdit, musicModel } from "@/components/jam/code-editor";
 import { SAMPLE_CODE } from "@/components/jam/session";
 import { renameTrackPatch } from "@/engine/mix-source";
+import { act } from "@testing-library/react";
 
 const views: EditorView[] = [];
-afterEach(() => {
-  for (const view of views.splice(0)) view.destroy();
+afterEach(async () => {
+  await act(async () => {
+    for (const view of views.splice(0)) view.destroy();
+  });
   document.body.innerHTML = "";
 });
 function editor(code = SAMPLE_CODE, change = vi.fn()) {
   const parent = document.createElement("div");
   document.body.append(parent);
-  const view = createMusicEditor(parent, code, change, vi.fn());
+  let view!: EditorView;
+  act(() => {
+    view = createMusicEditor(parent, code, change, vi.fn());
+  });
   views.push(view);
   return view;
 }
@@ -60,7 +66,9 @@ describe("Real music editor", () => {
     const view = editor();
     const slider = view.dom.querySelector<HTMLElement>('[aria-label="bass lpf"]')!;
     slider.focus();
-    dispatchLensEdit(view, { target: "bass/param/lpf", value: 800 });
+    act(() => {
+      dispatchLensEdit(view, { target: "bass/param/lpf", value: 800 });
+    });
     expect(view.dom.querySelector('[aria-label="bass lpf"]')).toBe(slider);
     expect(slider.getAttribute("aria-valuenow")).toBe("800");
     expect(document.activeElement).toBe(slider);

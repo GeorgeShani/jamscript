@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { alias } from "drizzle-orm/pg-core";
+import { alias, unionAll } from "drizzle-orm/pg-core";
 
 import {
   documentRevisions,
@@ -305,6 +305,84 @@ export async function listWorkspaceMembers(
     const rank = { owner: 0, editor: 1, viewer: 2 } as const;
     return rank[left.role] - rank[right.role] || left.userId.localeCompare(right.userId);
   });
+}
+
+/** One round trip; UNION avoids a members × invitations result set. */
+export async function listWorkspaceManagement(
+  db: CollaborationDb,
+  workspaceId: string,
+  actorId: string,
+) {
+  const owner = alias(workspaceMembers, "managing_owner");
+  const ownerCondition = and(
+    eq(owner.workspaceId, workspaceId),
+    eq(owner.clerkUserId, actorId),
+    eq(owner.role, "owner"),
+  );
+  const rows = await unionAll(
+    db
+      .select({
+        kind: sql<string>`'member'`,
+        id: workspaceMembers.clerkUserId,
+        role: workspaceMembers.role,
+        email: workspaceInvitations.invitedEmail,
+        at: workspaceMembers.joinedAt,
+      })
+      .from(workspaceMembers)
+      .innerJoin(owner, and(eq(owner.workspaceId, workspaceMembers.workspaceId), ownerCondition))
+      .leftJoin(
+        workspaceInvitations,
+        and(
+          eq(workspaceInvitations.workspaceId, workspaceMembers.workspaceId),
+          eq(workspaceInvitations.acceptedByClerkUserId, workspaceMembers.clerkUserId),
+          isNull(workspaceInvitations.revokedAt),
+        ),
+      ),
+    db
+      .select({
+        kind: sql<string>`'invitation'`,
+        id: sql<string>`${workspaceInvitations.id}::text`,
+        role: workspaceInvitations.role,
+        email: workspaceInvitations.invitedEmail,
+        at: workspaceInvitations.expiresAt,
+      })
+      .from(workspaceInvitations)
+      .innerJoin(
+        owner,
+        and(eq(owner.workspaceId, workspaceInvitations.workspaceId), ownerCondition),
+      )
+      .where(and(isNull(workspaceInvitations.revokedAt), isNull(workspaceInvitations.acceptedAt))),
+  );
+  // Even without invitations, the owner's member row proves authorization.
+  const members = [
+    ...new Map(
+      rows
+        .filter((row) => row.kind === "member")
+        .map((row) => [
+          row.id,
+          {
+            userId: row.id,
+            role: row.role,
+            email: row.email,
+            joinedAt: row.at,
+          },
+        ]),
+    ).values(),
+  ];
+  if (!members.length) throw new Error("Only the owner can view workspace management");
+  const rank = { owner: 0, editor: 1, viewer: 2 } as const;
+  members.sort(
+    (left, right) => rank[left.role] - rank[right.role] || left.userId.localeCompare(right.userId),
+  );
+  const invitations = rows
+    .filter((row) => row.kind === "invitation")
+    .map((row) => ({
+      id: row.id,
+      role: row.role,
+      email: row.email!,
+      expiresAt: row.at,
+    }));
+  return { members, invitations };
 }
 
 export async function workspaceNameForOwner(

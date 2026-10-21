@@ -14,7 +14,7 @@ import { CHAT_LIMITS, type AgentChatFile } from "@/features/assistant/chat-types
 import { EDIT_RESPONSE_SCHEMA, parseStructuredEdit } from "@/features/assistant/structured-edit";
 import { withCollaborationDb } from "@/features/collaboration/database";
 import { readLiveblocksDocuments } from "@/features/collaboration/liveblocks-document";
-import { listWorkspaceDocuments, roleForDocument } from "@/features/collaboration/membership";
+import { openSharedWorkspace } from "@/features/collaboration/membership";
 import { shareableDocumentName } from "@/features/collaboration/shareable";
 
 const headers = {
@@ -125,16 +125,13 @@ export const Route = createFileRoute("/api/agent-chat")({
         const canUseShared =
           !!userId && !!process.env["DATABASE_URL"] && !!process.env["LIVEBLOCKS_SECRET_KEY"];
         if (canUseShared) {
-          const access = await withCollaborationDb((db) =>
-            roleForDocument(db, input.documentId, userId!),
+          const opened = await withCollaborationDb((db) =>
+            openSharedWorkspace(db, input.documentId, userId!),
           );
-          if (access?.role === "viewer" && input.mode === "edit")
+          if (opened?.access.role === "viewer" && input.mode === "edit")
             return Response.json({ error: "Editing access required" }, { status: 403, headers });
-          if (access) {
-            const metadata = await withCollaborationDb((db) =>
-              listWorkspaceDocuments(db, access.workspaceId, userId!),
-            );
-            const eligible = (metadata ?? []).filter((file) => shareableDocumentName(file.name));
+          if (opened) {
+            const eligible = opened.documents.filter((file) => shareableDocumentName(file.name));
             const byId = new Map(eligible.map((file) => [file.id, file]));
             const selectedIds: string[] = [];
             const pushId = (id: string) => {

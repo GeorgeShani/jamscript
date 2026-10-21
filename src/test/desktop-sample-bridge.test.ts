@@ -15,8 +15,9 @@ it("accepts a burst of sample requests from the isolated runtime without droppin
         );
       }),
   );
-  const { play } = await import("../../desktop/sandboxed-playback");
-  const playing = play("samples('github:eddyflux/crate'); s('crate_bd')");
+  const { warmPlayback, play, listRegisteredSamples, auditionSample, outputFrames } =
+    await import("../../desktop/sandboxed-playback");
+  const warming = warmPlayback();
   const frame = document.querySelector("iframe")!;
   const post = vi.spyOn(frame.contentWindow!, "postMessage").mockImplementation(() => {});
   const message = (data: object) =>
@@ -28,6 +29,13 @@ it("accepts a burst of sample requests from the isolated runtime without droppin
     );
   try {
     message({ type: "ready" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(post.mock.calls[0]![0]).toMatchObject({ command: "warm" });
+    const warmId = (post.mock.calls[0]![0] as { id: number }).id;
+    message({ type: "result", id: warmId, ok: true });
+    await warming;
+    post.mockClear();
+    const playing = play("samples('github:eddyflux/crate'); s('crate_bd')");
     await vi.advanceTimersByTimeAsync(0);
     const request = post.mock.calls[0]![0] as { id: number };
     message({ type: "result", id: request.id, ok: true });
@@ -58,6 +66,40 @@ it("accepts a burst of sample requests from the isolated runtime without droppin
     releases.slice(16).forEach((release) => release());
     await vi.advanceTimersByTimeAsync(0);
     expect(post).toHaveBeenCalledTimes(41);
+    post.mockClear();
+    const listing = listRegisteredSamples();
+    await vi.advanceTimersByTimeAsync(0);
+    const listId = (post.mock.calls[0]![0] as { id: number }).id;
+    message({ type: "sample-result", id: listId, value: [{ name: "crate_bd", count: 2 }] });
+    await expect(listing).resolves.toEqual([{ name: "crate_bd", count: 2 }]);
+    const audition = auditionSample("crate_bd", 1);
+    await vi.advanceTimersByTimeAsync(0);
+    const auditionId = (post.mock.calls.at(-1)![0] as { id: number }).id;
+    const preview = {
+      name: "crate_bd",
+      index: 1,
+      duration: 1,
+      offset: 0,
+      startedAt: Date.now(),
+      peaks: new Array(256).fill(0.2),
+    };
+    message({ type: "sample-result", id: auditionId, value: preview });
+    await expect(audition).resolves.toEqual(preview);
+    const measured = vi.fn(),
+      waveform = vi.fn();
+    const offMeter = outputFrames().meter.subscribe(measured),
+      offVisual = outputFrames().visual.subscribe(waveform);
+    message({
+      type: "levels",
+      peakDb: -12,
+      rmsDb: -18,
+      bands: new Array(32).fill(0.4),
+      timeDomain: new Array(256).fill(0.2),
+    });
+    expect(measured.mock.calls.at(-1)?.[0].channels).toHaveLength(1);
+    expect(waveform.mock.calls.at(-1)?.[0].timeDomain).toHaveLength(256);
+    offMeter();
+    offVisual();
   } finally {
     for (const [type, listener] of listeners.mock.calls)
       if (type === "message") window.removeEventListener(type, listener);

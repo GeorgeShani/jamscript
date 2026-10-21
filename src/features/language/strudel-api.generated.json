@@ -987,13 +987,7 @@
     "zrand",
     "zzfx"
   ],
-  "constructors": [
-    "Pattern",
-    "Hap",
-    "TimeSpan",
-    "Fraction",
-    "State"
-  ],
+  "constructors": ["Pattern", "Hap", "TimeSpan", "Fraction", "State"],
   "sounds": [
     "gm_accordion",
     "gm_acoustic_bass",
