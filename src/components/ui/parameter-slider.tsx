@@ -562,7 +562,7 @@ export const ParameterSliderControl = ({
           <SliderPrimitive.Thumb
             aria-describedby={descriptionId}
             aria-labelledby={labelId}
-            className="bg-background ring-foreground/15 hover:ring-ring/30 focus-visible:ring-ring/40 data-dragging:ring-ring/30 block size-4 shrink-0 rounded-full shadow-sm ring-1 outline-hidden transition-[box-shadow] hover:ring-4 focus-visible:ring-4 data-dragging:ring-4"
+            className="bg-background ring-foreground/15 hover:ring-ring/30 focus-visible:ring-ring/40 data-dragging:ring-ring/30 block size-4 shrink-0 rounded-full shadow-sm ring-1 outline-hidden transition-shadow hover:ring-4 focus-visible:ring-4 data-dragging:ring-4"
             data-slot="parameter-slider-thumb"
             getAriaValueText={() => format(value)}
             onDoubleClick={() => {

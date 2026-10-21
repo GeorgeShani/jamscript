@@ -173,6 +173,14 @@ audiocn is a candidate for copied, locally owned audio UI components. Its publis
 
 References: [introduction](https://www.audiocn.dev/docs), [knob](https://www.audiocn.dev/docs/components/knob), [repository and licence](https://github.com/audiocn/ui).
 
+### Audio controls: delivered scope and follow-ups
+
+The mixer, inline Knob/Pan Control, output view selector and Samples explorer use audiocn/ui components pinned to revision `521c03f636a4e2cf14a25b79c5838223a3fd6ae8`, with local type/import adaptations and MIT notices. Source controls retain checked patches and undo; preview audio shares Strudel's context and cache. README documents the current controls.
+
+- Device switching, LCD and electric visualizers remain deferred; respect DESIGN.md's visual restrictions before adding optional modes.
+- Per-orbit meters, independently measured desktop stereo, rendered-audio queues and recording remain future work. Takes store source snapshots.
+- Packaged operating-system and hardware checks remain required; browser interaction, adapter tests and desktop web builds do not establish native audio quality.
+
 ## Verification and release
 
 Baseline before this work: 73 passing tests in 10 Vitest files. Preserve that suite, add behavioral tests for integrations and run bun run test, bunx tsc --noEmit, bun run lint and bun run build as applicable. Confirm production assets are actually usable for each runtime rather than assuming the current Cloudflare worker output is a static desktop bundle.

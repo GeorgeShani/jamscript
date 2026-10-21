@@ -264,7 +264,7 @@ export const SpectrumCanvas = ({ className, ...props }: ComponentProps<"canvas">
   return (
     <canvas
       aria-hidden
-      className={cn("[grid-column:2] [grid-row:1] size-full min-h-0", className)}
+      className={cn("col-2 row-1 size-full min-h-0", className)}
       data-slot="spectrum-canvas"
       ref={canvasRef}
       {...props}
@@ -289,7 +289,7 @@ export const SpectrumFrequencyAxis = ({
     <div
       aria-hidden
       className={cn(
-        "text-muted-foreground relative [grid-column:2] [grid-row:2] h-4 text-[0.625rem] tabular-nums",
+        "text-muted-foreground relative col-2 row-2 h-4 text-[0.625rem] tabular-nums",
         className,
       )}
       data-slot="spectrum-frequency-axis"
@@ -338,7 +338,7 @@ export const SpectrumLevelAxis = ({
     <div
       aria-hidden
       className={cn(
-        "text-muted-foreground relative [grid-column:1] [grid-row:1] w-7 text-[0.625rem] tabular-nums",
+        "text-muted-foreground relative col-1 row-1 w-7 text-[0.625rem] tabular-nums",
         className,
       )}
       data-slot="spectrum-level-axis"

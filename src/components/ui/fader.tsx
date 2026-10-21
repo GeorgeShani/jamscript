@@ -152,7 +152,7 @@ export const FaderRange = ({ className, style, ...props }: ComponentProps<"div">
 };
 
 const thumbVariants = cva(
-  "bg-background ring-foreground/15 hover:ring-ring/30 focus-visible:ring-ring/40 data-dragging:ring-ring/30 block shrink-0 shadow-sm ring-1 outline-hidden transition-[box-shadow] hover:ring-4 focus-visible:ring-4 data-disabled:pointer-events-none data-dragging:ring-4",
+  "bg-background ring-foreground/15 hover:ring-ring/30 focus-visible:ring-ring/40 data-dragging:ring-ring/30 block shrink-0 shadow-sm ring-1 outline-hidden transition-shadow hover:ring-4 focus-visible:ring-4 data-disabled:pointer-events-none data-dragging:ring-4",
   {
     compoundVariants: [
       {
@@ -306,7 +306,7 @@ export const FaderValue = ({ editable = false, className, style, ...props }: Fad
       <input
         aria-label="Value in dB"
         className={cn(
-          "bg-background focus-visible:ring-ring/30 h-6 w-[calc(var(--fader-value-width)+0.75rem)] rounded-md border px-[calc(0.375rem-1px)] text-end font-mono text-xs tabular-nums outline-none focus-visible:ring-3",
+          "bg-background focus-visible:ring-ring/30 h-6 w-[calc(var(--fader-value-width)+0.75rem)] rounded-md border px-1.25 text-end font-mono text-xs tabular-nums outline-none focus-visible:ring-3",
           className,
         )}
         data-slot="fader-value-input"

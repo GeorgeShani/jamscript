@@ -163,7 +163,7 @@ export const PanControl = ({
           />
           <SliderPrimitive.Thumb
             aria-label={props["aria-label"] ?? "Pan"}
-            className="bg-background ring-foreground/15 hover:ring-ring/30 focus-visible:ring-ring/40 data-dragging:ring-ring/30 block size-(--pan-thumb-size) shrink-0 rounded-full shadow-sm ring-1 outline-hidden transition-[box-shadow] hover:ring-4 focus-visible:ring-4 data-dragging:ring-4"
+            className="bg-background ring-foreground/15 hover:ring-ring/30 focus-visible:ring-ring/40 data-dragging:ring-ring/30 block size-(--pan-thumb-size) shrink-0 rounded-full shadow-sm ring-1 outline-hidden transition-shadow hover:ring-4 focus-visible:ring-4 data-dragging:ring-4"
             data-slot="pan-control-thumb"
             getAriaValueText={() => describePan(value)}
             onDoubleClick={() => {

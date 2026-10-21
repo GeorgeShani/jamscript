@@ -472,8 +472,8 @@ export const LevelMeterBar = ({ measure = "peak", className, ...props }: LevelMe
           ? "[--meter-bar-level:var(--meter-rms)]"
           : "[--meter-bar-level:var(--meter-level)]",
         horizontal
-          ? "translate-x-[calc((var(--meter-bar-level)_-_1)_*_100%)]"
-          : "translate-y-[calc((1_-_var(--meter-bar-level))_*_100%)]",
+          ? "translate-x-[calc((var(--meter-bar-level)-1)*100%)]"
+          : "translate-y-[calc((1-var(--meter-bar-level))*100%)]",
         className,
       )}
       data-measure={measure}
@@ -484,8 +484,8 @@ export const LevelMeterBar = ({ measure = "peak", className, ...props }: LevelMe
         className={cn(
           "absolute inset-0 bg-(image:--meter-fill) mask-(--meter-mask)",
           horizontal
-            ? "translate-x-[calc((1_-_var(--meter-bar-level))_*_100%)]"
-            : "translate-y-[calc((var(--meter-bar-level)_-_1)_*_100%)]",
+            ? "translate-x-[calc((1-var(--meter-bar-level))*100%)]"
+            : "translate-y-[calc((var(--meter-bar-level)-1)*100%)]",
         )}
         data-slot="level-meter-fill"
       />
@@ -501,10 +501,10 @@ export const LevelMeterHold = ({ className, ...props }: ComponentProps<"div">) =
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-0 opacity-[calc(var(--meter-hold)_*_50)]",
+        "pointer-events-none absolute inset-0 opacity-[calc(var(--meter-hold)*50)]",
         horizontal
-          ? "translate-x-[calc((var(--meter-hold)_-_1)_*_100%)]"
-          : "translate-y-[calc((1_-_var(--meter-hold))_*_100%)]",
+          ? "translate-x-[calc((var(--meter-hold)-1)*100%)]"
+          : "translate-y-[calc((1-var(--meter-hold))*100%)]",
       )}
       data-slot="level-meter-hold"
       {...props}
@@ -579,7 +579,7 @@ const levelMeterVariants = cva(
     variants: {
       orientation: {
         horizontal:
-          "w-full flex-row items-center [--meter-scale-size:1rem] has-[[data-slot=db-scale]]:pb-[calc(var(--meter-scale-size)+var(--meter-gap))]",
+          "w-full flex-row items-center [--meter-scale-size:1rem] has-data-[slot=db-scale]:pb-[calc(var(--meter-scale-size)+var(--meter-gap))]",
         vertical: "min-h-32 flex-col items-center",
       },
       size: {

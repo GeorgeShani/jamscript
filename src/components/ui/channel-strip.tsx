@@ -48,7 +48,7 @@ const channelStripVariants = cva(
         // A row measures itself, so it can stack its header on narrow widths.
         horizontal: "@container/channel-strip w-full",
         // Console strips keep their width and let the mixer scroll instead.
-        vertical: "flex h-full min-h-72 w-[var(--channel-strip-width,6.5rem)] shrink-0 flex-col",
+        vertical: "flex h-full min-h-72 w-(--channel-strip-width,6.5rem) shrink-0 flex-col",
       },
       variant: {
         card: "bg-card text-card-foreground rounded-xl border p-3 shadow-xs",
@@ -340,7 +340,7 @@ export const ChannelStripFader = ({ className, ...props }: ComponentProps<"div">
   return (
     <div
       className={cn(
-        "flex min-h-0 min-w-0 [grid-area:fader] [&_[data-slot=fader-control]]:p-0 [&_[data-slot=fader-scale]]:p-0",
+        "flex min-h-0 min-w-0 [grid-area:fader] **:data-[slot=fader-control]:p-0 **:data-[slot=fader-scale]:p-0",
         orientation === "horizontal"
           ? "w-full items-center [&_[data-slot=fader-control]:only-child]:my-[calc((var(--fader-track-size)-var(--fader-thumb-size))/2)]"
           : "h-full justify-center [&_[data-slot=fader-control]:only-child]:mx-[calc((var(--fader-track-size)-var(--fader-thumb-size))/2)]",
