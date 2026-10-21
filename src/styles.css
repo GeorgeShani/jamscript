@@ -1191,21 +1191,42 @@
   font-family: var(--font-mono);
   font-size: 11px;
 }
+.jam-library-content {
+  width: min(100%, 960px);
+  margin: 0 auto;
+  padding: 56px 28px 80px;
+}
+.jam-library-intro {
+  margin-bottom: 28px;
+}
+.jam-library .jam-library-intro h1 {
+  margin: 0 0 10px;
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+.jam-library-intro p {
+  max-width: 65ch;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.6;
+}
 .jam-library-search {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 32px;
   padding: 0 12px;
-  height: 42px;
+  height: 44px;
   border: 1px solid var(--input);
   border-radius: 6px;
   color: var(--muted-foreground);
   background: var(--card);
 }
 .jam-library-search:focus-within {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  border-color: var(--ring);
+  outline: 1px solid var(--ring);
+  outline-offset: 0;
 }
 .jam-library-search input {
   flex: 1;
@@ -1213,11 +1234,70 @@
   outline: none;
   background: transparent;
   color: var(--foreground);
+  font-size: 14px;
+  height: 100%;
+}
+.jam-library-search input::placeholder {
+  color: var(--muted-foreground);
+}
+.jam-library-search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+.jam-library-search > svg {
+  flex-shrink: 0;
+}
+.jam-library-search button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+.jam-library-search button:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.jam-library-results {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.jam-library-count {
+  padding: 16px 0 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.jam-library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  padding: 40px 16px;
+  text-align: center;
+}
+.jam-library-empty > svg {
+  margin-bottom: 18px;
+  color: var(--muted-foreground);
+}
+.jam-library .jam-library-empty h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.jam-library-empty > p {
+  max-width: 42ch;
+  margin-bottom: 22px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 .jam-library .jam-library-list {
   display: grid;
-  gap: 8px;
-  margin-top: 24px;
+  gap: 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -1226,9 +1306,9 @@
   align-items: center;
   gap: 14px;
   padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--card);
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 4px;
 }
 .jam-library-list a:hover,
 .jam-library-list a:focus-visible {
@@ -1237,12 +1317,34 @@
 .jam-library-list a span {
   display: grid;
   gap: 2px;
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.jam-library-list a > svg {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
 }
 .jam-library-list a strong {
   color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
 }
 .jam-library-list a small {
   color: var(--muted-foreground);
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .jam-library .jam-help-header {
+    height: 56px;
+    padding: 0 20px;
+  }
+  .jam-library-content {
+    padding: 36px 20px 56px;
+  }
+  .jam-library-empty {
+    padding: 36px 0;
+  }
 }
 .jam-error {
   display: flex;
