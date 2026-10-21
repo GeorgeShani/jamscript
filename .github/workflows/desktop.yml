@@ -36,6 +36,9 @@ jobs:
           node-version: "24"
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      - name: Check desktop version consistency
+        if: github.event_name != 'workflow_dispatch'
+        run: bun run desktop:version --check
       - run: bunx tsc --noEmit
       # v0.2.0 was tagged before a JSX line-wrap formatting fix. This only affects
       # verification; package jobs still build the exact tagged source.

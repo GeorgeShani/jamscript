@@ -11,6 +11,7 @@
     "dev:desktop-web": "bun run build:desktop-sandbox && node scripts/copy-desktop-sandbox.mjs --dev && vite dev --config vite.desktop.config.ts --mode desktop --host 127.0.0.1",
     "desktop:dev": "bun --env-file=.env.local tauri dev",
     "desktop:build": "bun --env-file=.env.local tauri build",
+    "desktop:version": "bun scripts/desktop-version.ts",
     "build:dev": "bun run emails:build && vite build --mode development",
     "preview": "vite preview",
     "deploy": "bun run build && wrangler deploy",
