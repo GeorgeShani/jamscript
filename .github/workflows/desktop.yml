@@ -12,7 +12,7 @@ on:
         required: true
         type: string
 
-# Packaging needs only source access. The release job receives write access on version tags.
+# Packaging needs only source access. Only the release job can publish installers.
 permissions:
   contents: read
 
@@ -25,10 +25,15 @@ jobs:
   verify:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    outputs:
+      release_tag: ${{ steps.release.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bunx tsc --noEmit
@@ -59,6 +64,24 @@ jobs:
           expected="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
           test "$TAG" = "$expected" || { echo "Tag $TAG does not match $expected" >&2; exit 1; }
       - run: bun run build
+      - name: Select desktop release
+        id: release
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          version="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            echo "tag=${REQUESTED_TAG:-$GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            # Existing versions keep their published installers. A version bump
+            # opts the verified main commit into a new desktop release.
+            existing=$(git ls-remote --tags origin "refs/tags/$version")
+            if [[ -z "$existing" ]]; then
+              echo "tag=$version" >> "$GITHUB_OUTPUT"
+            fi
+          fi
       - name: Save verified web build
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
@@ -132,6 +155,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
       - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -156,7 +182,7 @@ jobs:
           JAMSCRIPT_CLERK_OAUTH_CLIENT_ID: ${{ vars.JAMSCRIPT_CLERK_OAUTH_CLIENT_ID }}
         run: bunx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --ci
       - name: Verify ad-hoc signed macOS app
-        if: runner.os == 'macOS' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+        if: runner.os == 'macOS' && needs.verify.outputs.release_tag != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -191,10 +217,11 @@ jobs:
 
   release:
     if: >-
-      always() && needs.package.result == 'success' &&
-      ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.deploy.result == 'success') ||
+      always() && needs.verify.result == 'success' && needs.package.result == 'success' &&
+      needs.verify.outputs.release_tag != '' &&
+      ((github.event_name == 'push' && needs.deploy.result == 'success') ||
        (github.event_name == 'workflow_dispatch' && startsWith(inputs.release_tag, 'v')))
-    needs: [package, deploy]
+    needs: [verify, package, deploy]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -205,7 +232,7 @@ jobs:
           ref: ${{ inputs.release_tag || github.ref }}
       - name: Check tag against desktop version
         env:
-          TAG: ${{ inputs.release_tag || github.ref_name }}
+          TAG: ${{ needs.verify.outputs.release_tag }}
         run: |
           expected="v$(node -p "require('./src-tauri/tauri.conf.json').version")"
           if [ "$TAG" != "$expected" ]; then
@@ -226,8 +253,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ inputs.release_tag || github.ref_name }}
+          TAG: ${{ needs.verify.outputs.release_tag }}
         run: |
+          set -euo pipefail
+          # Refuse to replace another commit's release if a tag appeared while
+          # packaging. This also protects reruns from changing published history.
+          git fetch origin "refs/tags/$TAG:refs/tags/$TAG" || {
+            test "$GITHUB_EVENT_NAME" = push && test "$GITHUB_REF" = refs/heads/main
+            remote_tag=$(git ls-remote --tags origin "refs/tags/$TAG")
+            test -z "$remote_tag"
+          }
+          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+            test "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)" || {
+              echo "::error::Release tag points at another commit"; exit 1;
+            }
+          fi
           mapfile -d '' files < <(find installers -type f -print0)
           if [ "${#files[@]}" -eq 0 ]; then
             echo "No installers were produced" >&2
@@ -241,7 +281,7 @@ jobs:
               --title "JamScript $TAG"
           else
             gh release create "$TAG" "${files[@]}" \
-              --verify-tag \
+              --target "$(git rev-parse HEAD)" \
               --title "JamScript $TAG" \
               --notes "Installers for Windows (unsigned), macOS Apple Silicon (ad-hoc signed, not notarized), and Linux. macOS and Windows may show a security warning on first launch." \
               --generate-notes

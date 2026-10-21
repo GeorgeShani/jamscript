@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import {
   deliverInvitation,
+  invitationEmailHtml,
   invitationEmailText,
   sendInvitationEmail,
 } from "@/features/collaboration/invitation-email.server";
@@ -52,12 +53,16 @@ it("sends through the Resend HTTP API", async () => {
     to: string[];
     text: string;
     from: string;
+    html: string;
   };
   expect(body).toMatchObject({
     from: "JamScript <onboarding@resend.dev>",
     to: [invitation.to],
   });
   expect(body.text).toContain(invitation.url);
+  expect(body.html).toContain("Accept invitation");
+  expect(body.html).toContain(`href="${invitation.url}"`);
+  expect(body.html).not.toContain("<mjml");
 });
 
 it("accepts RESEND_FROM and quoted env values", async () => {
@@ -71,6 +76,28 @@ it("accepts RESEND_FROM and quoted env values", async () => {
     expect.objectContaining({
       headers: expect.objectContaining({ Authorization: "Bearer re_quoted" }),
     }),
+  );
+});
+
+it("escapes dynamic email content and substitutes values in one pass", () => {
+  const html = invitationEmailHtml({
+    ...invitation,
+    workspaceName: '<img src=x onerror="alert(1)"> & {{roleLabel}}',
+    to: 'guest+"quoted"@example.com',
+    url: "https://jamscript.dev/app/invitations/token?first=1&second=2",
+  });
+  expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; {{roleLabel}}");
+  expect(html).not.toContain('<img src=x onerror="alert(1)">');
+  expect(html).toContain("guest+&quot;quoted&quot;@example.com");
+  expect(html).toContain('href="https://jamscript.dev/app/invitations/token?first=1&amp;second=2"');
+  expect(html).toContain("an editor");
+  expect(html).toContain("expires in 7 days");
+});
+
+it("uses viewer access copy and rejects executable invitation URLs", () => {
+  expect(invitationEmailHtml({ ...invitation, role: "viewer" })).toContain("a viewer");
+  expect(() => invitationEmailHtml({ ...invitation, url: "javascript:alert(1)" })).toThrow(
+    /HTTP or HTTPS/,
   );
 });
 

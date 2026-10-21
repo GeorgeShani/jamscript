@@ -4,14 +4,14 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "bun run emails:build && vite dev",
+    "build": "bun run emails:build && vite build",
     "build:desktop-sandbox": "vite build --config vite.sandbox.config.ts --mode desktop",
     "build:desktop-web": "bun run build:desktop-sandbox && vite build --config vite.desktop.config.ts --mode desktop && node scripts/copy-desktop-sandbox.mjs",
     "dev:desktop-web": "bun run build:desktop-sandbox && node scripts/copy-desktop-sandbox.mjs --dev && vite dev --config vite.desktop.config.ts --mode desktop --host 127.0.0.1",
     "desktop:dev": "bun --env-file=.env.local tauri dev",
     "desktop:build": "bun --env-file=.env.local tauri build",
-    "build:dev": "vite build --mode development",
+    "build:dev": "bun run emails:build && vite build --mode development",
     "preview": "vite preview",
     "deploy": "bun run build && wrangler deploy",
     "cf-typegen": "wrangler types",
@@ -25,8 +25,10 @@
     "lint": "eslint . --max-warnings=0",
     "licenses": "node scripts/collect-licenses.mjs",
     "format": "prettier --write .",
-    "test": "vitest run --maxWorkers=4",
-    "test:watch": "vitest"
+    "test": "bun run emails:build && vitest run --maxWorkers=4",
+    "test:watch": "vitest",
+    "emails:build": "node scripts/build-emails.mjs",
+    "emails:preview": "bun run emails:build && bun scripts/preview-emails.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -98,6 +100,7 @@
     "fake-indexeddb": "^6.2.6",
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
+    "mjml": "5.4.1",
     "prettier": "^3.7.3",
     "rolldown": "1.2.1",
     "typescript-eslint": "^8.56.1",

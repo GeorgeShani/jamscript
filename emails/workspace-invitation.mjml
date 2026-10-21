@@ -1,0 +1,46 @@
+<mjml lang="en">
+  <mj-head>
+    <mj-title>Invitation to {{workspaceName}} on JamScript</mj-title>
+    <mj-preview>Join {{workspaceName}} on JamScript as {{roleLabel}}.</mj-preview>
+    <mj-font name="Schibsted Grotesk" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600&amp;display=swap" />
+    <mj-attributes>
+      <mj-all font-family="Schibsted Grotesk, Arial, Helvetica, sans-serif" />
+      <mj-text font-size="16px" line-height="26px" color="#ABADBB" padding="0 0 20px" />
+      <mj-button font-size="16px" font-weight="600" background-color="#FCB452" color="#121322" border-radius="6px" inner-padding="15px 24px" align="left" padding="4px 0 28px" />
+    </mj-attributes>
+    <mj-style inline="inline">
+      .invite-content { overflow-wrap: anywhere; word-break: break-word; }
+    </mj-style>
+  </mj-head>
+  <mj-body width="600px" background-color="#121322">
+    <mj-section padding="36px 24px 28px">
+      <mj-column>
+        <mj-image src="https://jamscript.dev/brand/logo.png" href="https://jamscript.dev" alt="JamScript" width="150px" align="left" padding="0" />
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#181A2B" border="1px solid #333546" border-radius="12px" padding="32px 24px">
+      <mj-column css-class="invite-content">
+        <mj-text color="#EFEBE1" font-size="28px" line-height="36px" font-weight="600" padding="0 0 12px">
+          <h1 style="margin:0;font-size:28px;line-height:36px;font-weight:600">You’re invited</h1>
+        </mj-text>
+        <mj-text color="#EFEBE1" font-size="22px" line-height="30px" font-weight="600">
+          {{workspaceName}}
+        </mj-text>
+        <mj-text>You’ve been invited to this JamScript workspace as <strong style="color:#EFEBE1">{{roleLabel}}</strong>.</mj-text>
+        <mj-text>Sign in with <strong style="color:#EFEBE1">{{invitedEmail}}</strong> to join.</mj-text>
+        <mj-button href="{{invitationUrl}}">Accept invitation</mj-button>
+        <mj-divider border-color="#333546" border-width="1px" padding="0 0 24px" />
+        <mj-text font-size="13px" line-height="21px" padding="0 0 10px">This invitation expires in 7 days. If the button doesn’t work, open this link:</mj-text>
+        <mj-text font-size="13px" line-height="21px" padding="0">
+          <a href="{{invitationUrl}}" style="color:#FCB452;text-decoration:underline;word-break:break-all">{{invitationUrl}}</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="24px">
+      <mj-column>
+        <mj-text font-size="12px" line-height="20px" padding="0">If you weren’t expecting this invitation, you can ignore this email.</mj-text>
+        <mj-text font-size="12px" line-height="20px" padding="12px 0 0"><a href="https://jamscript.dev" style="color:#ABADBB;text-decoration:underline">jamscript.dev</a></mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

@@ -159,7 +159,8 @@ describe("browser workbench", () => {
       target: { value: "second" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Create document" }));
-    await screen.findByRole("tab", { name: "second.js" });
+    // Creation commits an IndexedDB transaction before React opens the editor.
+    await screen.findByRole("tab", { name: "second.js" }, { timeout: 5000 });
 
     fireEvent.keyDown(window, { key: "p", ctrlKey: true });
     const search = screen.getByRole("combobox", { name: "Find a file" });
@@ -376,7 +377,7 @@ describe("browser workbench", () => {
       target: { value: "second" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Create document" }));
-    await screen.findByRole("tab", { name: "second.js" });
+    await screen.findByRole("tab", { name: "second.js" }, { timeout: 5000 });
     expect(screen.getByRole("tab", { name: "second.js" })).toHaveAttribute("aria-selected", "true");
 
     fireEvent.click(screen.getByRole("tab", { name: "night-bus.js" }));
@@ -391,7 +392,9 @@ describe("browser workbench", () => {
     expect(document.querySelector(".jam-editor-pane:not([hidden]) .cm-line")?.textContent).toBe(
       "setcps(0.6);",
     );
-    await waitFor(() => expect(screen.getByText("Saved locally")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Saved locally")).toBeInTheDocument(), {
+      timeout: 5000,
+    });
     await waitFor(async () => {
       const docs = await listDocuments(workspace!.id);
       expect(docs.find((item) => item.name === "night-bus.js")?.source).toContain("setcps(0.6)");

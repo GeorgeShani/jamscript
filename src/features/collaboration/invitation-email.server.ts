@@ -1,3 +1,13 @@
+import invitationTemplate from "./invitation-email.generated.json";
+
+const htmlEscapes: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
 export interface InvitationMessage {
   to: string;
   workspaceName: string;
@@ -23,6 +33,24 @@ export function invitationEmailText(input: InvitationMessage) {
     "",
     "This invitation expires in 7 days. If you did not expect it, you can ignore this email.",
   ].join("\n");
+}
+
+/** Compile MJML at build time; escape each dynamic value once at send time. */
+export function invitationEmailHtml(input: InvitationMessage) {
+  const url = new URL(input.url);
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    throw new Error("Invitation links must use HTTP or HTTPS");
+  const values = {
+    workspaceName: input.workspaceName,
+    roleLabel: input.role === "editor" ? "an editor" : "a viewer",
+    invitedEmail: input.to,
+    invitationUrl: url.href,
+  };
+  return invitationTemplate.replace(
+    /\{\{(workspaceName|roleLabel|invitedEmail|invitationUrl)\}\}/g,
+    (_, name: keyof typeof values) =>
+      values[name].replace(/[&<>"']/g, (character) => htmlEscapes[character]!),
+  );
 }
 
 /** Safe for an owner-facing response. Never return raw provider text or credentials. */
@@ -58,6 +86,7 @@ export async function sendInvitationEmail(input: InvitationMessage): Promise<boo
       to: [input.to],
       subject: `Invitation to ${input.workspaceName} on JamScript`,
       text: invitationEmailText(input),
+      html: invitationEmailHtml(input),
     }),
   });
   if (response.ok) return true;
