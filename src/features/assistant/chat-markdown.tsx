@@ -1,46 +1,98 @@
-import type { ReactNode } from "react";
+import { Children, isValidElement, useEffect, useMemo, useState, type ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { classHighlighter, highlightTree } from "@lezer/highlight";
+import {
+  javascriptLanguage,
+  typescriptLanguage,
+  jsxLanguage,
+  tsxLanguage,
+} from "@codemirror/lang-javascript";
+import { Check, Copy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-import { parseMarkdownBlocks } from "./markdown-parser";
-
-function inlineNodes(text: string, keyPrefix: string): ReactNode[] {
+function highlightCode(code: string, language: string): ReactNode {
+  if (
+    code.length > 30_000 ||
+    !/^(js|javascript|ts|typescript|jsx|tsx|strudel|json)$/i.test(language)
+  )
+    return code;
+  const grammar = /^tsx$/i.test(language)
+    ? tsxLanguage
+    : /^jsx$/i.test(language)
+      ? jsxLanguage
+      : /^(ts|typescript)$/i.test(language)
+        ? typescriptLanguage
+        : javascriptLanguage;
   const nodes: ReactNode[] = [];
-  const pattern = /(`[^`]+`)|(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(\*[^*]+\*)/g;
-  let last = 0;
-  let match: RegExpExecArray | null;
-  let index = 0;
-  while ((match = pattern.exec(text))) {
-    if (match.index > last)
-      nodes.push(<span key={`${keyPrefix}-t${index++}`}>{text.slice(last, match.index)}</span>);
-    const token = match[0];
-    if (token.startsWith("`")) {
-      nodes.push(
-        <code key={`${keyPrefix}-c${index++}`} className="jam-chat-inline-code">
-          {token.slice(1, -1)}
-        </code>,
-      );
-    } else if (token.startsWith("[")) {
-      const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
-      const href = link?.[2] ?? "";
-      const safe = /^https?:\/\//i.test(href) ? href : undefined;
-      nodes.push(
-        safe ? (
-          <a key={`${keyPrefix}-a${index++}`} href={safe} target="_blank" rel="noopener noreferrer">
-            {link?.[1]}
-          </a>
-        ) : (
-          <span key={`${keyPrefix}-a${index++}`}>{link?.[1]}</span>
-        ),
-      );
-    } else if (token.startsWith("**")) {
-      nodes.push(<strong key={`${keyPrefix}-b${index++}`}>{token.slice(2, -2)}</strong>);
-    } else {
-      nodes.push(<em key={`${keyPrefix}-i${index++}`}>{token.slice(1, -1)}</em>);
-    }
-    last = match.index + token.length;
-  }
-  if (last < text.length)
-    nodes.push(<span key={`${keyPrefix}-t${index++}`}>{text.slice(last)}</span>);
+  let position = 0;
+  highlightTree(grammar.parser.parse(code), classHighlighter, (from, to, classes) => {
+    if (from > position) nodes.push(code.slice(position, from));
+    nodes.push(
+      <span key={`${from}-${to}`} className={classes}>
+        {code.slice(from, to)}
+      </span>,
+    );
+    position = to;
+  });
+  if (position < code.length) nodes.push(code.slice(position));
   return nodes;
+}
+
+function CodeBlock({
+  code,
+  language,
+  onInsertCode,
+}: {
+  code: string;
+  language: string;
+  onInsertCode?: (code: string) => void;
+}) {
+  const highlighted = useMemo(() => highlightCode(code, language), [code, language]);
+  const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  return (
+    <div className="jam-chat-code">
+      <div className="jam-chat-code-actions">
+        <span>{language || "code"}</span>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={copied ? "Code copied" : "Copy code"}
+          onClick={() => {
+            void Promise.resolve()
+              .then(() => navigator.clipboard.writeText(code))
+              .then(() => {
+                setCopied(true);
+                setFailed(false);
+              })
+              .catch(() => setFailed(true));
+          }}
+        >
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+          {copied ? "Copied" : "Copy"}
+        </Button>
+        {onInsertCode && (
+          <Button size="sm" variant="ghost" onClick={() => onInsertCode(code)}>
+            Insert at cursor
+          </Button>
+        )}
+      </div>
+      <pre>
+        <code>{highlighted}</code>
+      </pre>
+      {failed && (
+        <p className="jam-chat-error" role="alert">
+          Clipboard access failed. You can select and copy the code.
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function ChatMarkdown({
@@ -50,56 +102,46 @@ export function ChatMarkdown({
   text: string;
   onInsertCode?: (code: string) => void;
 }) {
-  const blocks = parseMarkdownBlocks(text);
   return (
     <div className="jam-chat-markdown">
-      {blocks.map((block, index) => {
-        if (block.kind === "heading") {
-          const Tag = `h${block.level}` as "h1" | "h2" | "h3";
-          return (
-            <Tag key={index} className="jam-chat-heading">
-              {inlineNodes(block.text, `h${index}`)}
-            </Tag>
-          );
-        }
-        if (block.kind === "list") {
-          const Tag = block.ordered ? "ol" : "ul";
-          return (
-            <Tag key={index} className="jam-chat-list">
-              {block.items.map((item, itemIndex) => (
-                <li key={itemIndex}>{inlineNodes(item, `l${index}-${itemIndex}`)}</li>
-              ))}
-            </Tag>
-          );
-        }
-        if (block.kind === "code") {
-          return (
-            <div key={index} className="jam-chat-code">
-              <div className="jam-chat-code-actions">
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard?.writeText(block.code)}
-                >
-                  Copy
-                </button>
-                {onInsertCode && (
-                  <button type="button" onClick={() => onInsertCode(block.code)}>
-                    Insert at cursor
-                  </button>
-                )}
-              </div>
-              <pre>
-                <code>{block.code}</code>
-              </pre>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        skipHtml
+        components={{
+          code: ({ children }) => <code className="jam-chat-inline-code">{children}</code>,
+          pre: ({ children }) => {
+            const child = Children.toArray(children).find((item) =>
+              isValidElement<{ children?: ReactNode; className?: string }>(item),
+            );
+            if (!isValidElement<{ children?: ReactNode; className?: string }>(child))
+              return <pre>{children}</pre>;
+            const code = String(child.props.children ?? "").replace(/\n$/, "");
+            const language = /language-([\w+-]+)/.exec(child.props.className ?? "")?.[1] ?? "";
+            return (
+              <CodeBlock
+                code={code}
+                language={language}
+                {...(onInsertCode ? { onInsertCode } : {})}
+              />
+            );
+          },
+          a: ({ href, children }) =>
+            /^https?:\/\//i.test(href ?? "") ? (
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            ) : (
+              <span>{children}</span>
+            ),
+          table: ({ children }) => (
+            <div className="jam-chat-table-scroll">
+              <table>{children}</table>
             </div>
-          );
-        }
-        return (
-          <p key={index} className="jam-chat-paragraph">
-            {inlineNodes(block.text, `p${index}`)}
-          </p>
-        );
-      })}
+          ),
+        }}
+      >
+        {text}
+      </ReactMarkdown>
     </div>
   );
 }

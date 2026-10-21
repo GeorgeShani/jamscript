@@ -18,6 +18,7 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: number;
+  mode?: ChatMode;
   error?: string;
   proposal?: ChatProposalState;
   /** Document ids the server included in context for this turn. */
@@ -50,6 +51,8 @@ export interface AgentChatRequest {
   threadId: string;
   messages: { role: ChatRole; content: string }[];
   mode: ChatMode;
+  /** Preferred model must belong to the server-configured mode allowlist. */
+  model?: string;
   scope: ChatScope;
   documentId: string;
   selection?: string;

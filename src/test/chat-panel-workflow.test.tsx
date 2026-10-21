@@ -30,7 +30,9 @@ describe("assistant chat workflow", () => {
     );
     expect(await screen.findByRole("button", { name: "Ask" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
-    expect(screen.getByText(/Editing requires editor access/)).toBeInTheDocument();
+    expect(screen.queryByText(/Editing requires editor access/)).not.toBeInTheDocument();
+    fireEvent.focus(screen.getByRole("button", { name: "Assistant mode help" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/Editing requires editor access/);
   });
 
   it("answers with workspace context and carries the question into a reviewed edit", async () => {

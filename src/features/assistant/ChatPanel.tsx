@@ -1,10 +1,9 @@
-import { FilePenLine, MessageSquare } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
-import { Button } from "@/components/ui/button";
 import { shareableDocumentName } from "@/features/collaboration/shareable";
 import { apiUrl } from "@/lib/app-api";
-import { ChatMarkdown } from "./chat-markdown";
+import { ChatSurface } from "./ChatSurface";
+import { branchChat } from "./chat-actions";
 import { createNdjsonParser } from "./chat-stream";
 import {
   deleteChatThread,
@@ -13,13 +12,7 @@ import {
   saveChatThread,
   trimChatMessages,
 } from "./chat-store";
-import {
-  EDIT_STARTER_PROMPTS,
-  expandSlashPrompt,
-  NEW_SONG_PROMPTS,
-  parseSlashCommand,
-  STARTER_PROMPTS,
-} from "./chat-slash";
+import { expandSlashPrompt, parseSlashCommand } from "./chat-slash";
 import { ProposalCard } from "./ProposalCard";
 import { applyReviewedProposal } from "./apply-proposal";
 import type { ChangeProposal } from "./proposal";
@@ -67,22 +60,42 @@ export function ChatPanel({
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [atBottom, setAtBottom] = useState(true);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const logRef = useRef<HTMLDivElement>(null);
+  const [models, setModels] = useState<{ ask: string[]; edit: string[] }>({ ask: [], edit: [] });
+  const [preferredModels, setPreferredModels] = useState({ ask: "", edit: "" });
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lastUserRef = useRef("");
-  const seenLabelId = useId();
+  const deletedThreads = useRef(new Set<string>());
+  const latestThread = useRef<ChatThread | null>(null);
+  useEffect(() => {
+    latestThread.current = thread;
+  }, [thread]);
+  useEffect(
+    () => () => {
+      const current = latestThread.current;
+      if (current?.messages.length && !deletedThreads.current.has(current.id))
+        void saveChatThread(current).catch(() => {});
+    },
+    [],
+  );
 
   useEffect(() => {
     let current = true;
     void fetch(apiUrl("/api/agent-chat"))
       .then(async (response) =>
-        response.ok ? ((await response.json()) as { available: boolean }) : { available: false },
+        response.ok
+          ? ((await response.json()) as {
+              available: boolean;
+              models?: { ask: string[]; edit: string[] };
+            })
+          : { available: false },
       )
       .then((body) => {
-        if (current) setAvailable(body.available);
+        if (current) {
+          setAvailable(body.available);
+          if (body.models && Array.isArray(body.models.ask) && Array.isArray(body.models.edit))
+            setModels(body.models);
+        }
       })
       .catch(() => {
         if (current) setAvailable(false);
@@ -115,17 +128,21 @@ export function ChatPanel({
   }, [selection, documentId]);
 
   useEffect(() => {
-    if (!thread) return;
-    void saveChatThread(thread)
-      .then((saved) => {
-        setThreads((current) => {
-          const next = [saved, ...current.filter((item) => item.id !== saved.id)];
-          return next.slice(0, 30);
+    if (!thread?.messages.length) return;
+    const timer = setTimeout(() => {
+      if (deletedThreads.current.has(thread.id)) return;
+      void saveChatThread(thread)
+        .then((saved) => {
+          setThreads((current) => {
+            const next = [saved, ...current.filter((item) => item.id !== saved.id)];
+            return next.slice(0, 30);
+          });
+        })
+        .catch(() => {
+          setError("Could not save this conversation on your device. You can copy or export it.");
         });
-      })
-      .catch(() => {
-        /* Persistence failure should not block the live turn. */
-      });
+    }, 250);
+    return () => clearTimeout(timer);
   }, [thread]);
 
   if (available === "checking" || (available && !thread)) {
@@ -138,18 +155,11 @@ export function ChatPanel({
   if (!available) {
     return (
       <div className="jam-chat-panel jam-chat-empty" role="status">
-        Assistant needs a Gemini API key on the server (`GEMINI_API_KEY`). Set it and reload.
+        Assistant needs a server API key. Configure OPENROUTER_API_KEY and reload.
       </div>
     );
   }
   if (!thread) return null;
-
-  const scrollToLatest = () => {
-    const node = logRef.current;
-    if (!node) return;
-    node.scrollTop = node.scrollHeight;
-    setAtBottom(true);
-  };
 
   const updateThread = (next: ChatThread | ((current: ChatThread) => ChatThread)) => {
     setThread((current) => {
@@ -204,7 +214,13 @@ export function ChatPanel({
     views.get(documentId)?.focus();
   };
 
-  const send = async (text: string, regenerate = false) => {
+  const send = async (
+    text: string,
+    regenerate = false,
+    baseThread = thread,
+    requestMode = mode,
+  ) => {
+    if (pending) return;
     const slash = parseSlashCommand(text);
     if (slash?.command === "clear") {
       const fresh = newChatThread(workspaceId);
@@ -227,9 +243,10 @@ export function ChatPanel({
       role: "assistant",
       content: "",
       createdAt: Date.now(),
+      mode: requestMode,
     };
     // Failed turns leave empty assistant stubs; strip them so the next request validates.
-    let history = thread.messages.filter(
+    let history = baseThread.messages.filter(
       (message) => message.role === "user" || message.content.trim().length > 0,
     );
     if (regenerate) {
@@ -245,10 +262,12 @@ export function ChatPanel({
         },
       ];
     }
-    history = trimChatMessages(history);
     updateThread({
-      ...thread,
-      title: thread.messages.length ? thread.title : content.slice(0, 48),
+      ...baseThread,
+      title:
+        baseThread.messages.length || baseThread.title !== "New chat"
+          ? baseThread.title
+          : content.slice(0, 48),
       messages: [...history, assistantMessage],
     });
     setDraft("");
@@ -257,7 +276,6 @@ export function ChatPanel({
     setStatus("Starting…");
     requestAnimationFrame(() => {
       composerRef.current?.focus();
-      scrollToLatest();
     });
 
     const controller = new AbortController();
@@ -288,13 +306,17 @@ export function ChatPanel({
         headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
         signal: controller.signal,
         body: JSON.stringify({
-          threadId: thread.id,
+          threadId: baseThread.id,
           documentId,
-          mode,
+          mode: requestMode,
+          ...(preferredModels[requestMode] ? { model: preferredModels[requestMode] } : {}),
           scope,
-          messages: history
+          messages: trimChatMessages(history)
             .filter((message) => message.content.trim().length > 0)
-            .map(({ role, content: body }) => ({ role, content: body })),
+            .map(({ role, content: body }) => ({
+              role,
+              content: body.slice(0, CHAT_LIMITS.maxMessageChars),
+            })),
           ...(includeSelection && selection ? { selection } : {}),
           ...(attachedDocumentIds.length ? { attachedDocumentIds } : {}),
           files,
@@ -325,9 +347,8 @@ export function ChatPanel({
                 : message,
             ),
           }));
-          if (atBottom) requestAnimationFrame(scrollToLatest);
         }
-        if (event.type === "proposal" && mode === "edit") {
+        if (event.type === "proposal" && requestMode === "edit") {
           updateThread((current) => ({
             ...current,
             messages: current.messages.map((message) =>
@@ -364,6 +385,7 @@ export function ChatPanel({
       }
       if (!controller.signal.aborted) parser.flush();
     } catch (cause) {
+      if (abortRef.current !== controller) return;
       if (controller.signal.aborted) {
         setError("Generation stopped.");
       } else {
@@ -394,392 +416,139 @@ export function ChatPanel({
   const lastAssistant = [...thread.messages]
     .reverse()
     .find((message) => message.role === "assistant");
-  const lastUserMessage = [...thread.messages].reverse().find((message) => message.role === "user");
-
   const bannerError = error && lastAssistant?.error !== error ? error : null;
-  const editAllowed = canEdit(documentId);
-
+  const remember = () => {
+    if (!thread.messages.length) return;
+    void saveChatThread(thread)
+      .then((saved) =>
+        setThreads((items) =>
+          [saved, ...items.filter((item) => item.id !== saved.id)].slice(0, 30),
+        ),
+      )
+      .catch(() => setError("Could not save this conversation on your device."));
+  };
+  const switchThread = (next: ChatThread) => {
+    remember();
+    setThread(next);
+    setDraft("");
+    setError(null);
+    lastUserRef.current =
+      [...next.messages].reverse().find((message) => message.role === "user")?.content ?? "";
+  };
+  const retry = (message: ChatMessage) => {
+    const position = thread.messages.findIndex((item) => item.id === message.id);
+    const user = thread.messages
+      .slice(0, position + 1)
+      .reverse()
+      .find((item) => item.role === "user");
+    if (!user) return;
+    const retryMode = message.mode ?? mode;
+    setMode(retryMode);
+    if (message.id === lastAssistant?.id) void send(user.content, true, thread, retryMode);
+    else {
+      remember();
+      void send(user.content, false, branchChat(thread, user.id), retryMode);
+    }
+  };
   return (
-    <div className="jam-chat-panel">
-      <div className="jam-chat-toolbar">
-        <button
-          type="button"
-          className="jam-chat-tool-link"
-          onClick={() => {
-            abortRef.current?.abort();
+    <ChatSurface
+      thread={thread}
+      threads={threads}
+      pending={pending}
+      status={status}
+      error={bannerError}
+      draft={draft}
+      onDraft={setDraft}
+      mode={mode}
+      onMode={setMode}
+      scope={scope}
+      onScope={setScope}
+      canEdit={canEdit(documentId)}
+      documentId={documentId}
+      documentName={documentName}
+      documents={documents}
+      attachedIds={attachedIds}
+      onAttach={(id) => setAttachedIds((items) => [...new Set([...items, id])])}
+      onDetach={(id) => setAttachedIds((items) => items.filter((item) => item !== id))}
+      selection={selection}
+      includeSelection={includeSelection}
+      onSelection={setIncludeSelection}
+      hasSource={!!sources.find((file) => file.id === documentId)?.source.trim()}
+      models={models}
+      model={preferredModels[mode]}
+      onModel={(model) => setPreferredModels((current) => ({ ...current, [mode]: model }))}
+      composerRef={composerRef}
+      onSend={(text) => void send(text)}
+      onStop={() => abortRef.current?.abort()}
+      onNew={() => switchThread(newChatThread(workspaceId))}
+      onSelect={switchThread}
+      onRename={(title) => updateThread((current) => ({ ...current, title }))}
+      onDelete={() => {
+        const id = thread.id;
+        deletedThreads.current.add(id);
+        void deleteChatThread(id)
+          .then(() => {
+            setThreads((items) => items.filter((item) => item.id !== id));
             setThread(newChatThread(workspaceId));
             setError(null);
-          }}
-        >
-          New
-        </button>
-        <label className="jam-chat-history">
-          <span className="sr-only">Chat history</span>
-          <select
-            value={thread.id}
-            aria-label="Chat history"
-            onChange={(event) => {
-              const next = threads.find((item) => item.id === event.target.value);
-              if (next) setThread(next);
-            }}
-          >
-            {!threads.some((item) => item.id === thread.id) && (
-              <option value={thread.id}>{thread.title}</option>
-            )}
-            {threads.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.title}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className="jam-chat-tool-link is-danger"
-          disabled={!threads.some((item) => item.id === thread.id)}
-          onClick={() => {
-            const id = thread.id;
-            void deleteChatThread(id).then(() => {
-              setThreads((current) => current.filter((item) => item.id !== id));
-              setThread(newChatThread(workspaceId));
-            });
-          }}
-        >
-          Delete
-        </button>
-      </div>
-
-      <div
-        ref={logRef}
-        className="jam-chat-log"
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions"
-        onScroll={(event) => {
-          const node = event.currentTarget;
-          setAtBottom(node.scrollHeight - node.scrollTop - node.clientHeight < 48);
-        }}
-      >
-        {thread.messages.length === 0 ? (
-          <div className="jam-chat-empty">
-            <p className="jam-chat-empty-lead">
-              {mode === "edit"
-                ? "Describe a change. The assistant proposes a diff for you to review before it touches the code."
-                : "Ask about this Strudel file, or switch to Edit for a reviewed change."}
-            </p>
-            <ul>
-              {(mode === "ask"
-                ? STARTER_PROMPTS
-                : sources.find((file) => file.id === documentId)?.source.trim()
-                  ? EDIT_STARTER_PROMPTS
-                  : NEW_SONG_PROMPTS
-              ).map((prompt) => (
-                <li key={prompt}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDraft(prompt);
-                      composerRef.current?.focus();
-                    }}
-                  >
-                    {prompt}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          thread.messages.map((message) => (
-            <article
-              key={message.id}
-              className={`jam-chat-message is-${message.role}`}
-              data-role={message.role}
-            >
-              <header>
-                <span className="jam-chat-role">
-                  {message.role === "user" ? "You" : "Assistant"}
-                </span>
-              </header>
-              {message.content ? (
-                <ChatMarkdown text={message.content} />
-              ) : pending && message.id === lastAssistant?.id ? (
-                <p className="jam-chat-streaming" aria-hidden={!pending}>
-                  {status ?? "Thinking…"}
-                </p>
-              ) : null}
-              {message.proposal && (
-                <ProposalCard
-                  proposal={message.proposal.proposal}
-                  status={
-                    message.proposal.status === "pending" &&
-                    !message.proposal.proposal.files
-                      .filter(
-                        (file) => !message.proposal?.appliedDocumentIds?.includes(file.documentId),
-                      )
-                      .every((file) =>
-                        sources.some(
-                          (source) =>
-                            source.id === file.documentId && source.source === file.baseSource,
-                        ),
-                      )
-                      ? "stale"
-                      : message.proposal.status
-                  }
-                  appliedDocumentIds={message.proposal.appliedDocumentIds ?? []}
-                  sources={sources}
-                  onApplyAll={() =>
-                    applyProposal(message.id, {
-                      ...message.proposal!.proposal,
-                      files: message.proposal!.proposal.files.filter(
-                        (file) => !message.proposal!.appliedDocumentIds?.includes(file.documentId),
-                      ),
-                    })
-                  }
-                  onApplyFile={(id) => {
-                    const file = message.proposal!.proposal.files.find(
-                      (item) => item.documentId === id,
-                    );
-                    if (!file) return;
-                    applyProposal(message.id, {
-                      summary: message.proposal!.proposal.summary,
-                      files: [file],
-                    });
-                  }}
-                  onReject={() => markProposal(message.id, "rejected")}
-                  onReveal={onReveal}
-                />
-              )}
-              {message.seenDocumentIds?.length ? (
-                <p className="jam-chat-seen" id={`${seenLabelId}-${message.id}`}>
-                  Saw{" "}
-                  {message.seenDocumentIds
-                    .map((id) => documents.find((file) => file.id === id)?.name ?? id)
-                    .join(", ")}
-                </p>
-              ) : null}
-              {message.error && (
-                <p role="alert" className="jam-chat-error">
-                  <span>{message.error}</span>{" "}
-                  <button type="button" onClick={() => void send(lastUserRef.current, true)}>
-                    Retry
-                  </button>
-                </p>
-              )}
-              {message.role === "assistant" &&
-                message.id === lastAssistant?.id &&
-                !pending &&
-                !message.proposal &&
-                !message.error &&
-                message.content &&
-                mode === "ask" &&
-                editAllowed &&
-                lastUserMessage && (
-                  <button
-                    type="button"
-                    className="jam-chat-tool-link jam-chat-turn-into-edit"
-                    onClick={() => {
-                      setMode("edit");
-                      setDraft(lastUserMessage.content);
-                      composerRef.current?.focus();
-                    }}
-                  >
-                    Propose an edit for this request
-                  </button>
-                )}
-            </article>
-          ))
-        )}
-      </div>
-
-      {!atBottom && (
-        <button type="button" className="jam-chat-jump" onClick={scrollToLatest}>
-          Latest
-        </button>
-      )}
-
-      <div className="jam-chat-dock">
-        <div className="jam-chat-dock-meta">
-          <div className="jam-chat-context" aria-label="Assistant context">
-            <span className="jam-chat-chip" title="The active file is always included">
-              <span className="jam-chat-chip-label">{documentName}</span>
-            </span>
-            {includeSelection && selection && (
-              <button
-                type="button"
-                className="jam-chat-chip is-selection"
-                onClick={() => setIncludeSelection(false)}
-              >
-                <span className="jam-chat-chip-label">Selection</span>
-                <span className="jam-chat-chip-x" aria-hidden="true">
-                  ×
-                </span>
-              </button>
-            )}
-            {attachedIds.map((id) => {
-              const file = documents.find((item) => item.id === id);
-              if (!file || id === documentId) return null;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className="jam-chat-chip"
-                  onClick={() => setAttachedIds((current) => current.filter((item) => item !== id))}
-                >
-                  <span className="jam-chat-chip-label">{file.name}</span>
-                  <span className="jam-chat-chip-x" aria-hidden="true">
-                    ×
-                  </span>
-                </button>
-              );
-            })}
-            <div className="jam-chat-add-file">
-              <button
-                type="button"
-                className="jam-chat-add-file-btn"
-                aria-expanded={pickerOpen}
-                disabled={attachedIds.length >= CHAT_LIMITS.maxAttachedFiles - 1}
-                onClick={() => setPickerOpen((open) => !open)}
-              >
-                + File
-              </button>
-              {pickerOpen && (
-                <ul role="listbox" aria-label="Workspace files">
-                  {documents
-                    .filter(
-                      (file) =>
-                        shareableDocumentName(file.name) &&
-                        file.id !== documentId &&
-                        !attachedIds.includes(file.id),
-                    )
-                    .map((file) => (
-                      <li key={file.id}>
-                        <button
-                          type="button"
-                          role="option"
-                          onClick={() => {
-                            setAttachedIds((current) => [...current, file.id]);
-                            setPickerOpen(false);
-                          }}
-                        >
-                          {file.name}
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          <div className="jam-chat-mode" role="group" aria-label="Assistant mode">
-            <button
-              type="button"
-              className={mode === "ask" ? "is-active" : undefined}
-              aria-pressed={mode === "ask"}
-              onClick={() => setMode("ask")}
-            >
-              <MessageSquare size={13} aria-hidden="true" /> Ask
-            </button>
-            <button
-              type="button"
-              className={mode === "edit" ? "is-active" : undefined}
-              aria-pressed={mode === "edit"}
-              disabled={!editAllowed}
-              onClick={() => setMode("edit")}
-            >
-              <FilePenLine size={13} aria-hidden="true" /> Edit
-            </button>
-            <select
-              aria-label="Files in assistant context"
-              value={scope}
-              onChange={(event) => setScope(event.target.value as ChatScope)}
-            >
-              <option value="active">This file</option>
-              <option value="workspace">Workspace (up to 8 files)</option>
-            </select>
-          </div>
-        </div>
-
-        <p className="jam-chat-mode-help">
-          {!editAllowed
-            ? "You can ask about this shared file. Editing requires editor access."
-            : mode === "edit"
-              ? "Review the diff, then choose what to apply. Your files stay unchanged until then."
-              : "Answers and code examples only. Switch to Edit to propose file changes."}
-        </p>
-
-        <div className="jam-chat-composer">
-          <textarea
-            ref={composerRef}
-            aria-label="Message the assistant"
-            rows={2}
-            value={draft}
-            placeholder={
-              mode === "edit"
-                ? "Describe the change you want to review…"
-                : "Ask about your music or Strudel…"
+          })
+          .catch(() => {
+            deletedThreads.current.delete(id);
+            setError("Could not delete this conversation.");
+          });
+      }}
+      onError={setError}
+      onRetry={retry}
+      onEdit={(message, text) => {
+        remember();
+        void send(text, false, branchChat(thread, message.id));
+      }}
+      onBranch={(message) => {
+        const position = thread.messages.findIndex((item) => item.id === message.id);
+        switchThread({
+          ...newChatThread(workspaceId, `${thread.title.slice(0, 60)} · branch`),
+          messages: thread.messages.slice(0, position + 1),
+        });
+      }}
+      renderProposal={(message) =>
+        message.proposal ? (
+          <ProposalCard
+            proposal={message.proposal.proposal}
+            status={
+              message.proposal.status === "pending" &&
+              !message.proposal.proposal.files
+                .filter((file) => !message.proposal?.appliedDocumentIds?.includes(file.documentId))
+                .every((file) =>
+                  sources.some(
+                    (source) => source.id === file.documentId && source.source === file.baseSource,
+                  ),
+                )
+                ? "stale"
+                : message.proposal.status
             }
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && pending) {
-                event.preventDefault();
-                abortRef.current?.abort();
-                return;
-              }
-              if (event.key === "ArrowUp" && !draft && lastUserRef.current) {
-                event.preventDefault();
-                setDraft(lastUserRef.current);
-                return;
-              }
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                if (!pending) void send(draft);
-              }
+            appliedDocumentIds={message.proposal.appliedDocumentIds ?? []}
+            sources={sources}
+            onApplyAll={() =>
+              applyProposal(message.id, {
+                ...message.proposal!.proposal,
+                files: message.proposal!.proposal.files.filter(
+                  (file) => !message.proposal!.appliedDocumentIds?.includes(file.documentId),
+                ),
+              })
+            }
+            onApplyFile={(id) => {
+              const file = message.proposal!.proposal.files.find((item) => item.documentId === id);
+              if (file)
+                applyProposal(message.id, {
+                  summary: message.proposal!.proposal.summary,
+                  files: [file],
+                });
             }}
+            onReject={() => markProposal(message.id, "rejected")}
+            onReveal={onReveal}
           />
-          {pending ? (
-            <Button
-              size="sm"
-              variant="outline"
-              type="button"
-              className="jam-chat-send"
-              onClick={() => abortRef.current?.abort()}
-            >
-              Stop
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              type="button"
-              className="jam-chat-send"
-              disabled={!draft.trim() && !draft.startsWith("/")}
-              onClick={() => void send(draft)}
-            >
-              {mode === "edit" ? "Propose changes" : "Send"}
-            </Button>
-          )}
-        </div>
-        <div className="jam-chat-footer-row">
-          {lastAssistant && !pending && lastAssistant.content && (
-            <button
-              type="button"
-              className="jam-chat-tool-link jam-chat-regenerate"
-              onClick={() => void send(lastUserRef.current, true)}
-            >
-              Regenerate
-            </button>
-          )}
-          {pending && status && (
-            <p className="jam-chat-streaming" role="status">
-              {status}
-            </p>
-          )}
-        </div>
-        {bannerError && (
-          <p role="alert" className="jam-chat-error jam-chat-error-banner">
-            <span>{bannerError}</span>
-          </p>
-        )}
-      </div>
-    </div>
+        ) : null
+      }
+    />
   );
 }

@@ -14,7 +14,7 @@ const backend = vi.hoisted(() => ({
 }));
 vi.mock("@/features/assistant/agent-model", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/assistant/agent-model")>()),
-  geminiConfigured: () => true,
+  agentConfigured: () => true,
   generateAgentText: backend.generate,
   streamAgentText: backend.stream,
 }));

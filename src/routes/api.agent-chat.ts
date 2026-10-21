@@ -6,7 +6,9 @@ import { agentInstructions } from "@/features/assistant/agent-instructions";
 import {
   formatAgentModelError,
   generateAgentText,
-  geminiConfigured,
+  agentConfigured,
+  agentModelOptions,
+  validateAgentModel,
   streamAgentText,
 } from "@/features/assistant/agent-model";
 import { parseAgentChatRequest } from "@/features/assistant/chat-request";
@@ -71,13 +73,12 @@ export const Route = createFileRoute("/api/agent-chat")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers }),
       GET: async () => {
-        // Chat is available whenever Gemini is configured — shared or local workspace.
-        if (!geminiConfigured()) return Response.json({ available: false }, { headers });
-        return Response.json({ available: true }, { headers });
+        if (!agentConfigured()) return Response.json({ available: false }, { headers });
+        return Response.json({ available: true, models: agentModelOptions() }, { headers });
       },
       POST: async ({ request }) => {
         const operationId = crypto.randomUUID();
-        if (!geminiConfigured())
+        if (!agentConfigured())
           return Response.json(
             { error: "Workspace agent is not configured" },
             { status: 503, headers },
@@ -89,7 +90,7 @@ export const Route = createFileRoute("/api/agent-chat")({
             const session = await auth();
             if (session.isAuthenticated && session.userId) userId = session.userId;
           } catch {
-            /* Local / misconfigured Clerk should not block Gemini chat. */
+            /* Local / misconfigured Clerk should not block local assistant chat. */
           }
         }
         if (Number(request.headers.get("content-length")) > 220_000)
@@ -97,6 +98,7 @@ export const Route = createFileRoute("/api/agent-chat")({
         let input;
         try {
           input = parseAgentChatRequest(await request.json());
+          validateAgentModel(input.mode, input.model);
         } catch (cause) {
           return Response.json(
             { error: cause instanceof Error ? cause.message : "Invalid request" },
@@ -198,6 +200,8 @@ export const Route = createFileRoute("/api/agent-chat")({
               };
               if (input.mode === "edit") {
                 const output = await generateAgentText({
+                  mode: "edit",
+                  ...(input.model ? { model: input.model } : {}),
                   systemInstruction,
                   userPayload,
                   signal: abort.signal,
@@ -213,6 +217,8 @@ export const Route = createFileRoute("/api/agent-chat")({
                 let received = false;
                 let responseChars = 0;
                 for await (const text of streamAgentText({
+                  mode: "ask",
+                  ...(input.model ? { model: input.model } : {}),
                   systemInstruction,
                   userPayload,
                   signal: abort.signal,

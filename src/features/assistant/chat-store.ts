@@ -32,11 +32,12 @@ function stripSecrets(thread: ChatThread): ChatThread {
   return {
     ...thread,
     messages: thread.messages.map(
-      ({ id, role, content, createdAt, error, proposal, seenDocumentIds }) => ({
+      ({ id, role, content, createdAt, mode, error, proposal, seenDocumentIds }) => ({
         id,
         role,
         content,
         createdAt,
+        ...(mode ? { mode } : {}),
         ...(error ? { error } : {}),
         ...(proposal ? { proposal } : {}),
         ...(seenDocumentIds ? { seenDocumentIds } : {}),

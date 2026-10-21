@@ -299,6 +299,44 @@ describe("browser workbench", () => {
     }
   });
 
+  it("resizes and expands the assistant without recreating its conversation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ available: true })),
+    );
+    try {
+      render(
+        <TooltipProvider>
+          <SessionWorkbench />
+        </TooltipProvider>,
+      );
+      fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
+      await screen.findByRole("tab", { name: "night-bus.js" });
+      fireEvent.click(await screen.findByRole("button", { name: "Show assistant" }));
+      const composer = await screen.findByRole("textbox", { name: "Message the assistant" });
+      fireEvent.change(composer, { target: { value: "Keep this draft" } });
+      const resize = screen.getByRole("separator", { name: "Resize Assistant pane" });
+      fireEvent.keyDown(resize, { key: "Home" });
+      expect(resize).toHaveAttribute("aria-valuenow", "280");
+      fireEvent.keyDown(resize, { key: "End" });
+      expect(Number(resize.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(800);
+      expect(window.localStorage.getItem("jamscript-assistant-width")).toBe(
+        resize.getAttribute("aria-valuenow"),
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Expand assistant" }));
+      expect(screen.getByRole("complementary", { name: "Assistant" })).toHaveClass("is-expanded");
+      expect(
+        screen.queryByRole("separator", { name: "Resize Assistant pane" }),
+      ).not.toBeInTheDocument();
+      expect(composer).toHaveValue("Keep this draft");
+      fireEvent.click(screen.getByRole("button", { name: "Restore assistant sidebar" }));
+      expect(screen.getByRole("textbox", { name: "Message the assistant" })).toBe(composer);
+      expect(screen.getByRole("separator", { name: "Resize Assistant pane" })).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("bounds sidebar resizing and supports keyboard fader-pane controls", async () => {
     render(
       <TooltipProvider>
@@ -312,6 +350,17 @@ describe("browser workbench", () => {
     const showInspector = screen.queryByRole("button", { name: "Show inspector" });
     if (showInspector) fireEvent.click(showInspector);
 
+    fireEvent.click(screen.getByRole("button", { name: "Expand inspector" }));
+    expect(screen.getByRole("complementary", { name: "Track inspector" })).toHaveClass(
+      "is-expanded",
+    );
+    expect(
+      screen.queryByRole("separator", { name: "Resize Inspector pane" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Restore inspector sidebar" }));
+    expect(screen.getByRole("complementary", { name: "Track inspector" })).not.toHaveClass(
+      "is-expanded",
+    );
     const files = screen.getByRole("separator", { name: "Resize Files pane" });
     const inspector = screen.getByRole("separator", { name: "Resize Inspector pane" });
     fireEvent.keyDown(files, { key: "Home" });

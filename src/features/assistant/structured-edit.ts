@@ -3,12 +3,14 @@ import { validateProposal } from "./proposal";
 
 export const EDIT_RESPONSE_SCHEMA = {
   type: "object",
+  additionalProperties: false,
   properties: {
     summary: { type: "string" },
     files: {
       type: "array",
       items: {
         type: "object",
+        additionalProperties: false,
         properties: {
           documentId: { type: "string" },
           source: { type: "string" },

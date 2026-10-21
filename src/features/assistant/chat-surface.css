@@ -1,0 +1,716 @@
+.jam-assistant {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--card);
+  container-type: inline-size;
+}
+.jam-assistant-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.jam-assistant-heading {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  padding-inline: 3px;
+}
+.jam-assistant-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+.jam-assistant-heading > span {
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.jam-assistant-conversation {
+  flex: 1;
+  height: auto;
+}
+.jam-assistant-viewport {
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.jam-assistant-transcript {
+  max-width: 760px;
+  width: 100%;
+  gap: 25px;
+  padding: 22px 18px 36px;
+  margin-inline: auto;
+}
+.jam-assistant-welcome {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 18px;
+  max-width: 430px;
+  min-height: 290px;
+  margin: auto;
+  padding-block: 20px 10px;
+}
+.jam-assistant-welcome > img {
+  width: 112px;
+  height: auto;
+}
+.jam-assistant-welcome h2 {
+  margin: 6px 0 -8px;
+  color: var(--foreground);
+  font-size: clamp(21px, 7cqi, 29px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.jam-assistant-welcome > p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+.jam-assistant-suggestions {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+  margin-top: 4px;
+}
+.jam-assistant-suggestions > button {
+  justify-content: space-between;
+  min-height: 42px;
+  height: auto;
+  padding: 10px 12px;
+  text-align: left;
+  white-space: normal;
+  font-size: 12px;
+  line-height: 1.5;
+  background: transparent;
+}
+.jam-assistant-suggestions > button > svg {
+  color: var(--muted-foreground);
+  transform: rotate(45deg);
+}
+.jam-assistant-message {
+  font-size: 13px;
+  animation: jam-chat-appear 180ms ease-out;
+}
+.jam-assistant-message [data-slot="message-content"] {
+  gap: 9px;
+}
+.jam-assistant-bubble {
+  max-width: 100%;
+}
+.is-user .jam-assistant-bubble {
+  max-width: 92%;
+}
+.is-user .jam-assistant-bubble [data-slot="bubble-content"] {
+  border-color: transparent;
+  border-radius: 14px 14px 3px 14px;
+  background: var(--muted);
+  padding: 11px 14px;
+}
+.jam-assistant-user-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.jam-assistant-author {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.jam-assistant-author img {
+  width: 17px;
+  height: 17px;
+}
+.jam-assistant-author > span:first-of-type {
+  font-weight: 600;
+  color: var(--foreground);
+}
+.jam-assistant-message .jam-chat-markdown {
+  line-height: 1.7;
+  gap: 12px;
+  overflow-wrap: anywhere;
+}
+.jam-assistant-message .jam-chat-heading {
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+.jam-assistant-message .jam-chat-paragraph {
+  margin: 0;
+}
+.jam-assistant .jam-chat-markdown :is(p, ul, ol, blockquote, table) {
+  margin: 0;
+}
+.jam-assistant .jam-chat-markdown :is(ul, ol) {
+  padding-left: 20px;
+}
+.jam-assistant .jam-chat-markdown li + li {
+  margin-top: 5px;
+}
+.jam-assistant .jam-chat-markdown li > p + p {
+  margin-top: 7px;
+}
+.jam-assistant .jam-chat-markdown h1 {
+  font-size: 21px;
+}
+.jam-assistant .jam-chat-markdown h2 {
+  font-size: 18px;
+}
+.jam-assistant .jam-chat-markdown :is(h3, h4, h5, h6) {
+  font-size: 15px;
+}
+.jam-assistant .jam-chat-markdown :is(h1, h2, h3, h4, h5, h6) {
+  margin: 10px 0 0;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.015em;
+}
+.jam-assistant .jam-chat-markdown blockquote {
+  border-left: 1px solid var(--muted-foreground);
+  padding-left: 12px;
+  color: var(--muted-foreground);
+}
+.jam-assistant .jam-chat-markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.jam-assistant .jam-chat-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  width: 100%;
+}
+.jam-assistant .jam-chat-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.jam-assistant .jam-chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.jam-assistant .jam-chat-markdown :is(th, td) {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.jam-assistant .jam-chat-markdown th {
+  font-weight: 600;
+  background: var(--background);
+}
+.jam-assistant .jam-chat-markdown tr:last-child td {
+  border-bottom: 0;
+}
+.jam-assistant .jam-chat-markdown input[type="checkbox"] {
+  margin-right: 6px;
+  accent-color: var(--primary);
+}
+.jam-assistant .jam-chat-code pre {
+  tab-size: 2;
+  line-height: 1.7;
+  padding: 12px;
+}
+.jam-assistant .jam-chat-code .tok-keyword {
+  color: var(--ai);
+}
+.jam-assistant .jam-chat-code .tok-string {
+  color: var(--primary);
+}
+.jam-assistant .jam-chat-code :is(.tok-number, .tok-bool, .tok-null) {
+  color: var(--track-3);
+}
+.jam-assistant .jam-chat-code :is(.tok-function, .tok-propertyName, .tok-typeName) {
+  color: var(--track-2);
+}
+.jam-assistant .jam-chat-code .tok-comment {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+.jam-assistant .jam-chat-code-actions {
+  align-items: center;
+  padding: 4px 8px;
+}
+.jam-assistant .jam-chat-code-actions > span {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.jam-assistant .jam-chat-code-actions button {
+  height: 24px;
+  border: 0;
+  background: transparent;
+  font-size: 10px;
+  gap: 4px;
+  padding: 2px 5px;
+}
+.jam-assistant-message-actions {
+  gap: 2px;
+  padding: 0;
+  color: var(--muted-foreground);
+}
+.jam-assistant-message-actions button {
+  width: 26px;
+  height: 26px;
+}
+.jam-assistant-message-actions svg {
+  width: 13px;
+  height: 13px;
+}
+.jam-assistant .is-user .jam-assistant-message-actions {
+  justify-content: flex-end;
+}
+.jam-assistant-propose {
+  width: 100%;
+  height: auto;
+  padding-block: 8px;
+  white-space: normal;
+  text-align: left;
+  font-size: 11px;
+}
+.jam-assistant-sources {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.jam-assistant-sources summary {
+  width: fit-content;
+  cursor: pointer;
+  padding-block: 2px;
+}
+.jam-assistant-sources ul {
+  display: grid;
+  gap: 5px;
+  list-style: none;
+  padding: 5px 0;
+  margin: 0;
+}
+.jam-assistant-sources li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
+.jam-assistant-thinking {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.jam-assistant-generating {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  height: 14px;
+  margin-left: auto;
+}
+.jam-assistant-generating i {
+  width: 3px;
+  height: 9px;
+  background: var(--primary);
+  animation: jam-chat-beat 900ms ease-in-out infinite alternate;
+}
+.jam-assistant-generating i:nth-child(2) {
+  animation-delay: 180ms;
+}
+.jam-assistant-generating i:nth-child(3) {
+  animation-delay: 360ms;
+}
+.jam-assistant-jump {
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  box-shadow: 0 3px 12px var(--floating-shadow);
+}
+.jam-assistant-dock {
+  flex-shrink: 0;
+  display: grid;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  background: var(--card);
+}
+.jam-assistant-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.jam-assistant-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  height: 23px;
+  padding: 2px 7px;
+  font-size: 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--muted-foreground);
+}
+.jam-assistant-file span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-assistant-file svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+.jam-assistant-composer {
+  background: var(--background);
+  border-radius: 12px;
+  border-color: var(--input);
+  align-items: stretch;
+}
+.jam-assistant-composer:focus-within {
+  border-color: var(--primary);
+  box-shadow: none;
+}
+.jam-assistant-composer textarea {
+  field-sizing: content;
+  min-height: 64px;
+  max-height: 160px;
+  width: 100%;
+  padding: 13px 13px 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  outline: none;
+}
+.jam-assistant-composer textarea:focus {
+  outline: none;
+  box-shadow: none;
+}
+.jam-assistant-composer-tools {
+  display: flex;
+  width: 100%;
+  gap: 5px;
+  padding: 6px 8px 8px;
+}
+.jam-assistant-composer-tools > button {
+  width: 28px;
+  height: 28px;
+}
+.jam-assistant-modes {
+  display: flex;
+  gap: 2px;
+}
+.jam-assistant-modes button {
+  height: 25px;
+  padding: 0 7px;
+  gap: 4px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.jam-assistant-modes svg {
+  width: 12px;
+  height: 12px;
+}
+.jam-assistant-modes button[aria-pressed="true"] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.jam-assistant-tool-spacer {
+  flex: 1;
+}
+.jam-assistant-composer-tools .jam-assistant-submit {
+  flex: none;
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.jam-assistant-submit:disabled {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  opacity: 0.7;
+}
+.jam-assistant-edit-submit {
+  width: 100%;
+  padding: 0 9px 9px;
+}
+.jam-assistant-edit-submit button {
+  width: 100%;
+}
+.jam-assistant-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.jam-assistant-options button {
+  height: 22px;
+  min-width: 0;
+  max-width: 70%;
+  padding: 0 3px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.jam-assistant-options button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-assistant-options select {
+  min-width: 0;
+  max-width: 48%;
+  background: transparent;
+  color: var(--muted-foreground);
+  border: none;
+  font-size: 10px;
+  padding: 2px;
+}
+.jam-assistant-options select option {
+  background: var(--popover);
+}
+.jam-assistant-options .jam-assistant-help-trigger {
+  flex: none;
+  width: 23px;
+  height: 23px;
+  padding: 3px;
+}
+.jam-assistant-help {
+  margin: 0;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  line-height: 1.55;
+  text-align: center;
+}
+.jam-assistant-history {
+  width: min(330px, calc(100vw - 24px));
+  padding: 10px;
+}
+.jam-assistant-history-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-foreground);
+}
+.jam-assistant-history-search input {
+  background: transparent;
+  border: 0;
+  padding-left: 0;
+  font-size: 12px;
+}
+.jam-assistant-history-list {
+  display: grid;
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
+  gap: 3px;
+  margin-block: 8px;
+}
+.jam-assistant-history-row {
+  width: 100%;
+  min-height: 53px;
+  height: auto;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px;
+  text-align: left;
+}
+.jam-assistant-history-row > span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.jam-assistant-history-row strong {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-assistant-history-row small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jam-assistant-history-row[aria-current="true"] {
+  background: var(--muted);
+}
+.jam-assistant-thread-menu {
+  width: 270px;
+}
+.jam-assistant-menu-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 32px;
+  height: auto;
+  width: 100%;
+  padding: 7px 8px;
+  font-size: 12px;
+  text-align: left;
+}
+.jam-assistant-menu-action > span {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+}
+.jam-assistant-menu-action small {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 400;
+}
+.jam-assistant-menu-note {
+  padding: 5px 6px;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.jam-assistant-menu-divider {
+  border-top: 1px solid var(--border);
+  margin-block: 5px;
+}
+.jam-assistant-thread-menu form {
+  display: grid;
+  gap: 10px;
+  padding: 5px;
+}
+.jam-assistant-thread-menu label,
+.jam-assistant-thread-menu strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.jam-assistant-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 8px;
+}
+.jam-assistant-file-picker,
+.jam-assistant-models {
+  display: grid;
+  gap: 9px;
+  width: 290px;
+}
+.jam-assistant-file-picker > strong,
+.jam-assistant-models > strong {
+  padding: 3px 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.jam-assistant-file-picker [role="listbox"],
+.jam-assistant-models [role="listbox"] {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.jam-assistant-message-error {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  padding-block: 5px;
+  color: var(--destructive);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.jam-assistant-message-error p {
+  margin: 0;
+}
+.jam-assistant-edit-message {
+  width: 100%;
+  border: 1px solid var(--input);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--background);
+}
+.jam-assistant-edit-message textarea {
+  min-height: 95px;
+  font-size: 13px;
+}
+.jam-assistant-edit-message > p {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+@container (min-width: 600px) {
+  .jam-assistant-transcript {
+    padding-inline: 28px;
+  }
+  .jam-assistant-dock {
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+    padding-inline: 28px;
+  }
+}
+@container (max-width: 300px) {
+  .jam-assistant-heading > span {
+    display: none;
+  }
+  .jam-assistant-header {
+    padding-inline: 6px;
+  }
+  .jam-assistant-transcript {
+    padding-inline: 12px;
+  }
+  .jam-assistant-dock {
+    padding-inline: 9px;
+  }
+}
+@keyframes jam-chat-appear {
+  from {
+    opacity: 0.5;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes jam-chat-beat {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jam-assistant-message,
+  .jam-assistant-generating i {
+    animation: none;
+  }
+}
+
+.jam-assistant-header {
+  flex-wrap: wrap;
+}
+.jam-assistant-heading {
+  order: -1;
+  flex-basis: calc(100% - 42px);
+}
+.jam-assistant-header > [aria-label="Conversation actions"] {
+  order: -1;
+}
+.jam-assistant-history-trigger,
+.jam-assistant-new-chat {
+  gap: 6px;
+  font-size: 11px;
+  height: 30px;
+}
+.jam-assistant-new-chat {
+  margin-left: auto;
+}

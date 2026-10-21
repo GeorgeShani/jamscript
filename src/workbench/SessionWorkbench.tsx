@@ -22,6 +22,8 @@ import {
   SlidersVertical,
   Trash2,
   X,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { EditorSlot } from "@/components/jam/EditorSlot";
 import { musicModel, openMusicFind } from "@/components/jam/code-editor";
@@ -72,8 +74,12 @@ import { createLiveEvaluation } from "./live-evaluation";
 import { createLiveSource } from "./live-source";
 
 type SaveStatus = "saved" | "saving" | "error";
-type PaneSide = "files" | "inspector";
-const PANE_LIMITS = { files: { min: 170, max: 340 }, inspector: { min: 190, max: 360 } } as const;
+type PaneSide = "files" | "inspector" | "assistant";
+const PANE_LIMITS = {
+  files: { min: 170, max: 340 },
+  inspector: { min: 190, max: 800 },
+  assistant: { min: 280, max: 800 },
+} as const;
 const OUTPUT_LIMITS = { min: 110, max: 500 } as const;
 const EMPTY_LEVELS: Record<string, number> = {};
 const FIRST_BEAT_CODE = `setcps(0.5);
@@ -165,6 +171,8 @@ export function SessionWorkbench({
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches,
   );
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [rightPaneExpanded, setRightPaneExpanded] = useState(false);
+  const [assistantWidth, setAssistantWidth] = useState(() => storedPaneWidth("assistant", 340));
   const [agentAvailable, setAgentAvailable] = useState(false);
   const [outputOpen, setOutputOpen] = useState(true);
   const [paletteMode, setPaletteMode] = useState<"files" | "commands" | null>(null);
@@ -241,12 +249,7 @@ export function SessionWorkbench({
   );
   const agentRole = activeDocument?.shared?.role;
   useEffect(() => {
-    // Viewers of shared docs stay read-only; everyone else can open Assistant when Gemini is up.
-    if (agentRole === "viewer") {
-      setAgentAvailable(false);
-      setAssistantOpen(false);
-      return;
-    }
+    // Ask remains available to viewers; Edit is checked by the UI and server.
     let current = true;
     void fetch(apiUrl("/api/agent-chat"))
       .then(async (response) =>
@@ -441,20 +444,32 @@ export function SessionWorkbench({
   }, [sidebarOpen, inspectorOpen, assistantOpen]);
 
   useEffect(() => {
-    if (!sidebarOpen || !inspectorOpen) return;
+    if (!sidebarOpen || rightPaneExpanded || (!inspectorOpen && !assistantOpen)) return;
     const fitPanes = () => {
       const width = mainPane.current?.clientWidth || window.innerWidth;
       const available = width - 46 - 12 - (window.innerWidth < 900 ? 280 : 420);
-      if (filesWidth + inspectorWidth <= available) return;
-      const nextInspector = Math.max(PANE_LIMITS.inspector.min, available - filesWidth);
+      const rightWidth = inspectorOpen ? inspectorWidth : assistantWidth;
+      if (filesWidth + rightWidth <= available) return;
+      const nextInspector = Math.max(
+        inspectorOpen ? PANE_LIMITS.inspector.min : PANE_LIMITS.assistant.min,
+        available - filesWidth,
+      );
       const nextFiles = Math.max(PANE_LIMITS.files.min, available - nextInspector);
-      setInspectorWidth(nextInspector);
+      (inspectorOpen ? setInspectorWidth : setAssistantWidth)(nextInspector);
       setFilesWidth(nextFiles);
     };
     fitPanes();
     window.addEventListener("resize", fitPanes);
     return () => window.removeEventListener("resize", fitPanes);
-  }, [filesWidth, inspectorWidth, sidebarOpen, inspectorOpen]);
+  }, [
+    filesWidth,
+    inspectorWidth,
+    sidebarOpen,
+    inspectorOpen,
+    assistantOpen,
+    rightPaneExpanded,
+    assistantWidth,
+  ]);
 
   const changeMix = (master: number, levels: Record<string, number>) => {
     if (!activeId) return;
@@ -1127,9 +1142,13 @@ export function SessionWorkbench({
   const paneMaximum = (side: PaneSide) => {
     const minCenter = window.innerWidth < 900 ? 280 : 420;
     const otherWidth =
-      side === "files" && inspectorOpen
-        ? inspectorWidth
-        : side === "inspector" && sidebarOpen
+      side === "files"
+        ? inspectorOpen && !rightPaneExpanded
+          ? inspectorWidth
+          : assistantOpen && !rightPaneExpanded
+            ? assistantWidth
+            : 0
+        : sidebarOpen
           ? filesWidth
           : 0;
     const room =
@@ -1140,7 +1159,11 @@ export function SessionWorkbench({
     const width = Math.round(
       Math.max(PANE_LIMITS[side].min, Math.min(paneMaximum(side), requestedWidth)),
     );
-    (side === "files" ? setFilesWidth : setInspectorWidth)(width);
+    (side === "files"
+      ? setFilesWidth
+      : side === "inspector"
+        ? setInspectorWidth
+        : setAssistantWidth)(width);
     return width;
   };
   const onPanePointerDown = (side: PaneSide, event: React.PointerEvent<HTMLDivElement>) => {
@@ -1148,7 +1171,8 @@ export function SessionWorkbench({
     paneDrag.current = {
       side,
       startX: event.clientX,
-      startWidth: side === "files" ? filesWidth : inspectorWidth,
+      startWidth:
+        side === "files" ? filesWidth : side === "inspector" ? inspectorWidth : assistantWidth,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -1175,7 +1199,8 @@ export function SessionWorkbench({
   };
   const onPaneKeyDown = (side: PaneSide, event: React.KeyboardEvent<HTMLDivElement>) => {
     const direction = side === "files" ? 1 : -1;
-    const current = side === "files" ? filesWidth : inspectorWidth;
+    const current =
+      side === "files" ? filesWidth : side === "inspector" ? inspectorWidth : assistantWidth;
     let next: number;
     if (event.key === "Home") next = PANE_LIMITS[side].min;
     else if (event.key === "End") next = paneMaximum(side);
@@ -1893,6 +1918,7 @@ export function SessionWorkbench({
           {
             "--jam-files-width": `${filesWidth}px`,
             "--jam-inspector-width": `${inspectorWidth}px`,
+            "--jam-assistant-width": `${assistantWidth}px`,
             ...Object.fromEntries(
               mixTracks.map((item) => [
                 `--jam-track-${item.orbit}`,
@@ -2420,7 +2446,7 @@ export function SessionWorkbench({
             />
           )}
         </div>
-        {inspectorOpen && (
+        {inspectorOpen && !rightPaneExpanded && (
           <div
             className="jam-pane-resizer"
             role="separator"
@@ -2439,6 +2465,32 @@ export function SessionWorkbench({
         )}
         {inspectorOpen && (
           <TrackInspector
+            expanded={rightPaneExpanded}
+            headingActions={
+              <div className="jam-assistant-pane-actions">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={rightPaneExpanded ? "Restore inspector sidebar" : "Expand inspector"}
+                  title={rightPaneExpanded ? "Restore sidebar" : "Expand inspector"}
+                  aria-pressed={rightPaneExpanded}
+                  onClick={() => setRightPaneExpanded((value) => !value)}
+                >
+                  {rightPaneExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close inspector"
+                  onClick={() => {
+                    setInspectorOpen(false);
+                    setRightPaneExpanded(false);
+                  }}
+                >
+                  <X size={15} />
+                </Button>
+              </div>
+            }
             track={track}
             tracks={model.tracks}
             valid={model.valid}
@@ -2471,54 +2523,93 @@ export function SessionWorkbench({
           />
         )}
         {assistantOpen && agentAvailable && activeDocument && workspace && (
-          <aside className="jam-assistant-pane" aria-label="Assistant">
-            <div className="jam-panel-heading">
-              <span>Assistant</span>
-              <button
-                type="button"
-                aria-label="Close assistant"
-                onClick={() => setAssistantOpen(false)}
-              >
-                <X size={15} />
-              </button>
-            </div>
-            <ChatPanel
-              workspaceId={activeDocument.shared?.workspaceId || workspace.id}
-              documentId={activeDocument.id}
-              documentName={activeDocument.name}
-              documents={documents.map((document) => ({
-                id: document.id,
-                name: document.name,
-              }))}
-              selection={(() => {
-                const view = views.current.get(activeDocument.id);
-                if (!view) return "";
-                const range = view.state.selection.main;
-                if (range.empty) return "";
-                return view.state.doc.sliceString(range.from, range.to);
-              })()}
-              problemsText={problems
-                .map((problem) => `Line ${problem.line}: ${problem.message}`)
-                .join("\n")}
-              sources={documents.map((document) => ({
-                id: document.id,
-                source: document.source,
-              }))}
-              views={views.current}
-              canEdit={(documentId) => {
-                const shared = drafts.current.get(documentId)?.shared;
-                if (!shared) return true;
-                return (
-                  shared.role !== "viewer" &&
-                  shared.workspaceId === activeDocument.shared?.workspaceId
-                );
-              }}
-              onReveal={(documentIds) => {
-                setOpenIds((current) => [...new Set([...current, ...documentIds])]);
-              }}
-              onStopPlayback={() => void stopPlayback()}
-            />
-          </aside>
+          <>
+            {!rightPaneExpanded && (
+              <div
+                className="jam-pane-resizer"
+                role="separator"
+                tabIndex={0}
+                aria-label="Resize Assistant pane"
+                aria-orientation="vertical"
+                aria-valuemin={PANE_LIMITS.assistant.min}
+                aria-valuemax={paneMaximum("assistant")}
+                aria-valuenow={assistantWidth}
+                onPointerDown={(event) => onPanePointerDown("assistant", event)}
+                onPointerMove={onPanePointerMove}
+                onPointerUp={onPanePointerEnd}
+                onPointerCancel={onPanePointerEnd}
+                onKeyDown={(event) => onPaneKeyDown("assistant", event)}
+              />
+            )}
+            <aside
+              className={`jam-assistant-pane${rightPaneExpanded ? " is-expanded" : ""}`}
+              aria-label="Assistant"
+            >
+              <div className="jam-panel-heading">
+                <span>Assistant</span>
+                <div className="jam-assistant-pane-actions">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={
+                      rightPaneExpanded ? "Restore assistant sidebar" : "Expand assistant"
+                    }
+                    title={rightPaneExpanded ? "Restore sidebar" : "Expand assistant"}
+                    aria-pressed={rightPaneExpanded}
+                    onClick={() => setRightPaneExpanded((expanded) => !expanded)}
+                  >
+                    {rightPaneExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  </Button>
+                  <button
+                    type="button"
+                    aria-label="Close assistant"
+                    onClick={() => {
+                      setAssistantOpen(false);
+                      setRightPaneExpanded(false);
+                    }}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+              <ChatPanel
+                workspaceId={activeDocument.shared?.workspaceId || workspace.id}
+                documentId={activeDocument.id}
+                documentName={activeDocument.name}
+                documents={documents.map((document) => ({
+                  id: document.id,
+                  name: document.name,
+                }))}
+                selection={(() => {
+                  const view = views.current.get(activeDocument.id);
+                  if (!view) return "";
+                  const range = view.state.selection.main;
+                  if (range.empty) return "";
+                  return view.state.doc.sliceString(range.from, range.to);
+                })()}
+                problemsText={problems
+                  .map((problem) => `Line ${problem.line}: ${problem.message}`)
+                  .join("\n")}
+                sources={documents.map((document) => ({
+                  id: document.id,
+                  source: document.source,
+                }))}
+                views={views.current}
+                canEdit={(documentId) => {
+                  const shared = drafts.current.get(documentId)?.shared;
+                  if (!shared) return true;
+                  return (
+                    shared.role !== "viewer" &&
+                    shared.workspaceId === activeDocument.shared?.workspaceId
+                  );
+                }}
+                onReveal={(documentIds) => {
+                  setOpenIds((current) => [...new Set([...current, ...documentIds])]);
+                }}
+                onStopPlayback={() => void stopPlayback()}
+              />
+            </aside>
+          </>
         )}
       </div>
       <footer className="jam-statusbar">

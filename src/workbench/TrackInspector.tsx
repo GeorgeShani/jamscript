@@ -43,6 +43,8 @@ export function TrackInspector({
   onTrackColor,
   onRenameTrack,
   extra,
+  expanded = false,
+  headingActions,
 }: {
   track: MusicTrack | null;
   tracks: MusicTrack[];
@@ -62,6 +64,8 @@ export function TrackInspector({
   onTrackColor: (orbit: number, color: number) => void;
   onRenameTrack: (id: string, name: string) => boolean;
   extra?: ReactNode;
+  expanded?: boolean;
+  headingActions?: ReactNode;
 }) {
   const gestures = useRef(new Map<string, number>());
   const editable = !!view?.state.facet(EditorView.editable);
@@ -86,8 +90,14 @@ export function TrackInspector({
     .map((item) => item.name);
 
   return (
-    <aside className="jam-inspector" aria-label="Track inspector">
-      <div className="jam-panel-heading">Inspector</div>
+    <aside
+      className={`jam-inspector${expanded ? " is-expanded" : ""}`}
+      aria-label="Track inspector"
+    >
+      <div className="jam-panel-heading">
+        <span>Inspector</span>
+        {headingActions}
+      </div>
       <MixerPanel
         tracks={mixTracks}
         levels={mixLevels}

@@ -84,7 +84,12 @@ const runtimeRoots = new Set(["react-dom"]);
 for (const file of sourceFiles(path.join(root, "src"))) {
   const { importedFiles } = ts.preProcessFile(fs.readFileSync(file, "utf8"), true, true);
   for (const { fileName } of importedFiles) {
-    if (fileName.startsWith(".") || fileName.startsWith("@/") || fileName.startsWith("node:"))
+    if (
+      fileName.startsWith(".") ||
+      fileName.startsWith("@/") ||
+      fileName.startsWith("node:") ||
+      fileName.startsWith("cloudflare:")
+    )
       continue;
     runtimeRoots.add(
       fileName.startsWith("@") ? fileName.split("/").slice(0, 2).join("/") : fileName.split("/")[0],
@@ -109,6 +114,12 @@ const audiocnLicense = fs.readFileSync(
   path.join(root, "public", "licenses", "audiocn-MIT.txt"),
   "utf8",
 );
+const shadcnLicense = fs.readFileSync(
+  path.join(root, "public", "licenses", "shadcn-ui-MIT.txt"),
+  "utf8",
+);
+if (!shadcnLicense.includes("Copyright (c) 2023 shadcn") || !shadcnLicense.includes("MIT License"))
+  throw new Error("shadcn/ui licence text is missing or incomplete");
 if (
   !audiocnLicense.includes("Copyright (c) 2026 OrcDev") ||
   !audiocnLicense.includes("MIT License")
@@ -131,6 +142,7 @@ const sections = [
   "Strudel: https://strudel.cc/ | source: https://codeberg.org/uzu/strudel",
   "Strudel dependency source files retain their original contributor copyright and licence headers.",
   "Copied/adapted audiocn Knob, Parameter Slider, Pan Control, Fader, Channel Toggle, Channel Strip, Mixer, Level Meter, Spectrum, Bar Visualizer, Smooth Waveform, Sound Pad, Waveform and supporting utilities: https://github.com/audiocn/ui | MIT; full text: public/licenses/audiocn-MIT.txt.",
+  "Copied/adapted shadcn/ui Message Scroller, Message, Bubble, and Input Group components: https://github.com/shadcn-ui/ui | MIT; full text: public/licenses/shadcn-ui-MIT.txt.",
   "Available top-level dependency licence/notice texts are reproduced below; trailing spaces are normalized.",
   "A package without a top-level text is listed as such; that is not a claim that it has no licence.",
   "Font notice: public/brand/Schibsted-Grotesk-OFL.txt (the wordmark is outlined).",
@@ -139,6 +151,7 @@ const sections = [
   "Runtime dependency inventory",
 ];
 sections.push("", "Copied component licence: audiocn", "-".repeat(72), audiocnLicense);
+sections.push("", "Copied component licence: shadcn/ui", "-".repeat(72), shadcnLicense);
 for (const [key, record] of [...packages].sort(([a], [b]) => a.localeCompare(b))) {
   sections.push(
     `${key} | ${record.license} | ${record.source} | ${record.texts.length ? `texts ${record.texts.join(", ")}` : "no top-level licence text in installed package; see source"}`,

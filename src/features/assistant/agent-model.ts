@@ -1,4 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  generateOpenRouterText,
+  streamOpenRouterText,
+  openRouterKey,
+  OpenRouterError,
+  type AssistantMode,
+  resolveOpenRouterModels,
+} from "./openrouter.server";
 
 /** Current Flash model for new projects. Do not default to gemini-2.5-flash. */
 export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
@@ -14,8 +22,24 @@ export function geminiConfigured() {
   return !!process.env["GEMINI_API_KEY"];
 }
 
+export function agentConfigured() {
+  return !!openRouterKey() || geminiConfigured();
+}
+
+export function agentModelOptions() {
+  return openRouterKey()
+    ? { ask: resolveOpenRouterModels("ask"), edit: resolveOpenRouterModels("edit") }
+    : { ask: [], edit: [] };
+}
+
+export function validateAgentModel(mode: AssistantMode, model?: string) {
+  if (model && (!openRouterKey() || !resolveOpenRouterModels(mode).includes(model)))
+    throw new Error("Choose a model from the configured assistant list.");
+}
+
 /** Turn opaque SDK/HTTP failures into an actionable UI message. */
 export function formatAgentModelError(cause: unknown): string {
+  if (cause instanceof OpenRouterError) return cause.message;
   const parts: string[] = [];
   const walk = (value: unknown, depth = 0) => {
     if (depth > 4 || value == null) return;
@@ -145,12 +169,19 @@ export async function generateGeminiText(input: {
   throw lastError;
 }
 
-/** Stream assistant text from Gemini only. */
+/** Prefer OpenRouter; retain direct Gemini for existing installations without its key. */
 export async function* streamAgentText(input: {
+  model?: string;
+  mode?: AssistantMode;
+  jsonSchema?: Record<string, unknown>;
   systemInstruction: string;
   userPayload: unknown;
   signal: AbortSignal;
 }): AsyncGenerator<string> {
+  if (openRouterKey()) {
+    yield* streamOpenRouterText({ ...input, mode: input.mode ?? "ask" });
+    return;
+  }
   const key = process.env["GEMINI_API_KEY"];
   if (!key) throw new Error("Gemini API key is invalid or missing.");
   yield* streamGeminiText({
@@ -161,13 +192,16 @@ export async function* streamAgentText(input: {
   });
 }
 
-/** One-shot Gemini text (optional JSON schema for proposals). */
+/** Generate a reviewable proposal using the configured Edit model chain. */
 export async function generateAgentText(input: {
+  model?: string;
+  mode?: AssistantMode;
   systemInstruction: string;
   userPayload: unknown;
   signal: AbortSignal;
   jsonSchema?: Record<string, unknown>;
 }) {
+  if (openRouterKey()) return generateOpenRouterText({ ...input, mode: input.mode ?? "edit" });
   const key = process.env["GEMINI_API_KEY"];
   if (!key) throw new Error("Gemini API key is invalid or missing.");
   return generateGeminiText({

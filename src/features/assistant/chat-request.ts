@@ -13,6 +13,12 @@ export function parseAgentChatRequest(body: unknown): AgentChatRequest {
   const documentId = value["documentId"];
   const mode = value["mode"];
   const scope = value["scope"];
+  const model = value["model"];
+  if (
+    model !== undefined &&
+    (typeof model !== "string" || model.length > 160 || !/^[\w.-]+\/[\w.:-]+$/.test(model))
+  )
+    throw new Error("Choose an available assistant model");
   const rawMessages = value["messages"];
   if (typeof threadId !== "string" || !threadId.trim()) throw new Error("Choose a chat thread");
   if (typeof documentId !== "string" || !documentId.trim()) throw new Error("Choose a document");
@@ -80,6 +86,7 @@ export function parseAgentChatRequest(body: unknown): AgentChatRequest {
     mode: mode as ChatMode,
     scope: scope as ChatScope,
     messages,
+    ...(typeof model === "string" ? { model } : {}),
     ...(selection ? { selection } : {}),
     ...(attachedDocumentIds?.length ? { attachedDocumentIds } : {}),
     ...(files?.length ? { files } : {}),
