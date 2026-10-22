@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { EditorView } from "@codemirror/view";
 import { dispatchLensEdit, musicModel } from "@/components/jam/code-editor";
 import { readFileSync } from "node:fs";
@@ -313,7 +313,12 @@ describe("browser workbench", () => {
       fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
       await screen.findByRole("tab", { name: "night-bus.js" });
       fireEvent.click(await screen.findByRole("button", { name: "Show assistant" }));
-      const composer = await screen.findByRole("textbox", { name: "Message the assistant" });
+      // Opening the pane loads its chat chunk and IndexedDB history asynchronously.
+      const composer = await screen.findByRole(
+        "textbox",
+        { name: "Message the assistant" },
+        { timeout: 5000 },
+      );
       fireEvent.change(composer, { target: { value: "Keep this draft" } });
       const resize = screen.getByRole("separator", { name: "Resize Assistant pane" });
       fireEvent.keyDown(resize, { key: "Home" });
@@ -345,9 +350,10 @@ describe("browser workbench", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: /A Strudel session/ }));
     await screen.findByRole("tab", { name: "night-bus.js" });
-    const showFiles = screen.queryByRole("button", { name: "Show files" });
+    const activity = within(screen.getByRole("navigation", { name: "Workbench views" }));
+    const showFiles = activity.queryByRole("button", { name: "Show files" });
     if (showFiles) fireEvent.click(showFiles);
-    const showInspector = screen.queryByRole("button", { name: "Show inspector" });
+    const showInspector = activity.queryByRole("button", { name: "Show inspector" });
     if (showInspector) fireEvent.click(showInspector);
 
     fireEvent.click(screen.getByRole("button", { name: "Expand inspector" }));
@@ -381,7 +387,7 @@ describe("browser workbench", () => {
     expect(Number(files.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(340);
     expect(Number(files.getAttribute("aria-valuenow"))).toBeGreaterThan(170);
     expect(
-      screen
+      activity
         .getByRole("button", { name: "Hide inspector" })
         .querySelector("svg.lucide-sliders-vertical"),
     ).toBeTruthy();
