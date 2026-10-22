@@ -1774,7 +1774,12 @@ export function SessionWorkbench({
         <AuthControls />
       </header>
       {saveAsTarget && storage.saveAs && (
-        <div className="jam-save-as-backdrop">
+        <div
+          className="jam-save-as-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !savingAs) setSaveAsTarget(null);
+          }}
+        >
           <form
             className="jam-save-as-dialog"
             role="dialog"

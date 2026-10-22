@@ -1,4 +1,5 @@
 import { useAuth, useUser } from "@clerk/tanstack-react-start";
+import { DismissibleDetails } from "@/components/ui/dismissible-details";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { EditorView } from "@codemirror/view";
@@ -271,7 +272,7 @@ export function ShareControls({
   };
 
   return (
-    <details className="jam-share-control">
+    <DismissibleDetails className="jam-share-control">
       <summary>{document.shared ? "Collaborators" : "Share workspace"}</summary>
       <form
         className="jam-share"
@@ -375,7 +376,7 @@ export function ShareControls({
           </label>
         )}
       </form>
-    </details>
+    </DismissibleDetails>
   );
 }
 

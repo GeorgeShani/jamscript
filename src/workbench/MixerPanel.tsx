@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Palette, Pencil } from "lucide-react";
 import type { MixTrack } from "@/engine/mix-source";
 import { Fader, FaderTrack, FaderRange, FaderThumb, FaderValue } from "@/components/ui/fader";
@@ -87,6 +87,29 @@ export function MixerPanel({
   const [name, setName] = useState("");
   const [colorOpen, setColorOpen] = useState<string | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (colorOpen === null) return;
+    // Press outside the palette, or Escape, closes it. The toggle button handles its own press.
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        !target.closest(".jam-mix-palette") &&
+        !target.closest("[data-color-toggle]")
+      )
+        setColorOpen(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setColorOpen(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [colorOpen]);
 
   const submitRename = (id: string) => {
     if (name.trim() === id) {
@@ -186,6 +209,7 @@ export function MixerPanel({
                           type="button"
                           aria-label={`Change ${displayName} color`}
                           aria-expanded={colorOpen === track.id}
+                          data-color-toggle
                           title="Track color"
                           onClick={() => setColorOpen(colorOpen === track.id ? null : track.id)}
                         >

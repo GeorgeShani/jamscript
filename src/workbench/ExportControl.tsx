@@ -1,4 +1,5 @@
 import { Download, X } from "lucide-react";
+import { DismissibleDetails } from "@/components/ui/dismissible-details";
 
 export function ExportControl({
   disabled,
@@ -14,7 +15,7 @@ export function ExportControl({
   onCancel: () => void;
 }) {
   return (
-    <details className="jam-export-control">
+    <DismissibleDetails className="jam-export-control" dismissOnOutside={!exporting}>
       <summary aria-label="Export audio">
         <Download size={16} />
         <span>Export</span>
@@ -59,6 +60,6 @@ export function ExportControl({
           </form>
         )}
       </div>
-    </details>
+    </DismissibleDetails>
   );
 }

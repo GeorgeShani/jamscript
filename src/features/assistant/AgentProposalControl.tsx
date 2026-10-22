@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { DismissibleDetails } from "@/components/ui/dismissible-details";
 import { Button } from "@/components/ui/button";
 import { proposalIsFresh, type ChangeProposal } from "./proposal";
 
@@ -116,7 +117,7 @@ export function AgentProposalControl({
   };
   const fresh = proposal && proposalIsFresh(proposal, sources);
   return (
-    <details className="jam-agent-control">
+    <DismissibleDetails className="jam-agent-control">
       <summary>Ask Gemini</summary>
       <div className="jam-agent-popup">
         <form
@@ -206,6 +207,6 @@ export function AgentProposalControl({
           </div>
         )}
       </div>
-    </details>
+    </DismissibleDetails>
   );
 }
