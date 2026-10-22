@@ -357,8 +357,12 @@ export function play(code: string): Promise<boolean> {
   return work;
 }
 
-/** Stops all playing patterns. */
-export async function stop(): Promise<void> {
+/**
+ * Stops the scheduler so no new notes start. By default voices that are already sounding
+ * keep their release and delay tails and decay naturally, as in the Strudel REPL. Pass
+ * `ringOut: false` to cut everything quickly instead, e.g. before an export.
+ */
+export async function stop({ ringOut = true }: { ringOut?: boolean } = {}): Promise<void> {
   stopSamplePreview();
   allowed = false;
   started = false;
@@ -370,8 +374,16 @@ export async function stop(): Promise<void> {
   const stoppedAt = ++revision;
   // Release the transport immediately even if a sample manifest or worklet is
   // still loading. A stale initialization hushes only if no newer Play won.
-  if (activeStrudel) silence(activeStrudel, true);
-  else if (initPromise)
+  if (activeStrudel) {
+    if (ringOut) {
+      try {
+        activeStrudel.hush();
+      } catch {
+        // If the scheduler cannot stop, mute the master so nothing keeps playing.
+        silence(activeStrudel);
+      }
+    } else silence(activeStrudel, true);
+  } else if (initPromise)
     void initPromise
       .then((strudel) => {
         if (!allowed && revision === stoppedAt) silence(strudel);

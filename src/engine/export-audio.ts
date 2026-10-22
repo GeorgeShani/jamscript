@@ -83,7 +83,8 @@ export async function recordMainFlow({
   let timer: ReturnType<typeof setTimeout> | undefined;
   let progress: ReturnType<typeof setInterval> | undefined;
   try {
-    await stop();
+    // Cut any ringing tail from earlier playback so it does not bleed into the recording.
+    await stop({ ringOut: false });
     setMix(levels, null, master, []); // Export captures the full mix: no solo, no mute.
     if (!(await play(code))) throw new Error("Could not play the current document for export.");
     startedAt = performance.now();

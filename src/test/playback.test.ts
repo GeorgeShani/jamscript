@@ -40,7 +40,7 @@ describe("Live playback adapter", () => {
     await playback.stop();
   });
 
-  it("fades Stop smoothly and cancels that fade on a quick restart", async () => {
+  it("lets sounding voices ring out on Stop and stays restartable", async () => {
     const gain = {
       value: 0.7,
       cancelAndHoldAtTime: vi.fn(),
@@ -58,12 +58,34 @@ describe("Live playback adapter", () => {
     expect(await playback.play('s("bd")')).toBe(true);
     await playback.stop();
     expect(web.hush).toHaveBeenCalledOnce();
-    expect(gain.cancelAndHoldAtTime).toHaveBeenCalledWith(3);
+    // The scheduler stops, but the master gain is left alone so release and delay tails decay.
+    expect(gain.linearRampToValueAtTime).not.toHaveBeenCalled();
+    expect(gain.setValueAtTime).not.toHaveBeenCalled();
+    expect(gain.cancelScheduledValues).not.toHaveBeenCalled();
+    expect(await playback.play('s("bd")')).toBe(true);
+    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 3, 0.015);
+    await playback.stop();
+  });
+  it("can cut sound with a quick fade when ring-out is disabled", async () => {
+    const gain = {
+      value: 0.7,
+      cancelAndHoldAtTime: vi.fn(),
+      cancelScheduledValues: vi.fn(),
+      setValueAtTime: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+      setTargetAtTime: vi.fn(),
+    };
+    web.getAudioContext.mockReturnValue({ currentTime: 3 });
+    web.getSuperdoughAudioController.mockReturnValue({
+      output: { destinationGain: { gain } },
+      nodes: {},
+    });
+    const playback = await import("@/engine/playback");
+    expect(await playback.play('s("bd")')).toBe(true);
+    await playback.stop({ ringOut: false });
     expect(gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, 3.35);
-    expect(gain.setValueAtTime).not.toHaveBeenCalledWith(0, 3);
     expect(await playback.play('s("bd")')).toBe(true);
     expect(gain.cancelAndHoldAtTime).toHaveBeenCalledTimes(2);
-    expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(1, 3, 0.015);
     await playback.stop();
   });
   it("waits for cold sample buffers before allowing the first scheduler start", async () => {
@@ -156,7 +178,7 @@ describe("Live playback adapter", () => {
     await playback.stop();
   });
 
-  it("hard-mutes the output on Stop and restores its level on the next Play", async () => {
+  it("hard-mutes the output when ring-out is off and restores its level on the next Play", async () => {
     const gain = {
       cancelScheduledValues: vi.fn(),
       setValueAtTime: vi.fn(),
@@ -169,9 +191,8 @@ describe("Live playback adapter", () => {
     });
     const playback = await import("@/engine/playback");
     expect(await playback.play('s("bd")')).toBe(true);
-    await playback.stop();
+    await playback.stop({ ringOut: false });
     expect(gain.cancelScheduledValues).toHaveBeenCalledWith(3);
-    expect(gain.setValueAtTime).toHaveBeenCalledWith(0, 3);
     gain.setTargetAtTime.mockClear();
     playback.setMix({}, null, 0.6);
     expect(gain.setTargetAtTime).not.toHaveBeenCalled();
