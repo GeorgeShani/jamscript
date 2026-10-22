@@ -133,6 +133,7 @@ export function ChatPanel({
       if (deletedThreads.current.has(thread.id)) return;
       void saveChatThread(thread)
         .then((saved) => {
+          if (deletedThreads.current.has(saved.id)) return;
           setThreads((current) => {
             const next = [saved, ...current.filter((item) => item.id !== saved.id)];
             return next.slice(0, 30);
@@ -418,11 +419,13 @@ export function ChatPanel({
     .find((message) => message.role === "assistant");
   const bannerError = error && lastAssistant?.error !== error ? error : null;
   const remember = () => {
-    if (!thread.messages.length) return;
+    if (!thread.messages.length || deletedThreads.current.has(thread.id)) return;
     void saveChatThread(thread)
       .then((saved) =>
         setThreads((items) =>
-          [saved, ...items.filter((item) => item.id !== saved.id)].slice(0, 30),
+          deletedThreads.current.has(saved.id)
+            ? items
+            : [saved, ...items.filter((item) => item.id !== saved.id)].slice(0, 30),
         ),
       )
       .catch(() => setError("Could not save this conversation on your device."));
@@ -483,13 +486,16 @@ export function ChatPanel({
       onNew={() => switchThread(newChatThread(workspaceId))}
       onSelect={switchThread}
       onRename={(title) => updateThread((current) => ({ ...current, title }))}
-      onDelete={() => {
-        const id = thread.id;
+      onDelete={(id = thread.id) => {
         deletedThreads.current.add(id);
         void deleteChatThread(id)
           .then(() => {
             setThreads((items) => items.filter((item) => item.id !== id));
-            setThread(newChatThread(workspaceId));
+            if (latestThread.current?.id === id) {
+              setDraft("");
+              lastUserRef.current = "";
+            }
+            setThread((current) => (current?.id === id ? newChatThread(workspaceId) : current));
             setError(null);
           })
           .catch(() => {

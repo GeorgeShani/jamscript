@@ -92,7 +92,7 @@ export function ChatSurface(props: {
   onNew: () => void;
   onSelect: (thread: ChatThread) => void;
   onRename: (title: string) => void;
-  onDelete: () => void;
+  onDelete: (threadId?: string) => void;
   onSend: (text: string) => void;
   onStop: () => void;
   onRetry: (message: ChatMessage) => void;

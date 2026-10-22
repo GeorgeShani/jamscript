@@ -714,3 +714,36 @@
 .jam-assistant-new-chat {
   margin-left: auto;
 }
+
+.jam-assistant-history-entry {
+  min-width: 0;
+}
+.jam-assistant-history-entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.jam-assistant-history-entry-actions .jam-assistant-history-row {
+  flex: 1;
+  min-width: 0;
+}
+.jam-assistant-history-delete {
+  flex: none;
+  color: var(--muted-foreground);
+}
+.jam-assistant-history-delete:hover,
+.jam-assistant-history-delete:focus-visible {
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+}
+.jam-assistant-history-confirm {
+  margin: 3px 0 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.jam-assistant-history-confirm > strong {
+  display: block;
+  overflow-wrap: anywhere;
+}

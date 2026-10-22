@@ -172,3 +172,34 @@ it("stops an active stream and keeps its partial answer", async () => {
   expect(screen.getByRole("button", { name: "New chat" })).toBeEnabled();
   expect(screen.queryByRole("button", { name: "Stop generating" })).not.toBeInTheDocument();
 });
+
+it("deletes another conversation from history without switching or losing the active draft", async () => {
+  await open();
+  await send("First idea");
+  fireEvent.click(screen.getByRole("button", { name: "New chat" }));
+  await send("Second idea");
+  await waitFor(async () => expect(await listChatThreads(workspaceId)).toHaveLength(2));
+  fireEvent.change(screen.getByRole("textbox", { name: "Message the assistant" }), {
+    target: { value: "Keep my draft" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Chat history" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Delete First idea" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(await listChatThreads(workspaceId)).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "Delete First idea" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete conversation" }));
+  await waitFor(async () =>
+    expect((await listChatThreads(workspaceId)).map((item) => item.title)).toEqual(["Second idea"]),
+  );
+  expect(screen.queryByRole("button", { name: "Delete First idea" })).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Message the assistant" })).toHaveValue(
+    "Keep my draft",
+  );
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  });
+  cleanup();
+  await open();
+  expect(await screen.findByText("Answer 2: play a steady kick.")).toBeInTheDocument();
+  expect((await listChatThreads(workspaceId)).map((item) => item.title)).toEqual(["Second idea"]);
+});

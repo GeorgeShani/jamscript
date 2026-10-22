@@ -32,11 +32,12 @@ export function ChatHistory({
   onNew: () => void;
   onSelect: (thread: ChatThread) => void;
   onRename: (title: string) => void;
-  onDelete: () => void;
+  onDelete: (threadId?: string) => void;
   onError: (message: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ChatThread | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [action, setAction] = useState<"rename" | "delete" | null>(null);
   const [title, setTitle] = useState("");
@@ -51,7 +52,13 @@ export function ChatHistory({
   );
   return (
     <header className="jam-assistant-header">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(value) => {
+          setOpen(value);
+          if (!value) setDeleteTarget(null);
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
@@ -77,27 +84,68 @@ export function ChatHistory({
           <div className="jam-assistant-history-list" aria-label="Saved chats">
             {matches.length ? (
               matches.map((item) => (
-                <Button
-                  key={item.id}
-                  variant="ghost"
-                  className="jam-assistant-history-row"
-                  aria-current={item.id === thread.id ? "true" : undefined}
-                  onClick={() => {
-                    onSelect(item);
-                    setOpen(false);
-                  }}
-                >
-                  <span>
-                    <strong>{item.title}</strong>
-                    <small>
-                      {[...item.messages]
-                        .reverse()
-                        .find((message) => message.content.trim())
-                        ?.content.slice(0, 88)}
-                    </small>
-                  </span>
-                  {item.id === thread.id && <Check size={14} />}
-                </Button>
+                <div key={item.id} className="jam-assistant-history-entry">
+                  <div className="jam-assistant-history-entry-actions">
+                    <Button
+                      variant="ghost"
+                      className="jam-assistant-history-row"
+                      aria-current={item.id === thread.id ? "true" : undefined}
+                      onClick={() => {
+                        onSelect(item);
+                        setOpen(false);
+                        setDeleteTarget(null);
+                      }}
+                    >
+                      <span>
+                        <strong>{item.title}</strong>
+                        <small>
+                          {[...item.messages]
+                            .reverse()
+                            .find((message) => message.content.trim())
+                            ?.content.slice(0, 88)}
+                        </small>
+                      </span>
+                      {item.id === thread.id && <Check size={14} />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="jam-assistant-history-delete"
+                      aria-label={`Delete ${item.title}`}
+                      title="Delete conversation"
+                      onClick={() => setDeleteTarget(item)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                  {deleteTarget?.id === item.id && (
+                    <div
+                      className="jam-assistant-history-confirm"
+                      role="group"
+                      aria-label={`Confirm deletion of ${item.title}`}
+                    >
+                      <strong>Delete “{item.title}”?</strong>
+                      <p className="jam-assistant-menu-note">
+                        This removes the conversation from this device.
+                      </p>
+                      <div className="jam-assistant-inline-actions">
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            onDelete(item.id);
+                            setDeleteTarget(null);
+                          }}
+                        >
+                          Delete conversation
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))
             ) : (
               <p className="jam-assistant-menu-note">
