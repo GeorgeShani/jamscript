@@ -29,7 +29,8 @@
     "test": "bun run emails:build && vitest run --maxWorkers=4",
     "test:watch": "vitest",
     "emails:build": "node scripts/build-emails.mjs",
-    "emails:preview": "bun run emails:build && bun scripts/preview-emails.ts"
+    "emails:preview": "bun run emails:build && bun scripts/preview-emails.ts",
+    "samples:generate": "node scripts/generate-sample-index.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -113,5 +114,8 @@
     "vitest": "^4.1.10",
     "wrangler": "^4.45.0"
   },
-  "license": "AGPL-3.0-or-later"
+  "license": "AGPL-3.0-or-later",
+  "patchedDependencies": {
+    "@strudel/core@1.2.6": "patches/@strudel%2Fcore@1.2.6.patch"
+  }
 }

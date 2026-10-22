@@ -40,6 +40,38 @@ describe("Live playback adapter", () => {
     await playback.stop();
   });
 
+  it("warms the samples a song names by reading literals, never evaluating it", async () => {
+    web.getSound.mockImplementation((name: string) =>
+      name === "bd" || name === "RolandTR909_bd"
+        ? { data: { type: "sample", samples: { bd: ["bd.wav"] } } }
+        : undefined,
+    );
+    web.getSampleInfo.mockImplementation((value: { s: string }) => ({
+      url: `https://x/${value.s}.wav`,
+    }));
+    web.getSampleBuffer.mockResolvedValue({});
+    const playback = await import("@/engine/playback");
+    await playback.warmSource(['$: s("bd ~ sd").bank("RolandTR909")', 'fetch("evil")'].join("\n"));
+    expect(web.evaluate).not.toHaveBeenCalled();
+    const loaded = web.getSampleBuffer.mock.calls.map(([value]) => value.s);
+    expect(loaded).toContain("bd");
+    expect(loaded).toContain("RolandTR909_bd");
+    expect(new Set(loaded).size).toBe(loaded.length);
+  });
+  it("hands Strudel a worker-driven clock and the bundled sample index", async () => {
+    vi.doMock("@/engine/register-soundfonts", () => ({
+      registerBundledSoundfonts: vi.fn().mockResolvedValue(undefined),
+      preloadBundledSoundfont: vi.fn(),
+    }));
+    const playback = await import("@/engine/playback");
+    await playback.warmPlayback();
+    const options = web.initStrudel.mock.calls[0]![0];
+    expect(options.setInterval).toBeTypeOf("function");
+    expect(options.clearInterval).toBeTypeOf("function");
+    await options.prebake();
+    expect(web.samples).toHaveBeenCalledTimes(6);
+    expect(web.samples.mock.calls.every(([bank]) => typeof bank === "object")).toBe(true);
+  });
   it("lets sounding voices ring out on Stop and stays restartable", async () => {
     const gain = {
       value: 0.7,

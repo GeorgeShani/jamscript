@@ -68,7 +68,12 @@ function TelemetryOutput({
 }
 
 function LiveOutput({ node }: { node: AudioNode }) {
-  const analyser = useAudioAnalyser(node, { channels: "stereo", bands: 32 });
+  const analyser = useAudioAnalyser(node, {
+    channels: "stereo",
+    bands: 32,
+    // 30 updates a second reads as smooth and halves the analysis work beside playback.
+    intervalMs: 33,
+  });
   return <TelemetryOutput frames={analyser} />;
 }
 

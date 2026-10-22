@@ -85,6 +85,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@strudel/core@1.2.6": "patches/@strudel%2Fcore@1.2.6.patch",
+  },
   "overrides": {
     "rolldown": "1.2.1",
   },

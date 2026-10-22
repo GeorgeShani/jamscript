@@ -1,0 +1,15 @@
+diff --git a/cyclist.mjs b/cyclist.mjs
+index 59e410c53fcfafe881a0bd17c083a344e0d18174..5cefbdfbcabcdba339f39722b0c353de4e3102d5 100644
+--- a/cyclist.mjs
++++ b/cyclist.mjs
+@@ -82,7 +82,9 @@ export class Cyclist {
+       },
+       interval, // duration of each cycle
+       0.1,
+-      0.1,
++      // JamScript patch: schedule 0.3 s ahead (was 0.1 s) so a main-thread stall of up to
++      // ~0.4 s no longer drops notes. The first sound is still heard after `latency`.
++      0.3,
+       setInterval,
+       clearInterval,
+     );

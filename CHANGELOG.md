@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5
+
+- Faster, steadier playback: the default sample catalogues ship with the app, a song’s samples are fetched while you edit, and Play starts once the first cycle is ready.
+- The audio scheduler plans further ahead and runs on a worker clock, so a busy or hidden window no longer drops notes.
+- Less background work during playback: lighter meters, a mixer that stops polling once ready, and an editor language worker that starts on first use.
+
 ## 0.3.4
 
 - Stopping playback now lets delay and release tails ring out naturally instead of fading them in a fraction of a second; exports still start from silence.

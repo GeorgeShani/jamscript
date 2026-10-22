@@ -415,6 +415,21 @@ export function SessionWorkbench({
   }, [activeDocument?.source]);
 
   useEffect(() => {
+    // Once the song has been quiet for a moment, fetch the samples it names so Play
+    // starts on the first cycle. Reads literals only; nothing is evaluated or played.
+    const source = activeDocument?.source;
+    if (!source) return;
+    const timer = window.setTimeout(() => {
+      void import("@/engine/playback")
+        .then((playback) => playback.warmSource?.(source))
+        .catch(() => {
+          // Play fetches anything that was not warmed.
+        });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [activeDocument?.source]);
+
+  useEffect(() => {
     const activeSolo = mixTracks.some((item) => item.id === soloTrack) ? soloTrack : null;
     const activeMuted = [...mutedTracks].filter((id) => mixTracks.some((item) => item.id === id));
     if (!exportingNow.current)
@@ -2313,14 +2328,21 @@ export function SessionWorkbench({
                           if (view) {
                             views.current.set(id, view);
                             setReadyVersion((value) => value + 1);
+                            // The 6.5 MB language worker starts on first use of the editor, so it
+                            // does not compete with playback start-up.
                             if (typeof Worker !== "undefined")
-                              void import("@/features/language/client")
-                                .then(({ attachStrudelLanguage }) =>
-                                  attachStrudelLanguage(view, id),
-                                )
-                                .catch((cause: unknown) =>
-                                  setError(`IntelliSense unavailable: ${message(cause)}`),
-                                );
+                              view.dom.addEventListener(
+                                "focusin",
+                                () =>
+                                  void import("@/features/language/client")
+                                    .then(({ attachStrudelLanguage }) =>
+                                      attachStrudelLanguage(view, id),
+                                    )
+                                    .catch((cause: unknown) =>
+                                      setError(`IntelliSense unavailable: ${message(cause)}`),
+                                    ),
+                                { once: true },
+                              );
                             const sync = () => {
                               if (activeIdRef.current !== id) return;
                               const position = view.state.selection.main.head;

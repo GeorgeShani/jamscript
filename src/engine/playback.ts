@@ -11,6 +11,7 @@ import {
   type MixTrack,
   type MovedPattern,
 } from "./mix-source";
+import { createWorkerTimer } from "./worker-timer";
 import { registerBundledSoundfonts } from "./register-soundfonts";
 import { preloadPatternAssets, type PreloadPattern } from "./preload-pattern";
 import {
@@ -94,11 +95,12 @@ export function onHighlight(callback: ((ranges: PlaybackRange[]) => void) | null
   if (!callback) clearHighlightTimers();
 }
 
-function applyMix() {
-  if (!mixEnabled) return;
+/** Applies the mixer; returns true once every track's orbit node exists and was updated. */
+function applyMix(): boolean {
+  if (!mixEnabled) return false;
   const controller = activeStrudel?.getSuperdoughAudioController?.();
   const context = activeStrudel?.getAudioContext?.() as AudioContext | undefined;
-  if (!controller || !context) return;
+  if (!controller || !context) return false;
   const master = controller.output?.destinationGain?.gain as AudioParam | undefined;
   if (master) {
     // A quick restart must cancel the previous Stop's fade-to-zero automation.
@@ -109,9 +111,13 @@ function applyMix() {
     }
     master.setTargetAtTime(masterLevel, context.currentTime, 0.015);
   }
+  let complete = true;
   for (const track of mixTracks) {
     const gain = controller.nodes?.[track.orbit]?.output?.gain as AudioParam | undefined;
-    if (!gain) continue;
+    if (!gain) {
+      complete = false;
+      continue;
+    }
     const level = mixLevels[track.id] ?? 1;
     // Solo wins: only the soloed track plays. Otherwise mute silences a track.
     const target = soloTrack
@@ -123,6 +129,7 @@ function applyMix() {
         : level;
     gain.setTargetAtTime(target, context.currentTime, 0.015);
   }
+  return complete;
 }
 
 /** Runtime mixer settings do not modify CodeMirror or restart the scheduler. */
@@ -176,6 +183,27 @@ function silence(strudel: StrudelWeb, smooth = false) {
   }
 }
 
+const SAMPLE_BANKS = [
+  "tidal-drum-machines",
+  "piano",
+  "Dirt-Samples",
+  "EmuSP12",
+  "vcsl",
+  "mridangam",
+];
+
+/** Refreshes the bundled bank index from upstream once the page is idle; failures are ignored. */
+function scheduleIndexRefresh(strudel: StrudelWeb) {
+  const refresh = () => {
+    const base = "https://raw.githubusercontent.com/felixroos/dough-samples/main";
+    void Promise.allSettled(SAMPLE_BANKS.map((bank) => strudel.samples(`${base}/${bank}.json`)));
+  };
+  const idle = (window as { requestIdleCallback?: (run: () => void, o?: object) => void })
+    .requestIdleCallback;
+  if (idle) idle(refresh, { timeout: 15_000 });
+  else setTimeout(refresh, 5_000);
+}
+
 /** Loads @strudel/web and prebakes the drum samples once. Later calls return the same promise. */
 export function initPlayback(): Promise<StrudelWeb> {
   if (!initPromise) {
@@ -207,7 +235,11 @@ export function initPlayback(): Promise<StrudelWeb> {
       } catch {
         // Keep Strudel's default context if this browser rejects the option.
       }
+      const timer = createWorkerTimer();
       await strudel.initStrudel({
+        // The scheduler's clock runs in a worker so a busy or hidden page cannot starve it.
+        setInterval: timer.setInterval,
+        clearInterval: timer.clearInterval,
         editPattern: (pattern: PreloadPattern) => {
           upcoming = pattern;
           // beforeStart only runs on a cold Play. Live edits that introduce new
@@ -255,17 +287,15 @@ export function initPlayback(): Promise<StrudelWeb> {
           if (context) scheduleHighlight(hap, when, context);
         },
         prebake: async () => {
-          // Match the REPL's default banks, including rim and other named drums.
-          // These recording assets remain remote until self-hosted with their licences.
-          const base = "https://raw.githubusercontent.com/felixroos/dough-samples/main";
+          // Match the REPL's default banks, including rim and other named drums. The
+          // bank index ships with the app so Play never waits on GitHub; the audio files
+          // stay remote until self-hosted with their licences.
+          const { default: index } = await import("./sample-index.generated.json");
           await Promise.all([
             registerBundledSoundfonts(strudel),
-            Promise.allSettled(
-              ["tidal-drum-machines", "piano", "Dirt-Samples", "EmuSP12", "vcsl", "mridangam"].map(
-                (bank) => strudel.samples(`${base}/${bank}.json`),
-              ),
-            ),
+            ...Object.values(index).map((bank) => strudel.samples(bank)),
           ]);
+          scheduleIndexRefresh(strudel);
         },
       });
       // initStrudel installs a first-mousedown listener, but the first Play
@@ -284,6 +314,45 @@ export function initPlayback(): Promise<StrudelWeb> {
 /** Prepare the runtime ahead of Play without evaluating user code or starting notes. */
 export async function warmPlayback(): Promise<void> {
   await initPlayback();
+}
+
+/**
+ * Fetches and decodes the samples a song names, ahead of Play. This only reads string
+ * literals; it never evaluates the document or starts notes, so shared code cannot run
+ * without the user pressing Play. Unknown or dynamic names are simply skipped.
+ */
+export async function warmSource(text: string): Promise<void> {
+  if (allowed || !text) return;
+  const strudel = await initPlayback();
+  const words = new Set<string>();
+  const literals = /"([^"\n]{1,400})"|'([^'\n]{1,400})'|\x60([^\x60\n]{1,400})\x60/g;
+  for (const literal of text.matchAll(literals)) {
+    const body = literal[1] ?? literal[2] ?? literal[3] ?? "";
+    for (const word of body.split(/[\s,[\]{}()<>*!@~?|/%^$+=-]+/))
+      if (word && words.size < 80) words.add(word);
+  }
+  const tokens = [...words];
+  const jobs = new Map<string, () => Promise<unknown>>();
+  for (const token of tokens) {
+    const [name = "", index] = token.split(":");
+    for (const candidate of [name, ...tokens.slice(0, 24).map((bank) => `${bank}_${name}`)]) {
+      const data = strudel.getSound(candidate)?.data;
+      if (data?.type !== "sample" || !data.samples) continue;
+      const value = { s: candidate, n: index === undefined ? 0 : Number(index) || 0 };
+      const url = strudel.getSampleInfo(value, data.samples).url;
+      if (!jobs.has(url)) jobs.set(url, () => strudel.getSampleBuffer(value, data.samples));
+    }
+  }
+  const queue = [...jobs.values()].slice(0, 24);
+  const worker = async () => {
+    for (let load = queue.shift(); load; load = queue.shift()) {
+      if (allowed) return;
+      await load().catch(() => {
+        // A failed warm-up only means Play fetches the sample itself.
+      });
+    }
+  };
+  await Promise.all([worker(), worker()]);
 }
 
 /** Evaluates the session code like the Strudel REPL. Never throws: errors go to onError. */
@@ -338,8 +407,14 @@ export function play(code: string): Promise<boolean> {
         mixEnabled = true;
         started = true;
         applyMix();
-        // Orbits are created lazily on their first note. Keep new nodes in sync.
-        mixTimer = setInterval(applyMix, 80);
+        // Orbits are created lazily on their first note. Poll only until every track
+        // has its node; later changes arrive through setMix.
+        mixTimer = setInterval(() => {
+          if (applyMix() && mixTimer) {
+            clearInterval(mixTimer);
+            mixTimer = null;
+          }
+        }, 150);
         return true;
       } catch (error) {
         // evaluate() may start a scheduler before rejecting. Do not let a failed
