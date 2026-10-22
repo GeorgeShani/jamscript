@@ -38,6 +38,7 @@ let preparation: AbortController | null = null;
 let evaluationRevision = 0;
 let evaluationSignal: AbortSignal | undefined;
 let fading = false;
+let started = false;
 let mixTracks: MixTrack[] = [];
 let movedPattern: MovedPattern | undefined;
 let mixLevels: Record<string, number> = {};
@@ -59,6 +60,8 @@ function clearHighlightTimers() {
 
 function scheduleHighlight(hap: unknown, when: number, context: AudioContext) {
   if (!highlightCallback || !allowed || !Number.isFinite(when)) return;
+  // Nobody sees the flash in a hidden tab, and its editor work competes with the scheduler.
+  if (typeof document !== "undefined" && document.hidden) return;
   const locations = (hap as { context?: { locations?: { start: number; end: number }[] } }).context
     ?.locations;
   if (!locations?.length) return;
@@ -195,9 +198,28 @@ export function initPlayback(): Promise<StrudelWeb> {
             configurable: true,
           });
       }
+      // The default "interactive" hint asks for the smallest output buffer, which
+      // underruns first when the CPU is busy. Strudel already schedules 100 ms ahead,
+      // so a larger buffer costs nothing audible and avoids crackles.
+      try {
+        if (typeof strudel.setAudioContext === "function")
+          strudel.setAudioContext(new AudioContext({ latencyHint: "playback" }));
+      } catch {
+        // Keep Strudel's default context if this browser rejects the option.
+      }
       await strudel.initStrudel({
         editPattern: (pattern: PreloadPattern) => {
           upcoming = pattern;
+          // beforeStart only runs on a cold Play. Live edits that introduce new
+          // samples would otherwise fetch them when the first note fires, late.
+          if (started)
+            void preloadPatternAssets(
+              pattern,
+              strudel,
+              () => allowed && started,
+              evaluationSignal,
+              { waitForAll: false, onBackgroundError: () => {} },
+            ).catch(() => {});
           return pattern;
         },
         beforeStart: async () => {
@@ -307,12 +329,14 @@ export function play(code: string): Promise<boolean> {
           // UI in sync by silencing it before reporting Play as failed.
           allowed = false;
           mixEnabled = false;
+          started = false;
           silence(strudel);
           errorCallback?.(evaluationError);
           return false;
         }
         if (mixTimer) clearInterval(mixTimer);
         mixEnabled = true;
+        started = true;
         applyMix();
         // Orbits are created lazily on their first note. Keep new nodes in sync.
         mixTimer = setInterval(applyMix, 80);
@@ -322,6 +346,7 @@ export function play(code: string): Promise<boolean> {
         // Play leave audio running behind an Idle transport.
         if (strudel) silence(strudel);
         mixEnabled = false;
+        started = false;
         if (allowed && request === revision) {
           allowed = false;
           errorCallback?.(message(error));
@@ -336,6 +361,7 @@ export function play(code: string): Promise<boolean> {
 export async function stop(): Promise<void> {
   stopSamplePreview();
   allowed = false;
+  started = false;
   preparation?.abort();
   mixEnabled = false;
   clearHighlightTimers();

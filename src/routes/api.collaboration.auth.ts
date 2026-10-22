@@ -36,10 +36,13 @@ export const Route = createFileRoute("/api/collaboration/auth")({
         const room = typeof body.room === "string" ? body.room : "";
         const documentId = documentIdFromRoom(room);
         if (!documentId) return Response.json({ error: "Unknown room" }, { status: 403, headers });
-        const access = await withCollaborationDb((db) => roleForDocument(db, documentId, userId));
+        // The access check and the display-name lookup are independent network calls.
+        const [access, user] = await Promise.all([
+          withCollaborationDb((db) => roleForDocument(db, documentId, userId)),
+          clerkClient().users.getUser(userId),
+        ]);
         if (!access)
           return Response.json({ error: "No access to this document" }, { status: 403, headers });
-        const user = await clerkClient().users.getUser(userId);
         const name =
           user.fullName || user.username || user.firstName || user.lastName || "Musician";
         const info = presenceUserField({ userId, name });

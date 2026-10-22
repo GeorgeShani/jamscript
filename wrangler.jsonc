@@ -1,38 +1,54 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "jamscript",
-  "compatibility_date": "2026-10-17",
-  "compatibility_flags": ["nodejs_compat"],
-  "vars": {
-    "APP_ORIGIN": "https://jamscript.dev",
-    "GEMINI_MODEL": "gemini-3.8-flash",
-    "OPENROUTER_ASK_MODELS": "openai/gpt-6-luna,google/gemini-3.8-flash,anthropic/claude-sonnet-5.5",
-    "OPENROUTER_EDIT_MODELS": "openai/gpt-6.1-sol,anthropic/claude-sonnet-5.5,google/gemini-3.8-flash",
-    "JAMSCRIPT_CLERK_FRONTEND_API_URL": "https://divine-swine-924.clerk.accounts.dev",
-    "JAMSCRIPT_CLERK_OAUTH_CLIENT_ID": "MOJsUyjoG6hB7LtV",
-    "JAMSCRIPT_DESKTOP_PUBLIC_API_ORIGIN": "https://jamscript.dev",
-    "MAIL_FROM": "JamScript <invites@jamscript.dev>",
-    "VITE_CLERK_PUBLISHABLE_KEY": "pk_test_ZGl2aW5lLXN3aW5lLTkyNC5jbGVyay5hY2NvdW50cy5kZXYk",
-    "VITE_LIVEBLOCKS_PUBLIC_KEY": "pk_dev_46srekrC0_dKnujfIA4seYsDFYB4D8r6A4nS5x9YXwD3L9OC0SDxZpEDmbXF_f6G",
-    "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_UwXPjcOUsfw-3ZRw6u9PjA_XNOI252z",
-    "VITE_SUPABASE_URL": "https://ctilbsxjdvnvojhbajdx.supabase.co",
-  },
-  "ratelimits": [
-    {
-      "name": "AGENT_RATE_LIMITER",
-      "namespace_id": "604211",
-      "simple": {
-        "limit": 20,
-        "period": 60,
-      },
-    },
-  ],
-  "main": "@tanstack/react-start/server-entry",
-  "routes": [
-    {
-      "pattern": "jamscript.dev",
-      "custom_domain": true,
-    },
-  ],
-  "workers_dev": true,
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "jamscript",
+	"compatibility_date": "2026-10-17",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"vars": {
+		"APP_ORIGIN": "https://jamscript.dev",
+		"GEMINI_MODEL": "gemini-3.8-flash",
+		"OPENROUTER_ASK_MODELS": "openai/gpt-6-luna,google/gemini-3.8-flash,anthropic/claude-sonnet-5.5",
+		"OPENROUTER_EDIT_MODELS": "openai/gpt-6.1-sol,anthropic/claude-sonnet-5.5,google/gemini-3.8-flash",
+		"JAMSCRIPT_CLERK_FRONTEND_API_URL": "https://divine-swine-924.clerk.accounts.dev",
+		"JAMSCRIPT_CLERK_OAUTH_CLIENT_ID": "MOJsUyjoG6hB7LtV",
+		"JAMSCRIPT_DESKTOP_PUBLIC_API_ORIGIN": "https://jamscript.dev",
+		"MAIL_FROM": "JamScript <invites@jamscript.dev>",
+		"VITE_CLERK_PUBLISHABLE_KEY": "pk_test_ZGl2aW5lLXN3aW5lLTkyNC5jbGVyay5hY2NvdW50cy5kZXYk",
+		"VITE_LIVEBLOCKS_PUBLIC_KEY": "pk_dev_46srekrC0_dKnujfIA4seYsDFYB4D8r6A4nS5x9YXwD3L9OC0SDxZpEDmbXF_f6G",
+		"VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_UwXPjcOUsfw-3ZRw6u9PjA_XNOI252z",
+		"VITE_SUPABASE_URL": "https://ctilbsxjdvnvojhbajdx.supabase.co",
+	},
+	"ratelimits": [
+		{
+			"name": "AGENT_RATE_LIMITER",
+			"namespace_id": "604211",
+			"simple": {
+				"limit": 20,
+				"period": 60,
+			},
+		},
+	],
+	"main": "@tanstack/react-start/server-entry",
+	// Smart Placement runs the Worker near its Postgres backend when that is faster than
+	// running it next to the visitor. Observability keeps request traces for latency work.
+	"placement": {
+		"mode": "smart"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"routes": [
+		{
+			"pattern": "jamscript.dev",
+			"custom_domain": true,
+		},
+	],
+	"workers_dev": true,
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE_FRESH",
+			"id": "5d6fc204bc81458193e564df5323a656"
+		}
+	],
 }

@@ -56,22 +56,48 @@ const marks = StateField.define<DecorationSet>({
 
 export const playbackHighlightExtension = [activeHighlights, marks];
 
+// Dense patterns hit dozens of notes a second. Each editor transaction rebuilds
+// the decoration set on the same thread as Strudel's scheduler, so hits that land
+// within one batch window share a single add and a single remove transaction.
+const BATCH_MS = 50;
+const batches = new WeakMap<
+  EditorView,
+  { ranges: Map<string, PlaybackRange>; timer: ReturnType<typeof setTimeout> }
+>();
+
 export function flashPlaybackRanges(view: EditorView, ranges: PlaybackRange[], durationMs = 180) {
   if (!view.dom.isConnected || !ranges.length) return;
-  const id = ++nextId;
-  view.dispatch({ effects: highlightChange.of({ type: "add", id, ranges }) });
-  const pending = timers.get(view) ?? new Set<ReturnType<typeof setTimeout>>();
-  timers.set(view, pending);
-  const timer = setTimeout(() => {
-    pending.delete(timer);
-    if (view.dom.isConnected)
-      view.dispatch({ effects: highlightChange.of({ type: "remove", id }) });
-  }, durationMs);
-  pending.add(timer);
+  let batch = batches.get(view);
+  if (!batch) {
+    const pending = timers.get(view) ?? new Set<ReturnType<typeof setTimeout>>();
+    timers.set(view, pending);
+    const created = {
+      ranges: new Map<string, PlaybackRange>(),
+      timer: setTimeout(() => {
+        pending.delete(created.timer);
+        batches.delete(view);
+        if (!view.dom.isConnected) return;
+        const id = ++nextId;
+        view.dispatch({
+          effects: highlightChange.of({ type: "add", id, ranges: [...created.ranges.values()] }),
+        });
+        const expiry = setTimeout(() => {
+          pending.delete(expiry);
+          if (view.dom.isConnected)
+            view.dispatch({ effects: highlightChange.of({ type: "remove", id }) });
+        }, durationMs);
+        pending.add(expiry);
+      }, BATCH_MS),
+    };
+    pending.add(created.timer);
+    batches.set(view, (batch = created));
+  }
+  for (const range of ranges) batch.ranges.set(`${range.from}:${range.to}`, range);
 }
 
 export function clearPlaybackRanges(view: EditorView) {
   for (const timer of timers.get(view) ?? []) clearTimeout(timer);
   timers.delete(view);
+  batches.delete(view);
   if (view.dom.isConnected) view.dispatch({ effects: highlightChange.of({ type: "clear" }) });
 }

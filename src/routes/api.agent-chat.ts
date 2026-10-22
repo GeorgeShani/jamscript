@@ -73,8 +73,11 @@ export const Route = createFileRoute("/api/agent-chat")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers }),
       GET: async () => {
-        if (!agentConfigured()) return Response.json({ available: false }, { headers });
-        return Response.json({ available: true, models: agentModelOptions() }, { headers });
+        // Static deployment config, requested by both the workbench and the chat panel.
+        // A short browser cache turns the second request and later mounts into hits.
+        const cached = { ...headers, "Cache-Control": "private, max-age=300" };
+        if (!agentConfigured()) return Response.json({ available: false }, { headers: cached });
+        return Response.json({ available: true, models: agentModelOptions() }, { headers: cached });
       },
       POST: async ({ request }) => {
         const operationId = crypto.randomUUID();

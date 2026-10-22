@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SessionLoader } from "@/components/SessionLoader";
 import { browserStorage } from "@/workspaces/storage";
 import type { DocumentRecord } from "@/workspaces/storage";
-import { attachSharedDocument, type SharedPresence } from "./binding";
+import type { SharedPresence } from "./presence";
 import { detachLocalWorkspace } from "./detach-local-workspace";
 import { SharedWorkspaceRow } from "./SharedWorkspaceRow";
 import { SharedWorkspaceHeading } from "./SharedWorkspaceHeading";
@@ -396,14 +396,24 @@ export function SharedSession({
   const shared = document.shared;
   useEffect(() => {
     if (!view || !shared || !userId) return;
-    return attachSharedDocument(view, {
-      documentId: shared.documentId,
-      role: shared.role,
-      userId,
-      name,
-      onStatus,
-      onPresence,
+    // Liveblocks and Yjs are large and only needed once a shared room opens.
+    let cancelled = false;
+    let detach: (() => void) | undefined;
+    void import("./binding").then(({ attachSharedDocument }) => {
+      if (cancelled) return;
+      detach = attachSharedDocument(view, {
+        documentId: shared.documentId,
+        role: shared.role,
+        userId,
+        name,
+        onStatus,
+        onPresence,
+      });
     });
+    return () => {
+      cancelled = true;
+      detach?.();
+    };
     // Callback identities change on workbench renders; a room only reattaches
     // when its identity, role, editor or displayed name changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps

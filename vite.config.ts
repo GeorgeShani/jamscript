@@ -20,6 +20,18 @@ export default defineConfig(({ command, mode }) => ({
   // to map its asset URL replacements rather than invalidate that map chain.
   build: { sourcemap: true },
   environments: {
+    ssr: {
+      build: {
+        rolldownOptions: {
+          output: {
+            // The generated Strudel API reference is large data; keep it out of the route chunk.
+            codeSplitting: {
+              groups: [{ name: "strudel-api", test: /strudel-api\.generated\.json/ }],
+            },
+          },
+        },
+      },
+    },
     client: {
       build: {
         rolldownOptions: {

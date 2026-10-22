@@ -113,7 +113,8 @@ export async function preloadPatternAssets(
       }
       if (jobs.size >= 128) break;
     }
-    if (cycle % 8 === 7 && performance.now() - yieldedAt >= 4) {
+    // Yield on a time budget so a dense pattern cannot block the scheduler for long.
+    if (performance.now() - yieldedAt >= 8) {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       yieldedAt = performance.now();
     }

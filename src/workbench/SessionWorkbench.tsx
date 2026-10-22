@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isolateHistory } from "@codemirror/commands";
 import { closeSearchPanel } from "@codemirror/search";
 import { Transaction } from "@codemirror/state";
@@ -56,7 +56,9 @@ import {
 import { PresenceAvatars, PresenceTabDots } from "@/features/collaboration/PresenceAvatars";
 import { aggregatePresence, type SharedPresence } from "@/features/collaboration/presence";
 import { ExportControl } from "./ExportControl";
-import { ChatPanel } from "@/features/assistant/ChatPanel";
+const ChatPanel = lazy(() =>
+  import("@/features/assistant/ChatPanel").then((module) => ({ default: module.ChatPanel })),
+);
 import { apiUrl } from "@/lib/app-api";
 import { GitPanel } from "./GitPanel";
 import { LicensesLink } from "./LicensesLink";
@@ -236,7 +238,7 @@ export function SessionWorkbench({
   const mounted = useRef(true);
   const evaluation = useRef(0);
   const liveEvaluate = useRef<() => Promise<void>>(async () => {});
-  const [liveUpdates] = useState(() => createLiveEvaluation(() => liveEvaluate.current()));
+  const [liveUpdates] = useState(() => createLiveEvaluation(() => liveEvaluate.current(), 100));
   const pendingLiveTake = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveSource = useRef<ReturnType<typeof createLiveSource> | null>(null);
   const exportAbort = useRef<AbortController | null>(null);
@@ -2572,42 +2574,44 @@ export function SessionWorkbench({
                   </button>
                 </div>
               </div>
-              <ChatPanel
-                workspaceId={activeDocument.shared?.workspaceId || workspace.id}
-                documentId={activeDocument.id}
-                documentName={activeDocument.name}
-                documents={documents.map((document) => ({
-                  id: document.id,
-                  name: document.name,
-                }))}
-                selection={(() => {
-                  const view = views.current.get(activeDocument.id);
-                  if (!view) return "";
-                  const range = view.state.selection.main;
-                  if (range.empty) return "";
-                  return view.state.doc.sliceString(range.from, range.to);
-                })()}
-                problemsText={problems
-                  .map((problem) => `Line ${problem.line}: ${problem.message}`)
-                  .join("\n")}
-                sources={documents.map((document) => ({
-                  id: document.id,
-                  source: document.source,
-                }))}
-                views={views.current}
-                canEdit={(documentId) => {
-                  const shared = drafts.current.get(documentId)?.shared;
-                  if (!shared) return true;
-                  return (
-                    shared.role !== "viewer" &&
-                    shared.workspaceId === activeDocument.shared?.workspaceId
-                  );
-                }}
-                onReveal={(documentIds) => {
-                  setOpenIds((current) => [...new Set([...current, ...documentIds])]);
-                }}
-                onStopPlayback={() => void stopPlayback()}
-              />
+              <Suspense fallback={null}>
+                <ChatPanel
+                  workspaceId={activeDocument.shared?.workspaceId || workspace.id}
+                  documentId={activeDocument.id}
+                  documentName={activeDocument.name}
+                  documents={documents.map((document) => ({
+                    id: document.id,
+                    name: document.name,
+                  }))}
+                  selection={(() => {
+                    const view = views.current.get(activeDocument.id);
+                    if (!view) return "";
+                    const range = view.state.selection.main;
+                    if (range.empty) return "";
+                    return view.state.doc.sliceString(range.from, range.to);
+                  })()}
+                  problemsText={problems
+                    .map((problem) => `Line ${problem.line}: ${problem.message}`)
+                    .join("\n")}
+                  sources={documents.map((document) => ({
+                    id: document.id,
+                    source: document.source,
+                  }))}
+                  views={views.current}
+                  canEdit={(documentId) => {
+                    const shared = drafts.current.get(documentId)?.shared;
+                    if (!shared) return true;
+                    return (
+                      shared.role !== "viewer" &&
+                      shared.workspaceId === activeDocument.shared?.workspaceId
+                    );
+                  }}
+                  onReveal={(documentIds) => {
+                    setOpenIds((current) => [...new Set([...current, ...documentIds])]);
+                  }}
+                  onStopPlayback={() => void stopPlayback()}
+                />
+              </Suspense>
             </aside>
           </>
         )}
