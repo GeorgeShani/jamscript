@@ -1,4 +1,5 @@
 import { javascriptLanguage } from "@codemirror/lang-javascript";
+import { memoizeBySource, parseJs } from "./js-tree";
 import type { SyntaxNode, Tree } from "@lezer/common";
 
 export interface MixTrack {
@@ -101,11 +102,10 @@ function stackCall(node: SyntaxNode | null, source: string): SyntaxNode | null {
 }
 
 /** Build playback-only orbit assignments. The CodeMirror document is never changed. */
-export function prepareMix(
-  source: string,
-  parsedTree?: Tree,
-): { code: string; tracks: MixTrack[]; mixable?: boolean; moved?: MovedPattern } {
-  const tree = parsedTree ?? javascriptLanguage.parser.parse(source);
+type PreparedMix = { code: string; tracks: MixTrack[]; mixable?: boolean; moved?: MovedPattern };
+
+function prepareMixUncached(source: string, parsedTree?: Tree): PreparedMix {
+  const tree = parsedTree ?? parseJs(source);
   let invalid = false;
   let authoredRouting = false;
   tree.iterate({
@@ -234,7 +234,7 @@ export function renameTrackPatch(
 ): MixSourcePatch | null {
   const name = requestedName.trim();
   if (!/^[\p{L}\p{N}_][\p{L}\p{N}_ -]{0,39}$/u.test(name)) return null;
-  const tree = javascriptLanguage.parser.parse(source);
+  const tree = parseJs(source);
   const before = prepareMix(source, tree).tracks;
   const index = before.findIndex((track) => track.id === id);
   const target = before[index];
@@ -305,4 +305,11 @@ export function renameTrackPatch(
   )
     return null;
   return patch;
+}
+
+const prepareMixMemo = memoizeBySource((source: string) => prepareMixUncached(source));
+
+/** Playback-only orbit assignments; a given source text is analysed once. */
+export function prepareMix(source: string, parsedTree?: Tree): PreparedMix {
+  return parsedTree ? prepareMixUncached(source, parsedTree) : prepareMixMemo(source);
 }

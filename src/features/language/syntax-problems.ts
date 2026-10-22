@@ -1,4 +1,5 @@
 import { javascriptLanguage } from "@codemirror/lang-javascript";
+import { memoizeBySource, parseJs } from "@/engine/js-tree";
 
 export interface SyntaxProblem {
   from: number;
@@ -9,8 +10,8 @@ export interface SyntaxProblem {
 }
 
 /** Parse only. Never evaluate user music or infer errors from unsupported expressions. */
-export function syntaxProblems(source: string): SyntaxProblem[] {
-  const tree = javascriptLanguage.parser.parse(source);
+function syntaxProblemsUncached(source: string): SyntaxProblem[] {
+  const tree = parseJs(source);
   const problems: SyntaxProblem[] = [];
   tree.iterate({
     enter(node) {
@@ -31,3 +32,6 @@ export function syntaxProblems(source: string): SyntaxProblem[] {
   });
   return problems;
 }
+
+export const syntaxProblems: (source: string) => SyntaxProblem[] =
+  memoizeBySource(syntaxProblemsUncached);

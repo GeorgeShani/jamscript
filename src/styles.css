@@ -5,7 +5,7 @@
 
 @font-face {
   font-family: "Schibsted Grotesk";
-  src: url("./assets/fonts/SchibstedGrotesk.ttf") format("truetype");
+  src: url("./assets/fonts/SchibstedGrotesk.woff2") format("woff2");
   font-style: normal;
   font-weight: 400 900;
   font-display: swap;
@@ -13,7 +13,7 @@
 
 @font-face {
   font-family: "Martian Mono";
-  src: url("./assets/fonts/MartianMono.ttf") format("truetype");
+  src: url("./assets/fonts/MartianMono.woff2") format("woff2");
   font-style: normal;
   font-weight: 100 800;
   font-display: swap;

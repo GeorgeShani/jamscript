@@ -7,6 +7,8 @@ let client: LSPClient | null = null;
 
 function languageClient() {
   if (client) return client;
+  // Dead-code eliminated from the server build so the 6.5 MB worker is not bundled there.
+  if (import.meta.env.SSR) throw new Error("The language service runs in the browser only");
   const worker = new Worker(new URL("./strudel.worker.ts", import.meta.url), { type: "module" });
   const subscribers = new Set<(value: string) => void>();
   worker.onmessage = (event: MessageEvent<string>) => {

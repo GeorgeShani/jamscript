@@ -1,4 +1,5 @@
 import { javascriptLanguage } from "@codemirror/lang-javascript";
+import { memoizeBySource, parseJs } from "./js-tree";
 import type { SyntaxNode } from "@lezer/common";
 import { prepareMix } from "./mix-source";
 
@@ -265,8 +266,8 @@ function chainsIn(
 }
 
 /** Pure, full-document analysis. Invalid source never yields editable ranges. */
-export function deriveMusic(source: string): MusicDocument {
-  const tree = javascriptLanguage.parser.parse(source);
+function deriveMusicUncached(source: string): MusicDocument {
+  const tree = parseJs(source);
   let invalid = false;
   tree.iterate({
     enter(node) {
@@ -447,3 +448,6 @@ export function lensPatch(source: string, edit: LensEdit): SourcePatch | null {
     return null;
   return patch;
 }
+
+/** Pure, full-document analysis shared by every caller of the same source text. */
+export const deriveMusic: (source: string) => MusicDocument = memoizeBySource(deriveMusicUncached);

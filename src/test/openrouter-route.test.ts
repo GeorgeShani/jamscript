@@ -13,7 +13,6 @@ beforeEach(() => {
     "LIVEBLOCKS_SECRET_KEY",
     "OPENROUTER_ASK_MODELS",
     "OPENROUTER_EDIT_MODELS",
-    "GEMINI_API_KEY",
   ])
     vi.stubEnv(name, "");
   vi.stubEnv("OPENROUTER_API_KEY", "test-only");

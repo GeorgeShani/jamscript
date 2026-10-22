@@ -48,8 +48,40 @@ const linkedLens = StateField.define<string | null>({
 });
 const controlGesture = Annotation.define<boolean>();
 
+// A drag can report several pointer moves per frame; only the latest value per control
+// matters. Moves are applied once per animation frame, and always before a gesture ends,
+// an edit that is not part of a drag, or an undo.
+const pendingLensEdits = new WeakMap<
+  EditorView,
+  { edits: Map<string, { edit: LensEdit; gesture: number }>; frame: number }
+>();
+
+export function flushLensEdits(view: EditorView) {
+  const pending = pendingLensEdits.get(view);
+  if (!pending) return;
+  pendingLensEdits.delete(view);
+  cancelAnimationFrame(pending.frame);
+  for (const { edit, gesture } of pending.edits.values()) applyLensEdit(view, edit, gesture);
+}
+
 export function dispatchLensEdit(view: EditorView, edit: LensEdit, gestureTime?: number) {
   if (!view.state.facet(EditorView.editable)) return false;
+  if (gestureTime === undefined || typeof requestAnimationFrame !== "function") {
+    flushLensEdits(view);
+    return applyLensEdit(view, edit, gestureTime);
+  }
+  let pending = pendingLensEdits.get(view);
+  if (!pending) {
+    pending = { edits: new Map(), frame: 0 };
+    pending.frame = requestAnimationFrame(() => flushLensEdits(view));
+    pendingLensEdits.set(view, pending);
+  }
+  pending.edits.set(edit.target, { edit, gesture: gestureTime });
+  return true;
+}
+
+function applyLensEdit(view: EditorView, edit: LensEdit, gestureTime?: number) {
+  if (!view.dom.isConnected && gestureTime !== undefined) return false;
   const patch = lensPatch(view.state.doc.toString(), edit);
   if (!patch) return false;
   view.dispatch({
@@ -67,6 +99,7 @@ export function dispatchLensEdit(view: EditorView, edit: LensEdit, gestureTime?:
 }
 export function dispatchMusicHistory(view: EditorView, forward: boolean) {
   if (!view.state.facet(EditorView.editable)) return false;
+  flushLensEdits(view);
   if (view.state.facet(ySyncFacet))
     return yUndoManagerKeymap[forward ? 1 : 0]?.run?.(view) ?? false;
   return (forward ? redo : undo)(view);
@@ -101,7 +134,10 @@ class TrackWidget extends WidgetType {
         dispatchLensEdit(view, edit, gesture);
       },
       link: (id) => link(view, id),
-      finishGesture: () => view.dispatch({ annotations: isolateHistory.of("after") }),
+      finishGesture: () => {
+        flushLensEdits(view);
+        view.dispatch({ annotations: isolateHistory.of("after") });
+      },
       history: (forward) => {
         dispatchMusicHistory(view, forward);
       },

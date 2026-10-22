@@ -13,6 +13,7 @@ import { ClerkProvider } from "@clerk/tanstack-react-start";
 import { shadcn } from "@clerk/ui/themes";
 
 import appCss from "../styles.css?url";
+import sansFont from "../assets/fonts/SchibstedGrotesk.woff2?url";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -84,6 +85,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
     links: [
+      {
+        rel: "preload",
+        href: sansFont,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
       {
         rel: "stylesheet",
         href: appCss,

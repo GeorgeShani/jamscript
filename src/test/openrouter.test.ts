@@ -44,7 +44,6 @@ beforeEach(() => {
   vi.stubEnv("OPENROUTER_API_KEY", "test-key-do-not-expose");
   vi.stubEnv("OPENROUTER_ASK_MODELS", "");
   vi.stubEnv("OPENROUTER_EDIT_MODELS", "");
-  vi.stubEnv("GEMINI_API_KEY", "");
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -60,8 +59,6 @@ it("makes OpenRouter-only installations available and respects mode-specific lis
   expect(resolveOpenRouterModels("edit")[0]).toBe("openai/gpt-6-sol");
   vi.stubEnv("OPENROUTER_API_KEY", " ");
   expect(agentConfigured()).toBe(false);
-  vi.stubEnv("GEMINI_API_KEY", "legacy-key");
-  expect(agentConfigured()).toBe(true);
 });
 
 it("promotes a selected model while keeping the configured fallback allowlist", () => {

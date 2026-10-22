@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { isolateHistory, redo, undo } from "@codemirror/commands";
 import { Transaction } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { createMusicEditor, dispatchLensEdit, musicModel } from "@/components/jam/code-editor";
+import {
+  createMusicEditor,
+  dispatchLensEdit,
+  flushLensEdits,
+  musicModel,
+} from "@/components/jam/code-editor";
 import { SAMPLE_CODE } from "@/components/jam/session";
 import { renameTrackPatch } from "@/engine/mix-source";
 import { act } from "@testing-library/react";
@@ -56,11 +61,31 @@ describe("Real music editor", () => {
     const time = Date.now();
     for (const value of [1100, 800, 430])
       dispatchLensEdit(view, { target: "bass/param/lpf", value }, time);
+    // Drag moves are applied once per frame; the control flushes them before ending a gesture.
+    flushLensEdits(view);
     view.dispatch({ annotations: isolateHistory.of("after") });
     undo(view);
     expect(view.state.doc.toString()).toBe(beforeDrag);
     undo(view);
     expect(view.state.doc.toString()).toBe(SAMPLE_CODE);
+  });
+  it("applies several drag moves in one frame as a single edit with the latest value", () => {
+    const view = editor();
+    const dispatch = vi.spyOn(view, "dispatch");
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+      frames.push(callback),
+    );
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const time = Date.now();
+    for (const value of [1100, 800, 430])
+      dispatchLensEdit(view, { target: "bass/param/lpf", value }, time);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(view.state.doc.toString()).toBe(SAMPLE_CODE);
+    frames[0]!(0);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(view.state.doc.toString()).toContain("430");
+    vi.unstubAllGlobals();
   });
   it("updates a focused knob in place when its source changes", () => {
     const view = editor();

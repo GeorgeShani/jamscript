@@ -1,4 +1,5 @@
 import { javascriptLanguage } from "@codemirror/lang-javascript";
+import { memoizeBySource, parseJs } from "@/engine/js-tree";
 import type { SyntaxNode } from "@lezer/common";
 import type { SourcePatch, SourceRange } from "@/engine/music-document";
 
@@ -64,7 +65,7 @@ function inspectTempo(source: string): TempoTarget {
     cpsPerUnit: 1,
     insertAt: 0,
   };
-  const tree = javascriptLanguage.parser.parse(source);
+  const tree = parseJs(source);
   let invalid = false;
   const identifiers: SyntaxNode[] = [];
   tree.iterate({
@@ -115,10 +116,10 @@ function inspectTempo(source: string): TempoTarget {
   };
 }
 
-export function readTempo(source: string): TempoState {
+export const readTempo: (source: string) => TempoState = memoizeBySource((source) => {
   const { cps, editable } = inspectTempo(source);
   return { cps, editable };
-}
+});
 
 /** Only a proven literal range (or a new top-level tempo declaration) is changed. */
 export function tempoPatch(source: string, cps: number): SourcePatch | null {

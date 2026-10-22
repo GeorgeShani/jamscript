@@ -40,6 +40,8 @@ let evaluationRevision = 0;
 let evaluationSignal: AbortSignal | undefined;
 let fading = false;
 let started = false;
+let livePattern: PreloadPattern | null = null;
+let liveScan: ReturnType<typeof setTimeout> | null = null;
 let mixTracks: MixTrack[] = [];
 let movedPattern: MovedPattern | undefined;
 let mixLevels: Record<string, number> = {};
@@ -183,6 +185,11 @@ function silence(strudel: StrudelWeb, smooth = false) {
   }
 }
 
+/**
+ * superdough computes `parseInt(undefined) ?? 128`, which is NaN, so without an explicit
+ * value its voice limit never applies and long tails pile up on the audio thread.
+ */
+const MAX_POLYPHONY = 128;
 const SAMPLE_BANKS = [
   "tidal-drum-machines",
   "piano",
@@ -244,14 +251,23 @@ export function initPlayback(): Promise<StrudelWeb> {
           upcoming = pattern;
           // beforeStart only runs on a cold Play. Live edits that introduce new
           // samples would otherwise fetch them when the first note fires, late.
-          if (started)
-            void preloadPatternAssets(
-              pattern,
-              strudel,
-              () => allowed && started,
-              evaluationSignal,
-              { waitForAll: false, onBackgroundError: () => {} },
-            ).catch(() => {});
+          // A knob drag re-evaluates many times a second; scan once the edits settle.
+          if (started) {
+            livePattern = pattern;
+            liveScan ??= setTimeout(() => {
+              liveScan = null;
+              const latest = livePattern;
+              livePattern = null;
+              if (latest && started && allowed)
+                void preloadPatternAssets(
+                  latest,
+                  strudel,
+                  () => allowed && started,
+                  evaluationSignal,
+                  { waitForAll: false, onBackgroundError: () => {} },
+                ).catch(() => {});
+            }, 400);
+          }
           return pattern;
         },
         beforeStart: async () => {
@@ -300,7 +316,7 @@ export function initPlayback(): Promise<StrudelWeb> {
       });
       // initStrudel installs a first-mousedown listener, but the first Play
       // click may happen before that listener exists. Load worklets explicitly.
-      await strudel.initAudio();
+      await strudel.initAudio({ maxPolyphony: MAX_POLYPHONY });
       activeStrudel = strudel;
       return strudel;
     })().catch((error: unknown) => {
@@ -381,6 +397,9 @@ export function play(code: string): Promise<boolean> {
         mixTracks = mix.mixable === false ? [] : mix.tracks;
         evaluationRevision = request;
         evaluationSignal = startup.signal;
+        // The first-gesture audio init resets the limit to NaN; set it before the song runs
+        // so a song's own setMaxPolyphony() still wins.
+        strudel.setMaxPolyphony?.(MAX_POLYPHONY);
         await strudel.evaluate(mix.code);
         if (!allowed) {
           mixEnabled = false;

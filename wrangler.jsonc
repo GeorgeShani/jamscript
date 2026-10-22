@@ -7,7 +7,6 @@
 	],
 	"vars": {
 		"APP_ORIGIN": "https://jamscript.dev",
-		"GEMINI_MODEL": "gemini-3.8-flash",
 		"OPENROUTER_ASK_MODELS": "openai/gpt-6-luna,google/gemini-3.8-flash,anthropic/claude-sonnet-5.5",
 		"OPENROUTER_EDIT_MODELS": "openai/gpt-6.1-sol,anthropic/claude-sonnet-5.5,google/gemini-3.8-flash",
 		"JAMSCRIPT_CLERK_FRONTEND_API_URL": "https://divine-swine-924.clerk.accounts.dev",

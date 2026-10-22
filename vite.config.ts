@@ -34,6 +34,8 @@ export default defineConfig(({ command, mode }) => ({
     },
     client: {
       build: {
+        // Browser source maps would be publicly downloadable (about 30 MB); server maps stay.
+        sourcemap: false,
         rolldownOptions: {
           output: {
             codeSplitting: {
@@ -56,6 +58,22 @@ export default defineConfig(({ command, mode }) => ({
     },
   },
   plugins: [
+    {
+      // The language service worker (6.5 MB with TypeScript) only runs in the browser; keep
+      // it out of the Worker bundle.
+      name: "jamscript-ssr-skip-language-client",
+      enforce: "pre",
+      resolveId(source) {
+        if (this.environment?.name === "ssr" && source.endsWith("features/language/client"))
+          return "\0jamscript-language-client-stub";
+        return null;
+      },
+      load(id) {
+        return id === "\0jamscript-language-client-stub"
+          ? "export const attachStrudelLanguage = () => {};"
+          : null;
+      },
+    },
     parseStrudelSoundfontsWithoutEval(),
     cloudflare({ viteEnvironment: { name: "ssr" } }),
     tanstackStart(),

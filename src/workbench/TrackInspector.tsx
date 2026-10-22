@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { isolateHistory } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
-import { dispatchLensEdit } from "@/components/jam/code-editor";
+import { dispatchLensEdit, flushLensEdits } from "@/components/jam/code-editor";
 import {
   Knob,
   KnobDial,
@@ -79,8 +79,10 @@ export function TrackInspector({
     dispatchLensEdit(view, { target: lens.id, value }, reason === "drag" ? time : undefined);
   };
   const commit = (lens: ParamLens) => {
-    if (gestures.current.delete(lens.id))
+    if (gestures.current.delete(lens.id)) {
+      if (view) flushLensEdits(view);
       view?.dispatch({ annotations: isolateHistory.of("after") });
+    }
   };
   const parameters = track?.lenses.filter((lens): lens is ParamLens => lens.kind === "param") ?? [];
   const otherParamTracks = tracks

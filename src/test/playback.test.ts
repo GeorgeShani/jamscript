@@ -12,6 +12,7 @@ const web = vi.hoisted(() => ({
   getSound: vi.fn(),
   getSampleInfo: vi.fn(),
   getSampleBuffer: vi.fn(),
+  setMaxPolyphony: vi.fn(),
 }));
 vi.mock("@strudel/web", () => ({
   ...web,
@@ -71,6 +72,13 @@ describe("Live playback adapter", () => {
     await options.prebake();
     expect(web.samples).toHaveBeenCalledTimes(6);
     expect(web.samples.mock.calls.every(([bank]) => typeof bank === "object")).toBe(true);
+  });
+  it("sets an explicit voice limit at init and before each evaluation", async () => {
+    const playback = await import("@/engine/playback");
+    expect(await playback.play('s("bd")')).toBe(true);
+    expect(web.initAudio).toHaveBeenCalledWith({ maxPolyphony: 128 });
+    expect(web.setMaxPolyphony).toHaveBeenCalledWith(128);
+    await playback.stop();
   });
   it("lets sounding voices ring out on Stop and stays restartable", async () => {
     const gain = {
