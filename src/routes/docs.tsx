@@ -37,7 +37,9 @@ function DocsPage() {
           <a href="#controls">Controls and mixing</a>
           <a href="#export">Export and history</a>
           <a href="#shortcuts">Keyboard shortcuts</a>
-          <a href="#sharing">Sharing status</a>
+          <a href="#samples">Samples</a>
+          <a href="#assistant">Assistant</a>
+          <a href="#sharing">Sharing and collaboration</a>
         </nav>
         <main className="jam-docs-main">
           <Link to="/" className="jam-docs-back">
@@ -79,13 +81,14 @@ function DocsPage() {
             </p>
             <p>
               The desktop edition can open a selected folder and save files to disk. Browser
-              workspaces do not have direct filesystem access. Public desktop installers will appear
-              on the
+              workspaces do not have direct filesystem access. Desktop installers for Windows, macOS
+              (Apple Silicon) and Linux are on the
               <Link to="/" hash="download">
                 {" "}
                 Download section
-              </Link>{" "}
-              after they are published.
+              </Link>
+              . Current builds are not code-signed or notarized, so your operating system may show a
+              security warning on first launch.
             </p>
           </section>
           <section id="tempo">
@@ -149,13 +152,53 @@ function DocsPage() {
               </div>
             </dl>
           </section>
-          <section id="sharing">
-            <span className="jam-docs-number">07 / CONNECT</span>
-            <h2>Sharing status</h2>
+          <section id="samples">
+            <span className="jam-docs-number">07 / SOUND</span>
+            <h2>Samples</h2>
             <p>
-              Account-backed sharing requires the connected workspace services and permissions.
-              Local browser workspaces remain private to this browser. When sharing is available,
-              JamScript publishes only files you explicitly select, not your local folder.
+              Open <strong>Samples</strong> in the bottom panel, then load sample banks. Play a song
+              first so its custom sample packs are registered, then refresh the banks. Tap a Sound
+              Pad to audition it without replacing your song, and choose a variant or adjust the
+              preview volume.
+            </p>
+            <p>
+              <strong>Replace selected sound</strong> only edits a single literal sound selected in
+              the editor, and you can undo it. It does not rewrite pattern strings or banked
+              expressions. Sample packs are downloaded from their hosts on first use and cached in
+              your browser, so the first play of a new song can start a little later than the next.
+            </p>
+          </section>
+          <section id="assistant">
+            <span className="jam-docs-number">08 / ASK</span>
+            <h2>Assistant</h2>
+            <p>
+              The assistant panel has two modes. <strong>Ask</strong> explains code and returns
+              examples you can copy; it never writes to your files. <strong>Edit</strong> proposes
+              changes to existing files for you to review, and nothing is applied until you accept
+              it. Edits are checked against the current source, so a proposal made for an older
+              version is not applied silently.
+            </p>
+            <p>
+              Viewers of a shared project can use Ask, but Edit needs editing access. The assistant
+              appears only when it is configured for the deployment, and it can be unavailable if
+              the AI service is out of credit or down.
+            </p>
+          </section>
+          <section id="sharing">
+            <span className="jam-docs-number">09 / CONNECT</span>
+            <h2>Sharing and collaboration</h2>
+            <p>
+              Sign in to create a shared project. Local browser workspaces stay private to your
+              browser; JamScript shares only the files you choose, not your local folder. A project
+              owner can invite people by email as editors or viewers. If email cannot be sent, you
+              get a link to share instead. Invitations expire after seven days and the owner can
+              revoke them.
+            </p>
+            <p>
+              Owners can see members and pending invitations and remove members. Editors work in the
+              same document live, and connected people appear as coloured avatars and tab dots.
+              Viewers have read-only access. Shared documents sync through the live room, and
+              someone else’s edits never start playback on your machine.
             </p>
             <a
               href="https://strudel.cc/learn/"
