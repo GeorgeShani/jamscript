@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4
+
+- Stopping playback now lets delay and release tails ring out naturally instead of fading them in a fraction of a second; exports still start from silence.
+- Dropdowns (Export, Share, Ask) and the Save As dialog close when you press outside them or hit Escape, and the mixer color palette does too.
+- The /docs page now covers samples, the assistant and sharing, and the Hyperdrive setup is documented.
+
 ## 0.3.3
 
 - Playback: batched editor highlights, a more tolerant audio buffer, earlier sample loading for live edits and a time-sliced pre-scan reduce glitches and start delay.
