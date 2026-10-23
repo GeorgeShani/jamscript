@@ -19,11 +19,23 @@ function concat(chunks: Float32Array[]): Float32Array {
   return result;
 }
 
+export { MAX_EXPORT_SECONDS, MIN_EXPORT_SECONDS } from "./export-audio-limits";
+import { MAX_EXPORT_SECONDS, MIN_EXPORT_SECONDS } from "./export-audio-limits";
+
+/**
+ * The recording runs for the requested time, rounded up to the end of the current loop
+ * (a whole number of cycles) so the audio ends cleanly instead of mid-phrase.
+ */
+export function exportLength(seconds: number, cps: number) {
+  const cycles = Math.max(1, Math.ceil(seconds * cps - 1e-9));
+  return { cycles, seconds: cycles / cps };
+}
+
 /** Capture the actual master Web Audio output while the current source plays. */
 export async function recordMainFlow({
   code,
   cps,
-  bars,
+  seconds,
   levels,
   master,
   signal,
@@ -31,14 +43,15 @@ export async function recordMainFlow({
 }: {
   code: string;
   cps: number;
-  bars: number;
+  seconds: number;
   levels: Record<string, number>;
   master: number;
   signal: AbortSignal;
   onProgress: (fraction: number) => void;
 }): Promise<Recording> {
   if (!Number.isFinite(cps) || cps <= 0) throw new Error("Set a valid BPM before exporting.");
-  if (![4, 8, 16].includes(bars)) throw new Error("Choose 4, 8, or 16 bars.");
+  if (!Number.isFinite(seconds) || seconds < MIN_EXPORT_SECONDS || seconds > MAX_EXPORT_SECONDS)
+    throw new Error("Choose a length between 1 second and 10 minutes.");
   if (signal.aborted) throw new DOMException("Export cancelled", "AbortError");
   await initPlayback();
   const output = getOutputNode();
@@ -78,7 +91,7 @@ export async function recordMainFlow({
     }
   };
 
-  const durationMs = (bars / cps) * 1000;
+  const durationMs = exportLength(seconds, cps).seconds * 1000;
   let startedAt = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let progress: ReturnType<typeof setInterval> | undefined;

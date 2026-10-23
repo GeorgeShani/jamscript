@@ -934,7 +934,7 @@ export function SessionWorkbench({
     return () => window.removeEventListener("keydown", onShortcut);
   }, [workspace, openPalette, openWorkspaceSearch]);
 
-  const exportMain = async (format: "wav" | "mp3", bars: number) => {
+  const exportMain = async (format: "wav" | "mp3", seconds: number) => {
     if (!activeDocument || exportingNow.current) return;
     const abort = new AbortController();
     exportAbort.current = abort;
@@ -949,7 +949,7 @@ export function SessionWorkbench({
       const recording = await recordMainFlow({
         code: current.source,
         cps: readTempo(current.source).cps ?? 0,
-        bars,
+        seconds,
         levels: current.mix?.levels ?? EMPTY_LEVELS,
         master: current.mix?.master ?? 1,
         signal: abort.signal,
@@ -962,7 +962,10 @@ export function SessionWorkbench({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${current.name.replace(/\.[^.]+$/, "")}-${bars}bars.${format}`;
+      const minutes = Math.floor(seconds / 60);
+      const rest = Math.round(seconds % 60);
+      const length = `${minutes ? `${minutes}m` : ""}${rest || !minutes ? `${rest}s` : ""}`;
+      link.download = `${current.name.replace(/\.[^.]+$/, "")}-${length}.${format}`;
       document.body.append(link);
       link.click();
       link.remove();
@@ -1786,7 +1789,7 @@ export function SessionWorkbench({
             }
             exporting={exporting}
             progress={exportProgress}
-            onExport={(format, bars) => void exportMain(format, bars)}
+            onExport={(format, seconds) => void exportMain(format, seconds)}
             onCancel={() => exportAbort.current?.abort()}
           />
           <Button

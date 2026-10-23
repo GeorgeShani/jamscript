@@ -1,5 +1,15 @@
+import { useState } from "react";
 import { Download, X } from "lucide-react";
 import { DismissibleDetails } from "@/components/ui/dismissible-details";
+import { MAX_EXPORT_SECONDS, MIN_EXPORT_SECONDS } from "@/engine/export-audio-limits";
+
+const PRESETS = [
+  { value: "15", label: "15 seconds" },
+  { value: "30", label: "30 seconds" },
+  { value: "60", label: "1 minute" },
+  { value: "120", label: "2 minutes" },
+  { value: "300", label: "5 minutes" },
+] as const;
 
 export function ExportControl({
   disabled,
@@ -11,9 +21,11 @@ export function ExportControl({
   disabled: boolean;
   exporting: boolean;
   progress: number;
-  onExport: (format: "wav" | "mp3", bars: number) => void;
+  onExport: (format: "wav" | "mp3", seconds: number) => void;
   onCancel: () => void;
 }) {
+  const [choice, setChoice] = useState("30");
+  const custom = choice === "custom";
   return (
     <DismissibleDetails className="jam-export-control" dismissOnOutside={!exporting}>
       <summary aria-label="Export audio">
@@ -22,7 +34,11 @@ export function ExportControl({
       </summary>
       <div className="jam-export-menu">
         <strong>Export full mix</strong>
-        <p>Record the current document in real time. Track levels and master level are included.</p>
+        <p>
+          Records the song as it plays, so a 1-minute export takes about a minute. It stops at the
+          end of the loop after your chosen length, so the audio ends cleanly. Track levels and
+          master level are included.
+        </p>
         {exporting ? (
           <div className="jam-export-progress" role="status">
             <progress max={100} value={Math.round(progress * 100)} />
@@ -36,17 +52,46 @@ export function ExportControl({
             onSubmit={(event) => {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
-              onExport(data.get("format") === "mp3" ? "mp3" : "wav", Number(data.get("bars")));
+              const seconds = custom ? Number(data.get("custom")) : Number(data.get("length"));
+              if (!Number.isFinite(seconds)) return;
+              onExport(
+                data.get("format") === "mp3" ? "mp3" : "wav",
+                Math.min(MAX_EXPORT_SECONDS, Math.max(MIN_EXPORT_SECONDS, Math.round(seconds))),
+              );
             }}
           >
             <label>
               Length
-              <select name="bars" defaultValue="8" aria-label="Export length">
-                <option value="4">4 bars</option>
-                <option value="8">8 bars</option>
-                <option value="16">16 bars</option>
+              <select
+                name="length"
+                value={choice}
+                onChange={(event) => setChoice(event.target.value)}
+                aria-label="Export length"
+              >
+                {PRESETS.map((preset) => (
+                  <option key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </option>
+                ))}
+                <option value="custom">Custom…</option>
               </select>
             </label>
+            {custom && (
+              <label>
+                Seconds (1–{MAX_EXPORT_SECONDS})
+                <input
+                  name="custom"
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_EXPORT_SECONDS}
+                  max={MAX_EXPORT_SECONDS}
+                  step={1}
+                  defaultValue={90}
+                  required
+                  aria-label="Custom export length in seconds"
+                />
+              </label>
+            )}
             <label>
               Format
               <select name="format" defaultValue="wav" aria-label="Export format">
