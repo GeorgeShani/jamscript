@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.7
+
+- Phones: a calmer one-row toolbar with a More menu, a thumb-reach Play button, bottom tabs, wrapped and slightly smaller code, finger-sized controls, and a row of coding keys (brackets, quotes, `~ < > .`) above the keyboard.
+- Sound plays on iPhones with the silent switch on, and resumes after you switch apps.
+- Sounds browser: a Sounds button, every sample reachable (search, banks, Show all), a pinned preview with copyable code, and an expandable bottom panel.
+- The editor closes brackets and quotes as you type; export length is chosen in seconds or minutes; tempo settings are explained in plain words.
+
 ## 0.3.6
 
 - Restored the 128-voice limit that never applied, shared reverb impulses between tracks, and let the scheduler plan further ahead, for steadier playback.

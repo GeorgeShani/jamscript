@@ -4,7 +4,7 @@ import { LevelMeter } from "@/components/ui/level-meter";
 import { Spectrum } from "@/components/ui/spectrum";
 import { BarVisualizer } from "@/components/ui/bar-visualizer";
 import { SmoothWaveform } from "@/components/ui/smooth-waveform";
-import { GripHorizontal } from "lucide-react";
+import { GripHorizontal, Maximize2, Minimize2 } from "lucide-react";
 import type { KeyboardEventHandler, PointerEventHandler } from "react";
 import { useState, lazy, Suspense } from "react";
 const SampleExplorer = lazy(() =>
@@ -98,6 +98,8 @@ export function OutputPanel({
   onReplaceSound,
   tab: requestedTab,
   onTabChange,
+  expanded = false,
+  onToggleExpanded,
 }: {
   error: string | null;
   output: { context: AudioContext; node: AudioNode } | null;
@@ -118,6 +120,9 @@ export function OutputPanel({
   /** When given, the workbench decides which tab shows (for example, a Sounds shortcut). */
   tab?: OutputTab | undefined;
   onTabChange?: ((tab: OutputTab) => void) | undefined;
+  /** Expanded, the panel takes the whole editor area (the whole screen on phones). */
+  expanded?: boolean;
+  onToggleExpanded?: (() => void) | undefined;
 }) {
   const [localTab, setLocalTab] = useState<OutputTab>("output");
   const tab = requestedTab ?? localTab;
@@ -128,7 +133,11 @@ export function OutputPanel({
   const [selectedTakeId, setSelectedTakeId] = useState<string | null>(null);
   const selectedTake = takes.find((take) => take.id === selectedTakeId);
   return (
-    <section id="jam-output-panel" className="jam-output" aria-label="Output panel">
+    <section
+      id="jam-output-panel"
+      className={`jam-output${expanded ? " is-expanded" : ""}`}
+      aria-label="Output panel"
+    >
       <div
         className="jam-panel-heading jam-output-resizer"
         role="separator"
@@ -152,6 +161,20 @@ export function OutputPanel({
           <GripHorizontal size={15} /> Drag to resize
         </span>
         <span className="jam-output-state">{playing ? "LIVE" : "IDLE"}</span>
+        {onToggleExpanded && (
+          <button
+            type="button"
+            className="jam-output-expand"
+            aria-label={expanded ? "Restore panel size" : "Expand panel"}
+            title={expanded ? "Restore panel size" : "Expand panel"}
+            // A press on the button must not start a resize drag of the heading.
+            onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            onClick={onToggleExpanded}
+          >
+            {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+        )}
       </div>
       <div className="jam-output-tabs" role="tablist" aria-label="Bottom panel">
         <button

@@ -122,7 +122,7 @@ describe("BPM control", () => {
     expect(summary.closest("details")).not.toHaveAttribute("open");
     fireEvent.click(summary);
     expect(summary.closest("details")).toHaveAttribute("open");
-    expect(screen.getByRole("combobox", { name: "Beats per cycle" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Beats in one loop" })).toBeInTheDocument();
   });
 
   it("refuses a programmatic BPM write in a viewer editor", () => {

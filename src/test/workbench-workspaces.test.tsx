@@ -397,13 +397,15 @@ describe("browser workbench", () => {
     fireEvent.keyDown(output, { key: "ArrowUp" });
     expect(output).toHaveAttribute("aria-valuenow", "126");
     fireEvent.keyDown(output, { key: "End" });
-    expect(Number(output.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(500);
+    // The panel can grow to almost the whole editor column, but never past its maximum.
+    expect(output.getAttribute("aria-valuenow")).toBe(output.getAttribute("aria-valuemax"));
     Object.defineProperty(output, "setPointerCapture", { value: vi.fn() });
     Object.defineProperty(output, "hasPointerCapture", { value: () => false });
     fireEvent(output, new MouseEvent("pointerdown", { bubbles: true, button: 0, clientY: 200 }));
     fireEvent(output, new MouseEvent("pointermove", { bubbles: true, clientY: -500 }));
     fireEvent(output, new MouseEvent("pointerup", { bubbles: true, clientY: -500 }));
-    expect(Number(output.getAttribute("aria-valuenow"))).toBeLessThanOrEqual(500);
+    // The panel can grow to almost the whole editor column, but never past its maximum.
+    expect(output.getAttribute("aria-valuenow")).toBe(output.getAttribute("aria-valuemax"));
     expect(window.localStorage.getItem("jamscript-output-height")).toBe(
       output.getAttribute("aria-valuenow"),
     );

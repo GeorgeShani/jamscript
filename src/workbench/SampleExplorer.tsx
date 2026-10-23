@@ -111,95 +111,6 @@ export function SampleExplorer({
   const snippet = preview ? `s("${preview.name}${preview.index ? `:${preview.index}` : ""}")` : "";
   return (
     <div className="jam-sample-explorer">
-      <div className="jam-sample-toolbar">
-        <label>
-          Sounds
-          <input
-            aria-label="Filter registered samples"
-            placeholder="Search, e.g. bd, piano, 808…"
-            value={filter}
-            onChange={(event) => {
-              setFilter(event.target.value);
-              setShown(PAGE);
-            }}
-          />
-        </label>
-        <label>
-          Bank
-          <select
-            aria-label="Sample bank"
-            value={bank}
-            onChange={(event) => {
-              setBank(event.target.value);
-              setShown(PAGE);
-            }}
-          >
-            <option value="">All banks</option>
-            {banks.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" disabled={loading} onClick={() => void load()}>
-          <RefreshCw size={14} />
-          {loading ? "Loading…" : "Refresh"}
-        </button>
-      </div>
-      <p className="jam-muted">
-        Tap a pad to hear it, then use its name in your code, for example <code>s("bd")</code>.
-        Songs that load their own sample packs add them here after you press Play once.
-      </p>
-      {error && (
-        <p role="alert">
-          {error}{" "}
-          <button type="button" onClick={() => void load()}>
-            Retry
-          </button>
-        </p>
-      )}
-      <SoundPadGrid
-        hotkeys
-        hotkeyScope="focus"
-        className="jam-sample-pads"
-        aria-label="Sample audition pads"
-      >
-        {visible.map((sample, index) => (
-          <SoundPad
-            key={sample.name}
-            hotkey={index < 9 ? String(index + 1) : undefined}
-            aria-label={`Audition ${sample.name}`}
-            loading={busy === sample.name}
-            playing={playing && preview?.name === sample.name}
-            onTrigger={() => void audition(sample.name)}
-            onStop={stop}
-          >
-            <SoundPadLabel>{sample.name}</SoundPadLabel>
-            <SoundPadShortcut />
-          </SoundPad>
-        ))}
-      </SoundPadGrid>
-      {samples.length > 0 && (
-        <div className="jam-sample-more">
-          <span className="jam-muted">
-            Showing {visible.length} of {matching.length}
-            {matching.length !== samples.length
-              ? ` matching (${samples.length} in total)`
-              : " sounds"}
-          </span>
-          {visible.length < matching.length && (
-            <button type="button" onClick={() => setShown((count) => count + PAGE * 2)}>
-              Show more
-            </button>
-          )}
-          {visible.length < matching.length && (
-            <button type="button" onClick={() => setShown(matching.length)}>
-              Show all
-            </button>
-          )}
-        </div>
-      )}
       {preview && (
         <div className="jam-sample-clip">
           <div className="jam-sample-transport">
@@ -297,6 +208,99 @@ export function SampleExplorer({
           </span>
         </div>
       )}
+      <div className="jam-sample-toolbar">
+        <label>
+          Sounds
+          <input
+            aria-label="Filter registered samples"
+            placeholder="Search, e.g. bd, piano, 808…"
+            value={filter}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              setShown(PAGE);
+            }}
+          />
+        </label>
+        <label>
+          Bank
+          <select
+            aria-label="Sample bank"
+            value={bank}
+            onChange={(event) => {
+              setBank(event.target.value);
+              setShown(PAGE);
+            }}
+          >
+            <option value="">All banks</option>
+            {banks.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" disabled={loading} onClick={() => void load()}>
+          <RefreshCw size={14} />
+          {loading ? "Loading…" : "Refresh"}
+        </button>
+      </div>
+      {!preview && (
+        <p className="jam-muted">
+          Tap a pad to hear it, then use its name in your code, for example <code>s("bd")</code>.
+          Songs that load their own sample packs add them here after you press Play once.
+        </p>
+      )}
+      {error && (
+        <p role="alert">
+          {error}{" "}
+          <button type="button" onClick={() => void load()}>
+            Retry
+          </button>
+        </p>
+      )}
+      <div className="jam-sample-scroll">
+        <SoundPadGrid
+          hotkeys
+          hotkeyScope="focus"
+          className="jam-sample-pads"
+          aria-label="Sample audition pads"
+        >
+          {visible.map((sample, index) => (
+            <SoundPad
+              key={sample.name}
+              hotkey={index < 9 ? String(index + 1) : undefined}
+              aria-label={`Audition ${sample.name}`}
+              loading={busy === sample.name}
+              playing={playing && preview?.name === sample.name}
+              onTrigger={() => void audition(sample.name)}
+              onStop={stop}
+            >
+              <SoundPadLabel>{sample.name}</SoundPadLabel>
+              <SoundPadShortcut />
+            </SoundPad>
+          ))}
+        </SoundPadGrid>
+        {samples.length > 0 && (
+          <div className="jam-sample-more">
+            <span className="jam-muted">
+              Showing {visible.length} of {matching.length}
+              {matching.length !== samples.length
+                ? ` matching (${samples.length} in total)`
+                : " sounds"}
+            </span>
+            {visible.length < matching.length && (
+              <button type="button" onClick={() => setShown((count) => count + PAGE * 2)}>
+                Show more
+              </button>
+            )}
+            {visible.length < matching.length && (
+              <button type="button" onClick={() => setShown(matching.length)}>
+                Show all
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

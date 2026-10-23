@@ -88,7 +88,7 @@ const PANE_LIMITS = {
   inspector: { min: 190, max: 800 },
   assistant: { min: 280, max: 800 },
 } as const;
-const OUTPUT_LIMITS = { min: 110, max: 500 } as const;
+const OUTPUT_LIMITS = { min: 110 } as const;
 const EMPTY_LEVELS: Record<string, number> = {};
 const FIRST_BEAT_CODE = `setcps(0.5);
 drums: s("bd ~ sd ~");
@@ -112,9 +112,8 @@ function storedOutputHeight() {
   if (typeof window === "undefined") return 174;
   try {
     const value = Number(window.localStorage.getItem("jamscript-output-height"));
-    return Number.isFinite(value) && value >= OUTPUT_LIMITS.min && value <= OUTPUT_LIMITS.max
-      ? value
-      : 174;
+    // The current window limits the height when it is applied; only reject nonsense here.
+    return Number.isFinite(value) && value >= OUTPUT_LIMITS.min && value <= 4000 ? value : 174;
   } catch {
     return 174;
   }
@@ -184,6 +183,7 @@ export function SessionWorkbench({
   const [agentAvailable, setAgentAvailable] = useState(false);
   const [outputOpen, setOutputOpen] = useState(true);
   const [outputTab, setOutputTab] = useState<OutputTab>("output");
+  const [outputExpanded, setOutputExpanded] = useState(false);
   const [paletteMode, setPaletteMode] = useState<"files" | "commands" | null>(null);
   const [outputHeight, setOutputHeight] = useState(storedOutputHeight);
   const [filesWidth, setFilesWidth] = useState(() => storedPaneWidth("files", 232));
@@ -1311,7 +1311,8 @@ export function SessionWorkbench({
   const outputMaximum = () => {
     const columnHeight =
       editorColumn.current?.clientHeight || Math.max(320, window.innerHeight - 120);
-    return Math.max(OUTPUT_LIMITS.min, Math.min(OUTPUT_LIMITS.max, columnHeight - 36 - 200));
+    // Drag the panel almost to the top; leave a strip of code so the drag can come back.
+    return Math.max(OUTPUT_LIMITS.min, columnHeight - 36 - 64);
   };
   const resizeOutput = (requestedHeight: number) => {
     const height = Math.round(
@@ -1738,28 +1739,38 @@ export function SessionWorkbench({
     );
 
   // Secondary controls: inline on wider screens, inside one "More" menu on phones.
+  const loopsPerSecond = tempo.cps === null ? null : Number(tempo.cps.toPrecision(4));
   const tempoMenu = (
-    <details className="jam-tempo-advanced">
+    <DismissibleDetails className="jam-tempo-advanced">
       <summary aria-label="Advanced tempo settings">Tempo settings</summary>
-      <label>
-        Beats per cycle
-        <select
-          aria-label="Beats per cycle"
-          value={beatsPerCycle}
-          disabled={!activeDocument || activeDocument.shared?.role === "viewer"}
-          onChange={(event) => changeBeatsPerCycle(Number(event.target.value))}
-        >
-          {Array.from({ length: 16 }, (_, index) => index + 1).map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </label>
-      <output aria-label="Cycles per second">
-        {tempo.cps === null ? "CPS from code" : `${Number(tempo.cps.toPrecision(8))} CPS`}
-      </output>
-    </details>
+      <div className="jam-tempo-menu">
+        <strong>How BPM is counted</strong>
+        <label>
+          Beats in one loop
+          <select
+            aria-label="Beats in one loop"
+            value={beatsPerCycle}
+            disabled={!activeDocument || activeDocument.shared?.role === "viewer"}
+            onChange={(event) => changeBeatsPerCycle(Number(event.target.value))}
+          >
+            {Array.from({ length: 16 }, (_, index) => index + 1).map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p>
+          Your song repeats in loops. The BPM box counts this many beats in each loop; most music
+          uses 4. Changing it does not change the speed, only the number shown as BPM.
+        </p>
+        <output aria-label="Cycles per second">
+          {loopsPerSecond === null
+            ? "The speed is set in your code."
+            : `Speed: ${loopsPerSecond} loops per second (setcps(${loopsPerSecond}) in code)`}
+        </output>
+      </div>
+    </DismissibleDetails>
   );
   const exportMenu = (
     <ExportControl
@@ -2389,7 +2400,7 @@ export function SessionWorkbench({
           />
         )}
         <div
-          className="jam-editor-column"
+          className={`jam-editor-column${outputOpen && outputExpanded ? " has-expanded-output" : ""}`}
           ref={editorColumn}
           style={{ "--jam-output-height": `${outputHeight}px` } as React.CSSProperties}
         >
@@ -2544,6 +2555,8 @@ export function SessionWorkbench({
             <OutputPanel
               tab={outputTab}
               onTabChange={setOutputTab}
+              expanded={outputExpanded}
+              onToggleExpanded={() => setOutputExpanded((value) => !value)}
               onReplaceSound={(name, index) => {
                 const view = views.current.get(activeIdRef.current ?? "");
                 if (!view || !view.state.facet(CodeMirrorView.editable)) return false;
