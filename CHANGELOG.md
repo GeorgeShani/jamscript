@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.6
+
+- Restored the 128-voice limit that never applied, shared reverb impulses between tracks, and let the scheduler plan further ahead, for steadier playback.
+- Typing and knob drags do far less work: one analysis per edit, one knob update per frame, and a quieter, memoized interface.
+- Faster page loads: long-lived caching for assets, smaller fonts, a workbench script that is a seventh of its former size, and lazy loading of collaboration and Git code.
+- Faster assistant and shared-project requests, and the assistant now uses OpenRouter only.
+- The desktop app keeps sign-in credentials in memory and no longer freezes saves during a Git push.
+
 ## 0.3.5
 
 - Faster, steadier playback: the default sample catalogues ship with the app, a song’s samples are fetched while you edit, and Play starts once the first cycle is ready.
