@@ -173,7 +173,7 @@ During playback, Output can show Spectrum, frequency Bars or an actual Waveform.
 
 Opening a workspace prepares the audio runtime without evaluating its code or starting music. Play waits for assets in the opening two cycles, then prepares later sections in the background. Cached assets are reused on subsequent starts; a first download or decode can still delay an uncached opening sound.
 
-Open **Samples** in the bottom panel, then **Load sample banks**. Play a song first to register its custom sample packs, then refresh the banks. Filter and tap a Sound Pad to audition without replacing your song. Choose a variant, seek its decoded waveform or adjust preview volume; number shortcuts work only with focus inside the pad grid. **Replace selected sound** only replaces an editable single literal sound selected in the editor, with undo. It rejects pattern strings and banked expressions. See the [implementation roadmap](IMPLEMENTATION_PLAN.md) for remaining audio work.
+Open **Sounds** from the activity bar (or the **Samples** tab in the bottom panel); the banks load automatically. Search, choose a **Bank**, or use **Show all** to reach every registered sound, and copy a sound's code from the preview. Play a song first to register its custom sample packs, then press **Refresh**. Filter and tap a Sound Pad to audition without replacing your song. Choose a variant, seek its decoded waveform or adjust preview volume; number shortcuts work only with focus inside the pad grid. **Replace selected sound** only replaces an editable single literal sound selected in the editor, with undo. It rejects pattern strings and banked expressions. See the [implementation roadmap](IMPLEMENTATION_PLAN.md) for remaining audio work.
 
 ## Contributors
 

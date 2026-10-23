@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { Play, Square, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Copy, Play, Square, RefreshCw } from "lucide-react";
 import { SoundPad, SoundPadGrid, SoundPadLabel, SoundPadShortcut } from "@/components/ui/sound-pad";
 import { Waveform } from "@/components/ui/waveform";
 import type { RegisteredSample, SamplePreview } from "@/engine/sample-preview";
+import { OTHER_SOUNDS as OTHER, sampleBank } from "@/engine/sample-banks";
+
+const PAGE = 48;
 
 export function SampleExplorer({
   onReplaceSound,
@@ -18,6 +21,9 @@ export function SampleExplorer({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.7);
+  const [bank, setBank] = useState("");
+  const [shown, setShown] = useState(PAGE);
+  const [copied, setCopied] = useState(false);
   const epoch = useRef(0);
   const audio = useRef<typeof import("@/engine/playback") | null>(null);
   const runtime = async () => (audio.current ??= await import("@/engine/playback"));
@@ -38,6 +44,11 @@ export function SampleExplorer({
     setPlaying(false);
     setBusy(null);
   };
+  // Opening the tab is enough; there is no separate step to load the banks.
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const previewEpoch = epoch;
     const stopped = () => {
@@ -82,32 +93,64 @@ export function SampleExplorer({
       if (version === epoch.current) setBusy(null);
     }
   };
-  const visible = samples
-    .filter((sample) => sample.name.toLowerCase().includes(filter.toLowerCase()))
-    .slice(0, 24);
+  const banks = useMemo(() => {
+    const names = [...new Set(samples.map((sample) => sampleBank(sample.name)))].filter(
+      (name) => name !== OTHER,
+    );
+    return [OTHER, ...names.sort((a, b) => a.localeCompare(b))];
+  }, [samples]);
+  const matching = useMemo(() => {
+    const query = filter.trim().toLowerCase();
+    return samples.filter(
+      (sample) =>
+        (!bank || sampleBank(sample.name) === bank) &&
+        (!query || sample.name.toLowerCase().includes(query)),
+    );
+  }, [samples, filter, bank]);
+  const visible = matching.slice(0, shown);
+  const snippet = preview ? `s("${preview.name}${preview.index ? `:${preview.index}` : ""}")` : "";
   return (
     <div className="jam-sample-explorer">
       <div className="jam-sample-toolbar">
         <label>
-          Registered sounds
+          Sounds
           <input
             aria-label="Filter registered samples"
-            placeholder="Search a bank or sound…"
+            placeholder="Search, e.g. bd, piano, 808…"
             value={filter}
-            onChange={(event) => setFilter(event.target.value)}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              setShown(PAGE);
+            }}
           />
+        </label>
+        <label>
+          Bank
+          <select
+            aria-label="Sample bank"
+            value={bank}
+            onChange={(event) => {
+              setBank(event.target.value);
+              setShown(PAGE);
+            }}
+          >
+            <option value="">All banks</option>
+            {banks.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
         </label>
         <button type="button" disabled={loading} onClick={() => void load()}>
           <RefreshCw size={14} />
-          {loading ? "Loading…" : samples.length ? "Refresh banks" : "Load sample banks"}
+          {loading ? "Loading…" : "Refresh"}
         </button>
       </div>
-      {!samples.length && !loading && (
-        <p className="jam-muted">
-          Load available sample banks. Play your song first to register its custom packs.
-          Auditioning leaves your song running.
-        </p>
-      )}
+      <p className="jam-muted">
+        Tap a pad to hear it, then use its name in your code, for example <code>s("bd")</code>.
+        Songs that load their own sample packs add them here after you press Play once.
+      </p>
       {error && (
         <p role="alert">
           {error}{" "}
@@ -138,15 +181,45 @@ export function SampleExplorer({
         ))}
       </SoundPadGrid>
       {samples.length > 0 && (
-        <p className="jam-muted">
-          {visible.length} of {samples.length} registered sounds · Pad shortcuts work only while
-          this grid has focus.
-        </p>
+        <div className="jam-sample-more">
+          <span className="jam-muted">
+            Showing {visible.length} of {matching.length}
+            {matching.length !== samples.length
+              ? ` matching (${samples.length} in total)`
+              : " sounds"}
+          </span>
+          {visible.length < matching.length && (
+            <button type="button" onClick={() => setShown((count) => count + PAGE * 2)}>
+              Show more
+            </button>
+          )}
+          {visible.length < matching.length && (
+            <button type="button" onClick={() => setShown(matching.length)}>
+              Show all
+            </button>
+          )}
+        </div>
       )}
       {preview && (
         <div className="jam-sample-clip">
           <div className="jam-sample-transport">
             <strong>{preview.name}</strong>
+            <code className="jam-sample-snippet">{snippet}</code>
+            <button
+              type="button"
+              aria-label={`Copy ${snippet}`}
+              onClick={() => {
+                void navigator.clipboard?.writeText(snippet).then(
+                  () => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  },
+                  () => {},
+                );
+              }}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
             <label>
               Variant
               <select

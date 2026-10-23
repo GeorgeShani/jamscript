@@ -740,6 +740,25 @@
   flex: 1;
   min-height: 32px;
 }
+.jam-sample-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.jam-sample-more button {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--foreground);
+}
+.jam-sample-snippet {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--muted);
+  font-family: var(--font-mono, "Martian Mono", monospace);
+  font-size: 12px;
+}
 .jam-sample-explorer {
   padding: 12px 16px;
 }
@@ -776,6 +795,9 @@
   font-size: 12px;
 }
 .jam-sample-pads {
+  max-height: 420px;
+  overflow-y: auto;
+  align-content: start;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 8px;
@@ -3939,7 +3961,7 @@
   .jam-assistant-pane.is-expanded {
     position: fixed;
     z-index: 15;
-    top: 76px;
+    top: 53px;
     right: 0;
     bottom: calc(82px + env(safe-area-inset-bottom));
     left: 0;
@@ -4033,4 +4055,92 @@
   color: var(--primary-foreground);
   font-family: inherit;
   font-weight: 600;
+}
+
+/* Phones: one calm toolbar row (back, song, BPM, More, account). */
+@media (max-width: 599px) {
+  .jam-workbench-toolbar {
+    display: flex;
+    height: 53px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .jam-brand-button,
+  .jam-toolbar-divider,
+  /* Sign-up stays one tap away inside the sign-in dialog. */
+  .jam-workbench-toolbar .jam-sign-up {
+    display: none;
+  }
+  .jam-workspace-switch {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    font-size: 16px;
+  }
+  .jam-transport {
+    flex: none;
+    gap: 6px;
+  }
+  .jam-more-menu {
+    position: relative;
+  }
+  .jam-more-menu > summary {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    list-style: none;
+    cursor: pointer;
+  }
+  .jam-more-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+  .jam-more-panel {
+    position: absolute;
+    z-index: 40;
+    top: 46px;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: min(300px, calc(100vw - 20px));
+    max-height: calc(100dvh - 140px);
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    box-shadow: 0 12px 30px #0009;
+  }
+  /* Each item in the More menu reads as a full-width row with its label. */
+  .jam-more-panel > details > summary,
+  .jam-more-panel .jam-export-control summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--foreground);
+    font-size: 14px;
+  }
+  .jam-more-panel .jam-export-control summary span {
+    display: inline;
+  }
+  .jam-more-panel .jam-tempo-advanced[open] {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .jam-more-panel .jam-export-menu {
+    position: static;
+    width: auto;
+    margin-top: 8px;
+    box-shadow: none;
+  }
 }

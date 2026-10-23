@@ -4,6 +4,8 @@ import { closeSearchPanel } from "@codemirror/search";
 import { Transaction } from "@codemirror/state";
 import {
   AlertCircle,
+  AudioLines,
+  Ellipsis,
   Bot,
   ChevronLeft,
   FileCode2,
@@ -46,7 +48,7 @@ import {
   type WorkspaceStorage,
 } from "@/workspaces/storage";
 import { TrackInspector } from "./TrackInspector";
-import { OutputPanel } from "./OutputPanel";
+import { OutputPanel, type OutputTab } from "./OutputPanel";
 import { AuthControls, GuestWorkspaceNotice } from "@/workbench/AuthControls";
 import {
   ShareControls,
@@ -57,6 +59,8 @@ import { PresenceAvatars, PresenceTabDots } from "@/features/collaboration/Prese
 import { aggregatePresence, type SharedPresence } from "@/features/collaboration/presence";
 import { ExportControl } from "./ExportControl";
 import { CodeKeys } from "./CodeKeys";
+import { useIsPhone } from "@/hooks/use-is-phone";
+import { DismissibleDetails } from "@/components/ui/dismissible-details";
 import { releaseMobileAudio, unlockMobileAudio } from "@/engine/mobile-audio";
 const ChatPanel = lazy(() =>
   import("@/features/assistant/ChatPanel").then((module) => ({ default: module.ChatPanel })),
@@ -179,6 +183,7 @@ export function SessionWorkbench({
   const [assistantWidth, setAssistantWidth] = useState(() => storedPaneWidth("assistant", 340));
   const [agentAvailable, setAgentAvailable] = useState(false);
   const [outputOpen, setOutputOpen] = useState(true);
+  const [outputTab, setOutputTab] = useState<OutputTab>("output");
   const [paletteMode, setPaletteMode] = useState<"files" | "commands" | null>(null);
   const [outputHeight, setOutputHeight] = useState(storedOutputHeight);
   const [filesWidth, setFilesWidth] = useState(() => storedPaneWidth("files", 232));
@@ -222,6 +227,7 @@ export function SessionWorkbench({
   const [readyVersion, setReadyVersion] = useState(0);
   // True while the phone coding keys are showing above the on-screen keyboard.
   const [typing, setTyping] = useState(false);
+  const isPhone = useIsPhone();
   const views = useRef(new Map<string, EditorView>());
   const pendingSearchHit = useRef<WorkspaceSearchHit | null>(null);
   const workspaceSearchField = useRef<HTMLInputElement>(null);
@@ -1731,6 +1737,90 @@ export function SessionWorkbench({
       </main>
     );
 
+  // Secondary controls: inline on wider screens, inside one "More" menu on phones.
+  const tempoMenu = (
+    <details className="jam-tempo-advanced">
+      <summary aria-label="Advanced tempo settings">Tempo settings</summary>
+      <label>
+        Beats per cycle
+        <select
+          aria-label="Beats per cycle"
+          value={beatsPerCycle}
+          disabled={!activeDocument || activeDocument.shared?.role === "viewer"}
+          onChange={(event) => changeBeatsPerCycle(Number(event.target.value))}
+        >
+          {Array.from({ length: 16 }, (_, index) => index + 1).map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+      </label>
+      <output aria-label="Cycles per second">
+        {tempo.cps === null ? "CPS from code" : `${Number(tempo.cps.toPrecision(8))} CPS`}
+      </output>
+    </details>
+  );
+  const exportMenu = (
+    <ExportControl
+      disabled={
+        import.meta.env.MODE === "desktop" ||
+        !activeDocument ||
+        tempo.cps === null ||
+        !tempo.editable
+      }
+      exporting={exporting}
+      progress={exportProgress}
+      onExport={(format, seconds) => void exportMain(format, seconds)}
+      onCancel={() => exportAbort.current?.abort()}
+    />
+  );
+  const sharingControls = (
+    <>
+      {collaboration && (
+        <ShareControls
+          document={activeDocument}
+          documents={documents}
+          workspaceName={workspace?.name ?? "Workspace"}
+          onShared={(shared) => {
+            const byId = new Map(shared.map((item) => [item.id, item]));
+            for (const item of shared) {
+              drafts.current.set(item.id, item);
+              void saveDocument(item);
+            }
+            setDocuments((items) => items.map((item) => byId.get(item.id) ?? item));
+          }}
+        />
+      )}
+      {nativeWorkspace && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void saveActiveToDisk()}
+          disabled={!activeDocument || !diskDirty}
+        >
+          Save
+        </Button>
+      )}
+      {nativeWorkspace && storage.saveAs && (
+        <Button
+          size="sm"
+          variant="ghost"
+          data-save-as-trigger
+          disabled={!activeDocument}
+          onClick={() => {
+            if (!activeDocument) return;
+            setSaveAsTarget(activeDocument.id);
+            setSaveAsName(activeDocument.name);
+            setSaveAsError(null);
+          }}
+        >
+          Save As
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <div className={`jam-app-frame jam-workbench${typing ? " is-typing" : ""}`}>
       {paletteMode && (
@@ -1768,39 +1858,23 @@ export function SessionWorkbench({
             }
             onCpsChange={onTempoChange}
           />
-          <details className="jam-tempo-advanced">
-            <summary aria-label="Advanced tempo settings">Tempo settings</summary>
-            <label>
-              Beats per cycle
-              <select
-                aria-label="Beats per cycle"
-                value={beatsPerCycle}
-                disabled={!activeDocument || activeDocument.shared?.role === "viewer"}
-                onChange={(event) => changeBeatsPerCycle(Number(event.target.value))}
-              >
-                {Array.from({ length: 16 }, (_, index) => index + 1).map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <output aria-label="Cycles per second">
-              {tempo.cps === null ? "CPS from code" : `${Number(tempo.cps.toPrecision(8))} CPS`}
-            </output>
-          </details>
-          <ExportControl
-            disabled={
-              import.meta.env.MODE === "desktop" ||
-              !activeDocument ||
-              tempo.cps === null ||
-              !tempo.editable
-            }
-            exporting={exporting}
-            progress={exportProgress}
-            onExport={(format, seconds) => void exportMain(format, seconds)}
-            onCancel={() => exportAbort.current?.abort()}
-          />
+          {isPhone ? (
+            <DismissibleDetails className="jam-more-menu">
+              <summary aria-label="More options">
+                <Ellipsis size={18} />
+              </summary>
+              <div className="jam-more-panel">
+                {tempoMenu}
+                {exportMenu}
+                {sharingControls}
+              </div>
+            </DismissibleDetails>
+          ) : (
+            <>
+              {tempoMenu}
+              {exportMenu}
+            </>
+          )}
           <Button
             className="jam-play"
             size="sm"
@@ -1811,49 +1885,13 @@ export function SessionWorkbench({
             {playing || playLoading ? <Square size={16} /> : <Play size={16} />}
             {playing || playLoading ? "Stop" : "Play"}
           </Button>
-          {collaboration && workspacePresence.length > 0 && (
-            <PresenceAvatars people={workspacePresence} />
-          )}
-          {collaboration && (
-            <ShareControls
-              document={activeDocument}
-              documents={documents}
-              workspaceName={workspace?.name ?? "Workspace"}
-              onShared={(shared) => {
-                const byId = new Map(shared.map((item) => [item.id, item]));
-                for (const item of shared) {
-                  drafts.current.set(item.id, item);
-                  void saveDocument(item);
-                }
-                setDocuments((items) => items.map((item) => byId.get(item.id) ?? item));
-              }}
-            />
-          )}
-          {nativeWorkspace && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void saveActiveToDisk()}
-              disabled={!activeDocument || !diskDirty}
-            >
-              Save
-            </Button>
-          )}
-          {nativeWorkspace && storage.saveAs && (
-            <Button
-              size="sm"
-              variant="ghost"
-              data-save-as-trigger
-              disabled={!activeDocument}
-              onClick={() => {
-                if (!activeDocument) return;
-                setSaveAsTarget(activeDocument.id);
-                setSaveAsName(activeDocument.name);
-                setSaveAsError(null);
-              }}
-            >
-              Save As
-            </Button>
+          {!isPhone && (
+            <>
+              {collaboration && workspacePresence.length > 0 && (
+                <PresenceAvatars people={workspacePresence} />
+              )}
+              {sharingControls}
+            </>
           )}
         </div>
         <AuthControls />
@@ -2077,6 +2115,28 @@ export function SessionWorkbench({
             aria-label={inspectorOpen ? "Hide inspector" : "Show inspector"}
           >
             <SlidersVertical size={20} aria-hidden="true" />
+          </button>
+          <button
+            className={outputOpen && outputTab === "samples" ? "is-active" : ""}
+            title="Sounds: hear every sample you can use in code"
+            aria-label="Browse sounds"
+            onClick={() => {
+              if (outputOpen && outputTab === "samples") {
+                setOutputTab("output");
+                return;
+              }
+              setOutputOpen(true);
+              setOutputTab("samples");
+              // On a phone the sound pads need room; give the panel most of the screen.
+              if (isPhone) resizeOutput(Math.round(window.innerHeight * 0.6));
+              if (window.innerWidth < 900) {
+                setSidebarOpen(false);
+                setInspectorOpen(false);
+                setAssistantOpen(false);
+              }
+            }}
+          >
+            <AudioLines size={20} aria-hidden="true" />
           </button>
           {nativeWorkspace && storage.git && (
             <button
@@ -2482,6 +2542,8 @@ export function SessionWorkbench({
           </div>
           {outputOpen && (
             <OutputPanel
+              tab={outputTab}
+              onTabChange={setOutputTab}
               onReplaceSound={(name, index) => {
                 const view = views.current.get(activeIdRef.current ?? "");
                 if (!view || !view.state.facet(CodeMirrorView.editable)) return false;

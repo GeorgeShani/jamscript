@@ -14,7 +14,7 @@ export function AuthControls() {
           </Button>
         </SignInButton>
         <SignUpButton mode="modal">
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" className="jam-sign-up">
             Sign up
           </Button>
         </SignUpButton>

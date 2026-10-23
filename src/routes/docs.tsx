@@ -156,10 +156,13 @@ function DocsPage() {
             <span className="jam-docs-number">07 / SOUND</span>
             <h2>Samples</h2>
             <p>
-              Open <strong>Samples</strong> in the bottom panel, then load sample banks. Play a song
-              first so its custom sample packs are registered, then refresh the banks. Tap a Sound
-              Pad to audition it without replacing your song, and choose a variant or adjust the
-              preview volume.
+              Press the <strong>Sounds</strong> button (the sound-wave icon in the side bar, or the
+              bottom bar on phones), or open the <strong>Samples</strong> tab in the bottom panel.
+              Every sound you can use appears there. Search by name, pick a drum machine from{" "}
+              <strong>Bank</strong>, and use <strong>Show all</strong> to see the whole list. Tap a
+              pad to hear it without stopping your song, then copy its code, such as{" "}
+              <code>s("bd")</code>, into your song. Songs that load their own sample packs add them
+              after you press Play once; use <strong>Refresh</strong> to see them.
             </p>
             <p>
               <strong>Replace selected sound</strong> only edits a single literal sound selected in

@@ -77,6 +77,8 @@ function LiveOutput({ node }: { node: AudioNode }) {
   return <TelemetryOutput frames={analyser} />;
 }
 
+export type OutputTab = "output" | "problems" | "takes" | "samples";
+
 export function OutputPanel({
   error,
   output,
@@ -94,6 +96,8 @@ export function OutputPanel({
   onReturnToLive,
   canRestoreTake,
   onReplaceSound,
+  tab: requestedTab,
+  onTabChange,
 }: {
   error: string | null;
   output: { context: AudioContext; node: AudioNode } | null;
@@ -111,8 +115,16 @@ export function OutputPanel({
   onReturnToLive: () => void;
   canRestoreTake: boolean;
   onReplaceSound?: ((name: string, index: number) => boolean) | undefined;
+  /** When given, the workbench decides which tab shows (for example, a Sounds shortcut). */
+  tab?: OutputTab | undefined;
+  onTabChange?: ((tab: OutputTab) => void) | undefined;
 }) {
-  const [tab, setTab] = useState<"output" | "problems" | "takes" | "samples">("output");
+  const [localTab, setLocalTab] = useState<OutputTab>("output");
+  const tab = requestedTab ?? localTab;
+  const setTab = (next: OutputTab) => {
+    setLocalTab(next);
+    onTabChange?.(next);
+  };
   const [selectedTakeId, setSelectedTakeId] = useState<string | null>(null);
   const selectedTake = takes.find((take) => take.id === selectedTakeId);
   return (
