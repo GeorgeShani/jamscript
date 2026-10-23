@@ -24,10 +24,38 @@ export default defineConfig(({ command, mode }) => ({
       build: {
         rolldownOptions: {
           output: {
-            // The generated Strudel API reference is large data; keep it out of the route chunk.
+            // Keep each Worker module under 500 kB. Splits follow whole packages: cutting a
+            // package (or React) apart by size breaks its module wiring at startup.
+            /* eslint-disable no-useless-escape -- path separators in module-id patterns */
             codeSplitting: {
-              groups: [{ name: "strudel-api", test: /strudel-api\.generated\.json/ }],
+              groups: [
+                { name: "strudel-api", test: /strudel-api\.generated\.json/ },
+                {
+                  name: "react-dom-server",
+                  test: /node_modules[\/]react-dom[\/](?:cjs[\/]react-dom-server|server)/,
+                },
+                { name: "react", test: /node_modules[\/](?:react|react-dom|scheduler)[\/]/ },
+                { name: "codemirror-view", test: /node_modules[\/]@codemirror[\/]view[\/]/ },
+                {
+                  name: "codemirror-core",
+                  test: /node_modules[\/](?:@codemirror[\/](?!view)|@lezer[\/]|style-mod|w3c-keyname|crelt|@marijn)/,
+                },
+                { name: "liveblocks", test: /node_modules[\/]@liveblocks[\/]core[\/]/ },
+                {
+                  name: "yjs",
+                  test: /node_modules[\/](?:yjs|lib0|y-protocols|y-codemirror\.next)[\/]/,
+                },
+                {
+                  name: "markdown-parse",
+                  test: /node_modules[\/](?:micromark[^\/]*|decode-named-character-reference|character-entities[^\/]*|devlop)[\/]/,
+                },
+                {
+                  name: "markdown-tree",
+                  test: /node_modules[\/](?:react-markdown|remark-[^\/]+|mdast-util-[^\/]+|unified|hast-util-[^\/]+|unist-util-[^\/]+|vfile[^\/]*|property-information|html-url-attributes|trough|bail|is-plain-obj|space-separated-tokens|comma-separated-tokens|trim-lines|zwitch|ccount|escape-string-regexp|markdown-table|longest-streak|style-to-js|style-to-object|inline-style-parser|estree-util-is-identifier-name)[\/]/,
+                },
+              ],
             },
+            /* eslint-enable no-useless-escape */
           },
         },
       },
