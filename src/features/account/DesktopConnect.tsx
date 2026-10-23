@@ -126,7 +126,7 @@ export function AccountChoice({
         </div>
       </div>
       {verify ? (
-        <OAuthDeviceVerification />
+        <OAuthDeviceVerification appearance={appearance} />
       ) : (
         <>
           <Button className="jam-connect-continue" onClick={() => setVerify(true)}>
