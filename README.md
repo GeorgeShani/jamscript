@@ -2,6 +2,8 @@
 
 Code is the source. Lenses are how you play it.
 
+JamScript is a live-coding music workbench built on [Strudel](https://strudel.cc). Write code, hear it instantly, and shape it with knobs and step grids that edit the source for you. It runs in the browser, on your phone and as a desktop app, and your music stays plain, readable code. **Top 10 at Hacktoberfest Georgia 2026.**
+
 Use JamScript at [jamscript.dev](https://jamscript.dev) or get the [desktop app](https://github.com/GeorgeShani/jamscript/releases/latest). Desktop sign-in and collaboration connect to the same website.
 
 JamScript serves a public product site at `/` and a browser music workbench at `/app`. Create an app-managed workspace, edit multiple documents, set BPM, play the active source, and inspect supported track parameters and actual output. Workspaces autosave in this browser's IndexedDB. Desktop folder editing, initial shared projects, and reviewed assistant edits are implemented; assistant availability requires server configuration.

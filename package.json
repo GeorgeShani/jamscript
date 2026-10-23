@@ -1,5 +1,18 @@
 {
   "name": "tanstack_start_ts",
+  "description": "A live-coding music workbench for Strudel: write code, hear it instantly, and shape it with controls that edit the source.",
+  "homepage": "https://jamscript.dev",
+  "keywords": [
+    "music",
+    "live-coding",
+    "strudel",
+    "algorave",
+    "web-audio",
+    "code-editor",
+    "codemirror",
+    "tauri",
+    "hacktoberfest"
+  ],
   "private": true,
   "sideEffects": false,
   "type": "module",
