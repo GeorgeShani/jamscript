@@ -125,15 +125,6 @@
   justify-content: center;
   padding: 36px 4vw 66px clamp(30px, 6vw, 112px);
 }
-.pitch-copy::before {
-  content: "";
-  position: absolute;
-  left: clamp(30px, 6vw, 112px);
-  top: 13%;
-  height: 26px;
-  width: 2px;
-  background: var(--pitch-amber);
-}
 .pitch-eyebrow {
   margin: 0 0 30px;
   color: var(--pitch-amber);
@@ -145,7 +136,7 @@
 .pitch-copy h1 {
   max-width: 700px;
   margin: 0;
-  font-size: clamp(3.4rem, 5.1vw, 6.2rem);
+  font-size: clamp(2.8rem, 4.2vw, 5.1rem);
   font-weight: 600;
   line-height: 0.99;
   letter-spacing: -0.06em;
@@ -687,6 +678,10 @@
     monospace;
   white-space: nowrap;
 }
+.pitch-audience-track > :not(i) {
+  position: relative;
+  z-index: 1;
+}
 .pitch-audience-track {
   position: relative;
   display: flex;
@@ -705,10 +700,12 @@
 }
 .pitch-audience-track i {
   position: absolute;
-  top: -5px;
-  left: 7%;
+  top: 50%;
+  left: 4%;
+  z-index: 0;
   width: 10px;
   height: 10px;
+  margin: -5px 0 0 -5px;
   border-radius: 50%;
   background: var(--pitch-amber);
   box-shadow: 0 0 18px var(--pitch-amber);
@@ -767,6 +764,7 @@
   width: 124%;
 }
 .pitch-footer {
+  display: none;
   position: relative;
   z-index: 6;
   flex: 0 0 auto;
@@ -844,7 +842,7 @@
   z-index: 10;
   top: 72px;
   right: 0;
-  bottom: 75px;
+  bottom: 0;
   width: min(420px, 100vw);
   overflow-y: auto;
   padding: 24px 28px;
@@ -977,7 +975,6 @@
   .pitch-copy {
     padding-left: 35px;
   }
-  .pitch-copy::before,
   .pitch-copy-number {
     left: 35px;
   }
@@ -1032,13 +1029,8 @@
     min-height: 300px;
     padding: 48px 25px 30px;
   }
-  .pitch-copy::before {
-    left: 25px;
-    top: 25px;
-    height: 14px;
-  }
   .pitch-copy h1 {
-    font-size: clamp(3rem, 10vw, 5rem);
+    font-size: clamp(2.5rem, 8.5vw, 4.2rem);
   }
   .pitch-summary {
     margin-top: 22px;
@@ -1071,11 +1063,11 @@
   }
   .pitch-notes {
     top: 58px;
-    bottom: 65px;
+    bottom: 0;
   }
   .pitch-overlay {
     top: 58px;
-    bottom: 65px;
+    bottom: 0;
   }
   .pitch-overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

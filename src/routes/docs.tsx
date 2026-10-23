@@ -125,9 +125,11 @@ function DocsPage() {
             <span className="jam-docs-number">05 / TAKE IT OUT</span>
             <h2>Export and history</h2>
             <p>
-              Export the active main flow as WAV or MP3 from the workbench. Local Takes record
-              successful evaluations per document, so you can compare, audition, or restore an
-              earlier source snapshot. A Take is local history, not a shared version.
+              Export the active main flow as WAV or MP3 from the workbench. The{" "}
+              <strong>History</strong> tab in the bottom panel saves a version of each document
+              every time you press Play, with a label like “bass lpf 1200 → 430”. Select one to
+              listen to it without changing your song, compare it with your code, or restore it.
+              History stays on this device; it is not a shared version.
             </p>
           </section>
           <section id="shortcuts">

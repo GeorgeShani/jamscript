@@ -320,8 +320,9 @@ function AudienceScene({ reduced }: { reduced: boolean }) {
         <Music2 size={20} aria-hidden="true" />
         <span>ONE SHARED SONG</span>
         <motion.i
-          animate={reduced ? {} : { x: [0, 360, 0] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          initial={{ left: "4%" }}
+          animate={reduced ? { left: "4%" } : { left: ["4%", "96%", "4%"] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
     </div>

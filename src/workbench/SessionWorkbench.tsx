@@ -402,7 +402,7 @@ export function SessionWorkbench({
           if (current) setTakes(items);
         })
         .catch((cause: unknown) => {
-          if (current) setError(`Could not load Takes: ${message(cause)}`);
+          if (current) setError(`Could not load history: ${message(cause)}`);
         });
       return () => {
         current = false;
@@ -683,7 +683,7 @@ export function SessionWorkbench({
                   if (mounted.current && activeIdRef.current === documentId) setTakes(items);
                 })
                 .catch((cause: unknown) => {
-                  if (mounted.current) setError(`Could not save Take: ${message(cause)}`);
+                  if (mounted.current) setError(`Could not save a version: ${message(cause)}`);
                 });
             if (pendingLiveTake.current) clearTimeout(pendingLiveTake.current);
             pendingLiveTake.current = null;
@@ -1078,7 +1078,7 @@ export function SessionWorkbench({
         if (next) setOpenIds((ids) => (ids.includes(next.id) ? ids : [...ids, next.id]));
       }
       void deleteDocumentTakes(item.id).catch((cause: unknown) =>
-        setError(`Could not clear Takes for ${item.name}: ${message(cause)}`),
+        setError(`Could not clear the history of ${item.name}: ${message(cause)}`),
       );
     } catch (cause) {
       setError(message(cause));
@@ -1695,7 +1695,7 @@ export function SessionWorkbench({
                                 void Promise.all(
                                   removedDocuments.map((doc) => deleteDocumentTakes(doc.id)),
                                 ).catch((cause: unknown) =>
-                                  setError(`Could not clear old Takes: ${message(cause)}`),
+                                  setError(`Could not clear old history: ${message(cause)}`),
                                 );
                               } catch (cause) {
                                 setError(message(cause));

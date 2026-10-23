@@ -199,7 +199,7 @@ export function OutputPanel({
           aria-controls="jam-takes-content"
           onClick={() => setTab("takes")}
         >
-          Takes{takes.length ? ` (${takes.length})` : ""}
+          History{takes.length ? ` (${takes.length})` : ""}
         </button>
         <button
           role="tab"
@@ -238,7 +238,7 @@ export function OutputPanel({
         <div id="jam-takes-content" role="tabpanel" className="jam-output-body jam-takes-body">
           {takes.length ? (
             <>
-              <div className="jam-takes-list" aria-label="Saved Takes">
+              <div className="jam-takes-list" aria-label="Saved versions">
                 {takes.map((take) => (
                   <button
                     key={take.id}
@@ -246,8 +246,8 @@ export function OutputPanel({
                     aria-pressed={selectedTakeId === take.id}
                     onClick={() => setSelectedTakeId(take.id)}
                   >
-                    {take.label ?? "Saved Take"} · {new Date(take.createdAt).toLocaleString()}
-                    {auditionTakeId === take.id ? " · Auditioning" : ""}
+                    {take.label ?? "Saved version"} · {new Date(take.createdAt).toLocaleString()}
+                    {auditionTakeId === take.id ? " · Listening" : ""}
                   </button>
                 ))}
               </div>
@@ -260,7 +260,7 @@ export function OutputPanel({
                   </p>
                   <div className="jam-take-actions">
                     <button type="button" onClick={() => onAuditionTake(selectedTake)}>
-                      Audition
+                      Listen
                     </button>
                     {auditionTakeId && (
                       <button type="button" onClick={onReturnToLive}>
@@ -279,7 +279,7 @@ export function OutputPanel({
                     <summary>Compare source</summary>
                     <div className="jam-take-compare">
                       <div>
-                        <strong>Saved Take</strong>
+                        <strong>Saved version</strong>
                         <pre>{selectedTake.source}</pre>
                       </div>
                       <div>
@@ -292,7 +292,7 @@ export function OutputPanel({
               )}
             </>
           ) : (
-            <p>No Takes yet. A successful Play saves the first one on this device.</p>
+            <p>No history yet. Each successful Play saves a version here, on this device.</p>
           )}
         </div>
       ) : (

@@ -1,8 +1,16 @@
 # JamScript
 
-Code is the source. Lenses are how you play it.
+Write the music. Shape it with your hands.
 
 JamScript is a live-coding music workbench built on [Strudel](https://strudel.cc). Write code, hear it instantly, and shape it with knobs and step grids that edit the source for you. It runs in the browser, on your phone and as a desktop app, and your music stays plain, readable code. **Top 10 at Hacktoberfest Georgia 2026.**
+
+## How JamScript works
+
+**Controls.** Your song is ordinary Strudel code, and JamScript puts controls right under the lines they belong to. Write `s("bd ~ sd ~")` and a row of steps appears; write `.lpf(1200)` and a knob appears. Tap a step or turn a knob and JamScript rewrites exactly those characters in your code; type in the code and the controls follow. The code is the only copy of the music, so the two never disagree. If a pattern is too complex to edit safely, the control is locked and says "Edit this pattern in code" instead of guessing.
+
+**History.** Every time you press Play, JamScript saves a version of your song and labels it in musical terms, for example "bass lpf 1200 → 430". Open the **History** tab in the bottom panel to listen to an older version without touching your song, compare it with your code, or restore it. That lets you try something wild and get back to the groove from two minutes ago. History stays on your device and is not a shared version.
+
+**Assistant.** Ask the assistant questions about your code, or use **Edit** to describe a change in words. It proposes the edit as a diff that you review, and nothing changes until you accept it.
 
 Use JamScript at [jamscript.dev](https://jamscript.dev) or get the [desktop app](https://github.com/GeorgeShani/jamscript/releases/latest). Desktop sign-in and collaboration connect to the same website.
 
@@ -80,7 +88,7 @@ Run `bun run emails:preview` to create `dist/email-preview/workspace-invitation.
 
 The chooser offers a new workspace and an explicit Night bus template. The Files sidebar creates, renames and deletes documents; tabs retain each open CodeMirror instance, including cursor and undo history. Play evaluates the active document. BPM uses four beats per cycle by default, so 120 BPM writes `setcps(0.5)` when that call has a supported, unambiguous syntax. Tempo settings can change this display interpretation per document and show the source CPS without changing playback speed. The Inspector writes supported parameters through the checked patcher. The Output panel's audiocn meter and spectrum read actual Strudel output.
 
-Browser workspaces do not request filesystem permissions. Clearing this site's browser storage deletes the local workspaces. JamScript manages workspaces independently of Git; native folder operations and optional Git integration are reserved for the desktop app. Repo, Takes, Rework, presence, Share, and AI controls return only after their backing services work.
+Browser workspaces do not request filesystem permissions. Clearing this site's browser storage deletes the local workspaces. JamScript manages workspaces independently of Git; native folder operations and optional Git integration are reserved for the desktop app. Repo, History, presence, Share, and assistant controls return only after their backing services work.
 
 Playback prepares sample buffers and General MIDI soundfonts before starting the scheduler, scanning up to 64 cycles and 128 distinct assets with six concurrent loads. Later, unseen assets in open-ended patterns still load on demand. Stop cancels preparation immediately and fades existing audio over 350 ms; restarting cancels the old fade. Evaluation errors still mute immediately.
 

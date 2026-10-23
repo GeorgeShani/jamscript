@@ -39,9 +39,9 @@ describe("real Takes panel", () => {
         }}
       />,
     );
-    fireEvent.click(screen.getByRole("tab", { name: "Takes (1)" }));
-    fireEvent.click(screen.getByRole("button", { name: /Saved Take/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Audition" }));
+    fireEvent.click(screen.getByRole("tab", { name: "History (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: /Saved version/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Listen" }));
     fireEvent.click(screen.getByRole("button", { name: "Restore to editor" }));
     expect(onAuditionTake).toHaveBeenCalledWith(take);
     expect(onRestoreTake).toHaveBeenCalledWith(take);

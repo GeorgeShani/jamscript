@@ -164,7 +164,7 @@ def dmg_art():
     dmg.line([(300, 185), (350, 185)], AMBER, width=4)
     dmg.line([(340, 175), (350, 185), (340, 195)], AMBER, width=4)
     dmg.text((330, 315), "DRAG JAMSCRIPT TO APPLICATIONS", 18, PAPER, bold=True, anchor="ma")
-    dmg.text((330, 347), "Code is the source. Lenses are how you play it.", 14, MUTED, anchor="ma")
+    dmg.text((330, 347), "Write the music. Shape it with your hands.", 14, MUTED, anchor="ma")
     dmg.save(INSTALLER / "dmg-background.png")
 
 

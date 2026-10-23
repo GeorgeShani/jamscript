@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.8
+
+- Plainer words: saved versions now live in a **History** tab, and the docs and README explain controls, history and the assistant without jargon.
+- A new tagline: "Write the music. Shape it with your hands."
+- The stage presentation is cleaner, with smaller titles, no bottom bar and no stray accent lines, and the shared-song animation sweeps the full width.
+
 ## 0.3.7
 
 - Phones: a calmer one-row toolbar with a More menu, a thumb-reach Play button, bottom tabs, wrapped and slightly smaller code, finger-sized controls, and a row of coding keys (brackets, quotes, `~ < > .`) above the keyboard.
