@@ -33,6 +33,15 @@ export async function withCollaborationDb<T>(run: (db: CollaborationDb) => Promi
   try {
     return await run(drizzle(client));
   } finally {
-    await client.end({ timeout: 1 });
+    // Closing the socket is not part of the answer; let the Worker finish it after the
+    // response instead of making the caller wait for the shutdown round trip.
+    const closing = client.end({ timeout: 1 }).catch(() => {});
+    try {
+      const { waitUntil } = await import("cloudflare:workers");
+      waitUntil(closing);
+    } catch {
+      // CLI diagnostics and tests run outside the Workers runtime.
+      await closing;
+    }
   }
 }

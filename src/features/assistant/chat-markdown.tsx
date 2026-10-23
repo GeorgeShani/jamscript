@@ -1,4 +1,12 @@
-import { Children, isValidElement, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Children,
+  isValidElement,
+  memo,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { classHighlighter, highlightTree } from "@lezer/highlight";
@@ -95,7 +103,10 @@ function CodeBlock({
   );
 }
 
-export function ChatMarkdown({
+const REMARK_PLUGINS = [remarkGfm];
+
+/** Re-parses only when its text or insert handler changes, not on every parent render. */
+export const ChatMarkdown = memo(function ChatMarkdown({
   text,
   onInsertCode,
 }: {
@@ -105,7 +116,7 @@ export function ChatMarkdown({
   return (
     <div className="jam-chat-markdown">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={REMARK_PLUGINS}
         skipHtml
         components={{
           code: ({ children }) => <code className="jam-chat-inline-code">{children}</code>,
@@ -144,4 +155,4 @@ export function ChatMarkdown({
       </ReactMarkdown>
     </div>
   );
-}
+});

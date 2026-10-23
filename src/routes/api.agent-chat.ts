@@ -86,16 +86,18 @@ export const Route = createFileRoute("/api/agent-chat")({
             { error: "Workspace agent is not configured" },
             { status: 503, headers },
           );
-        let userId: string | null = null;
-        if (process.env["CLERK_SECRET_KEY"]) {
+        // Authentication and reading the body are independent; start both together.
+        const userPromise = (async () => {
+          if (!process.env["CLERK_SECRET_KEY"]) return null;
           try {
             const { auth } = await import("@clerk/tanstack-react-start/server");
             const session = await auth();
-            if (session.isAuthenticated && session.userId) userId = session.userId;
+            return session.isAuthenticated && session.userId ? session.userId : null;
           } catch {
             /* Local / misconfigured Clerk should not block local assistant chat. */
+            return null;
           }
-        }
+        })();
         if (Number(request.headers.get("content-length")) > 220_000)
           return Response.json({ error: "Request is too large" }, { status: 413, headers });
         let input;
@@ -109,9 +111,17 @@ export const Route = createFileRoute("/api/agent-chat")({
           );
         }
 
+        const userId = await userPromise;
         const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
         const rateKey =
           userId ?? request.headers.get("cf-connecting-ip") ?? forwarded ?? "anonymous";
+        // The workspace lookup does not depend on the rate limit; run them side by side.
+        const canUseShared =
+          !!userId && !!process.env["DATABASE_URL"] && !!process.env["LIVEBLOCKS_SECRET_KEY"];
+        const openingPromise = canUseShared
+          ? withCollaborationDb((db) => openSharedWorkspace(db, input.documentId, userId!))
+          : null;
+        openingPromise?.catch(() => {});
         try {
           const limiter = await agentRateLimiter();
           if (limiter) {
@@ -127,12 +137,8 @@ export const Route = createFileRoute("/api/agent-chat")({
         }
 
         let files: AgentChatFile[] | null = null;
-        const canUseShared =
-          !!userId && !!process.env["DATABASE_URL"] && !!process.env["LIVEBLOCKS_SECRET_KEY"];
-        if (canUseShared) {
-          const opened = await withCollaborationDb((db) =>
-            openSharedWorkspace(db, input.documentId, userId!),
-          );
+        if (openingPromise) {
+          const opened = await openingPromise;
           if (opened?.access.role === "viewer" && input.mode === "edit")
             return Response.json({ error: "Editing access required" }, { status: 403, headers });
           if (opened) {

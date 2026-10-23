@@ -21,7 +21,6 @@ import {
 import { HighlightStyle, bracketMatching, syntaxHighlighting } from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
 import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
-import { ySyncFacet, yUndoManagerKeymap } from "y-codemirror.next";
 import { tags } from "@lezer/highlight";
 import {
   deriveMusic,
@@ -97,11 +96,18 @@ function applyLensEdit(view: EditorView, edit: LensEdit, gestureTime?: number) {
   });
   return true;
 }
+// Yjs is only loaded for shared documents; its collaboration binding registers undo here.
+type SharedHistory = (view: EditorView, forward: boolean) => boolean | undefined;
+let sharedHistory: SharedHistory | null = null;
+export function registerSharedHistory(handler: SharedHistory) {
+  sharedHistory = handler;
+}
+
 export function dispatchMusicHistory(view: EditorView, forward: boolean) {
   if (!view.state.facet(EditorView.editable)) return false;
   flushLensEdits(view);
-  if (view.state.facet(ySyncFacet))
-    return yUndoManagerKeymap[forward ? 1 : 0]?.run?.(view) ?? false;
+  const shared = sharedHistory?.(view, forward);
+  if (shared !== undefined) return shared;
   return (forward ? redo : undo)(view);
 }
 export function openMusicFind(view: EditorView) {

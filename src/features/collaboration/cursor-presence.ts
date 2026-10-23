@@ -115,6 +115,8 @@ function paneVisible(view: EditorView) {
  * Publish caret + selection through Liveblocks presence.
  * Streams drag/keyboard motion so peers see the range travel, not only a final `|`.
  */
+const published = new WeakMap<Awareness, string>();
+
 export function publishLocalCursor(
   awareness: Awareness,
   ytext: Y.Text,
@@ -130,6 +132,10 @@ export function publishLocalCursor(
   const selection = view.state.selection.main;
   const selecting = !selection.empty;
   const motion = selecting ? "selecting" : activity === "moving" ? "moving" : "idle";
+  // Mouse moves and key-ups repeat the same caret; peers only need the changes.
+  const key = `${selection.anchor}:${selection.head}:${motion}:${ytext.length}`;
+  if (published.get(awareness) === key) return;
+  published.set(awareness, key);
   writeAwarenessState(awareness, identity, {
     cursor: encodeCursor(ytext, selection.anchor, selection.head),
     activity: { kind: motion },

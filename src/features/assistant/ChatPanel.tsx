@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import { shareableDocumentName } from "@/features/collaboration/shareable";
 import { apiUrl } from "@/lib/app-api";
@@ -24,7 +24,7 @@ import {
   type ChatThread,
 } from "./chat-types";
 
-export function ChatPanel({
+export const ChatPanel = memo(function ChatPanel({
   workspaceId,
   documentId,
   documentName,
@@ -557,4 +557,4 @@ export function ChatPanel({
       }
     />
   );
-}
+});

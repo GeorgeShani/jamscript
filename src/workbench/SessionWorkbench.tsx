@@ -60,7 +60,7 @@ const ChatPanel = lazy(() =>
   import("@/features/assistant/ChatPanel").then((module) => ({ default: module.ChatPanel })),
 );
 import { apiUrl } from "@/lib/app-api";
-import { GitPanel } from "./GitPanel";
+const GitPanel = lazy(() => import("./GitPanel").then((module) => ({ default: module.GitPanel })));
 import { LicensesLink } from "./LicensesLink";
 import { CommandPalette, type WorkbenchCommand } from "./CommandPalette";
 import { searchWorkspaceDocuments, type WorkspaceSearchHit } from "./workspace-search";
@@ -337,14 +337,24 @@ export function SessionWorkbench({
   useEffect(() => {
     // Move runtime/worklet/registry loading off the first Play gesture. This
     // never evaluates the document or starts music, including in the sandbox.
-    const timer = window.setTimeout(() => {
+    // Start once the page is idle so the editor appears first; a Play before then simply
+    // starts the same initialization.
+    const start = () => {
       void import("@/engine/playback")
         .then((playback) => playback.warmPlayback())
         .catch(() => {
           // Play retries initialization and reports a useful error if needed.
         });
-    }, 200);
-    return () => window.clearTimeout(timer);
+    };
+    const idle = (
+      window as { requestIdleCallback?: (run: () => void, o?: { timeout: number }) => number }
+    ).requestIdleCallback;
+    const handle = idle ? idle(start, { timeout: 1500 }) : window.setTimeout(start, 200);
+    return () => {
+      if (idle)
+        (window as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback?.(handle);
+      else window.clearTimeout(handle);
+    };
   }, []);
 
   useEffect(() => {
@@ -626,11 +636,19 @@ export function SessionWorkbench({
         const documentId = activeIdRef.current;
         const view = documentId ? views.current.get(documentId) : null;
         if (view) clearPlaybackRanges(view);
+        // Editor documents are immutable, so one string comparison per document version
+        // is enough instead of one per highlighted note.
+        let verified: unknown = null;
         playback.onHighlight((ranges) => {
           if (exportingNow.current || activeIdRef.current !== documentId) return;
           const currentView = documentId ? views.current.get(documentId) : null;
-          if (currentView?.state.doc.toString() === evaluatedSource)
-            flashPlaybackRanges(currentView, ranges);
+          if (!currentView) return;
+          const doc = currentView.state.doc;
+          if (doc !== verified) {
+            if (doc.toString() !== evaluatedSource) return;
+            verified = doc;
+          }
+          flashPlaybackRanges(currentView, ranges);
         });
         const current = drafts.current.get(activeIdRef.current ?? "");
         playback.setMix(current?.mix?.levels ?? {}, soloTrack, current?.mix?.master ?? 1, [
@@ -733,6 +751,36 @@ export function SessionWorkbench({
     pb.onHighlight(null);
     await pb.stop();
   }, [liveUpdates]);
+
+  // The assistant panel only re-renders when what it shows changes, not on every keystroke,
+  // fader tick or presence update elsewhere in the workbench.
+  const chatNames = documents.map((document) => `${document.id}\n${document.name}`).join("\n\n");
+  const chatDocuments = useMemo(
+    () => documents.map((document) => ({ id: document.id, name: document.name })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chatNames],
+  );
+  const chatSources = useMemo(
+    () => documents.map((document) => ({ id: document.id, source: document.source })),
+    [documents],
+  );
+  const chatProblems = useMemo(
+    () => problems.map((problem) => `Line ${problem.line}: ${problem.message}`).join("\n"),
+    [problems],
+  );
+  const chatWorkspaceId = activeDocument?.shared?.workspaceId;
+  const chatCanEdit = useCallback(
+    (documentId: string) => {
+      const shared = drafts.current.get(documentId)?.shared;
+      if (!shared) return true;
+      return shared.role !== "viewer" && shared.workspaceId === chatWorkspaceId;
+    },
+    [chatWorkspaceId],
+  );
+  const chatReveal = useCallback((documentIds: string[]) => {
+    setOpenIds((current) => [...new Set([...current, ...documentIds])]);
+  }, []);
+  const chatStop = useCallback(() => void stopPlayback(), [stopPlayback]);
 
   useEffect(() => {
     if (!initialDocumentId || !documentsRef.current.some((item) => item.id === initialDocumentId))
@@ -2056,15 +2104,17 @@ export function SessionWorkbench({
                     <X size={16} />
                   </button>
                 </div>
-                <GitPanel
-                  workspaceId={workspace.id}
-                  documents={documents}
-                  git={storage.git}
-                  isDirty={(document) => !!storage.isDirty?.(document)}
-                  onFilesChanged={() =>
-                    void reloadNativeFiles().catch((cause: unknown) => setError(message(cause)))
-                  }
-                />
+                <Suspense fallback={null}>
+                  <GitPanel
+                    workspaceId={workspace.id}
+                    documents={documents}
+                    git={storage.git}
+                    isDirty={(document) => !!storage.isDirty?.(document)}
+                    onFilesChanged={() =>
+                      void reloadNativeFiles().catch((cause: unknown) => setError(message(cause)))
+                    }
+                  />
+                </Suspense>
               </>
             ) : sidebarView === "search" ? (
               <>
@@ -2303,6 +2353,10 @@ export function SessionWorkbench({
                     if (activeIdRef.current === id) setCollabStatus(status);
                   }}
                   onPresence={(people) => {
+                    // Awareness fires on every remote cursor move; re-render only when who is
+                    // here (or how they appear) actually changed.
+                    const previous = presenceByDocument.current.get(id);
+                    if (previous && JSON.stringify(previous) === JSON.stringify(people)) return;
                     presenceByDocument.current.set(id, people);
                     if (activeIdRef.current === id) setPresence(people);
                     setPresenceVersion((value) => value + 1);
@@ -2606,10 +2660,7 @@ export function SessionWorkbench({
                   workspaceId={activeDocument.shared?.workspaceId || workspace.id}
                   documentId={activeDocument.id}
                   documentName={activeDocument.name}
-                  documents={documents.map((document) => ({
-                    id: document.id,
-                    name: document.name,
-                  }))}
+                  documents={chatDocuments}
                   selection={(() => {
                     const view = views.current.get(activeDocument.id);
                     if (!view) return "";
@@ -2617,26 +2668,12 @@ export function SessionWorkbench({
                     if (range.empty) return "";
                     return view.state.doc.sliceString(range.from, range.to);
                   })()}
-                  problemsText={problems
-                    .map((problem) => `Line ${problem.line}: ${problem.message}`)
-                    .join("\n")}
-                  sources={documents.map((document) => ({
-                    id: document.id,
-                    source: document.source,
-                  }))}
+                  problemsText={chatProblems}
+                  sources={chatSources}
                   views={views.current}
-                  canEdit={(documentId) => {
-                    const shared = drafts.current.get(documentId)?.shared;
-                    if (!shared) return true;
-                    return (
-                      shared.role !== "viewer" &&
-                      shared.workspaceId === activeDocument.shared?.workspaceId
-                    );
-                  }}
-                  onReveal={(documentIds) => {
-                    setOpenIds((current) => [...new Set([...current, ...documentIds])]);
-                  }}
-                  onStopPlayback={() => void stopPlayback()}
+                  canEdit={chatCanEdit}
+                  onReveal={chatReveal}
+                  onStopPlayback={chatStop}
                 />
               </Suspense>
             </aside>

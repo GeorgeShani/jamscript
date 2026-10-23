@@ -2,8 +2,10 @@ import { Compartment, EditorState, Prec, StateEffect, Transaction } from "@codem
 import { EditorView, keymap } from "@codemirror/view";
 import { createClient } from "@liveblocks/client";
 import { LiveblocksYjsProvider } from "@liveblocks/yjs";
-import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
+import { yCollab, ySyncFacet, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
+
+import { registerSharedHistory } from "@/components/jam/code-editor";
 
 import {
   ensureAwarenessUser,
@@ -20,6 +22,13 @@ export type { SharedPresence };
 
 let client: ReturnType<typeof createClient> | null = null;
 const bindings = new WeakMap<EditorView, Compartment>();
+
+// Loaded only for shared documents, so the plain editor never bundles Yjs.
+registerSharedHistory((view, forward) =>
+  view.state.facet(ySyncFacet)
+    ? (yUndoManagerKeymap[forward ? 1 : 0]?.run?.(view) ?? false)
+    : undefined,
+);
 
 function liveblocks(
   authEndpoint:
