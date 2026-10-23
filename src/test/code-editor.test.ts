@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { closeBracketsKeymap } from "@codemirror/autocomplete";
 import { isolateHistory, redo, undo } from "@codemirror/commands";
 import { Transaction } from "@codemirror/state";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import {
   createMusicEditor,
   dispatchLensEdit,
@@ -29,7 +30,58 @@ function editor(code = SAMPLE_CODE, change = vi.fn()) {
   views.push(view);
   return view;
 }
+/** Types through the editor's input handlers, as the browser does for each keystroke. */
+function typeText(view: EditorView, text: string) {
+  for (const character of text) {
+    const { from, to } = view.state.selection.main;
+    const insert = () =>
+      view.state.update({
+        changes: { from, to, insert: character },
+        selection: { anchor: from + character.length },
+        userEvent: "input.type",
+      });
+    const handled = view.state
+      .facet(EditorView.inputHandler)
+      .some((handler) => handler(view, from, to, character, insert));
+    if (!handled) view.dispatch(insert());
+  }
+}
+function backspace(view: EditorView) {
+  const binding = closeBracketsKeymap.find((item) => item.key === "Backspace");
+  return binding?.run?.(view) ?? false;
+}
 describe("Real music editor", () => {
+  it("closes brackets and quotes as you type and steps over the closing character", () => {
+    const view = editor("");
+    typeText(view, 's("bd")');
+    expect(view.state.doc.toString()).toBe('s("bd")');
+    expect(view.state.selection.main.head).toBe(7);
+    view.dispatch({ changes: { from: 0, to: 7, insert: "" } });
+    typeText(view, "stack(");
+    expect(view.state.doc.toString()).toBe("stack()");
+    expect(view.state.selection.main.head).toBe(6);
+    typeText(view, "[");
+    expect(view.state.doc.toString()).toBe("stack([])");
+  });
+  it("removes both characters of an empty pair with backspace", () => {
+    const view = editor("");
+    typeText(view, "(");
+    expect(view.state.doc.toString()).toBe("()");
+    expect(backspace(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe("");
+  });
+  it("wraps a selection in the typed bracket", () => {
+    const view = editor("bd sd");
+    view.dispatch({ selection: { anchor: 0, head: 2 } });
+    typeText(view, "[");
+    expect(view.state.doc.toString()).toBe("[bd] sd");
+  });
+  it("does not pair apostrophes inside words", () => {
+    const view = editor("don");
+    view.dispatch({ selection: { anchor: 3 } });
+    typeText(view, "'");
+    expect(view.state.doc.toString()).toBe("don'");
+  });
   it("lets users type arbitrary code and re-derives the controls", () => {
     const change = vi.fn();
     const view = editor(SAMPLE_CODE, change);

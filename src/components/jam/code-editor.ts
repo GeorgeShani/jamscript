@@ -18,7 +18,13 @@ import {
   redo,
   undo,
 } from "@codemirror/commands";
-import { HighlightStyle, bracketMatching, syntaxHighlighting } from "@codemirror/language";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import {
+  HighlightStyle,
+  bracketMatching,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
 import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
@@ -225,6 +231,9 @@ export function createMusicEditor(
         drawSelection(),
         highlightActiveLine(),
         bracketMatching(),
+        // Typing ( [ { " ' ` inserts the closing character; closing braces re-indent.
+        closeBrackets(),
+        indentOnInput(),
         javascript(),
         search({ top: true }),
         syntaxHighlighting(highlighting),
@@ -238,6 +247,7 @@ export function createMusicEditor(
           },
           { key: "Mod-f", run: openMusicFind },
           ...searchKeymap,
+          ...closeBracketsKeymap,
           ...defaultKeymap,
           ...historyKeymap,
           indentWithTab,
