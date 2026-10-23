@@ -318,6 +318,12 @@ export function initPlayback(): Promise<StrudelWeb> {
       // click may happen before that listener exists. Load worklets explicitly.
       await strudel.initAudio({ maxPolyphony: MAX_POLYPHONY });
       activeStrudel = strudel;
+      // Phones suspend audio when the app goes to the background; pick up again on return.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible" || !started) return;
+        const context = strudel.getAudioContext?.() as AudioContext | undefined;
+        if (context && context.state !== "running") void context.resume().catch(() => {});
+      });
       return strudel;
     })().catch((error: unknown) => {
       initPromise = null;

@@ -116,6 +116,21 @@ export function dispatchMusicHistory(view: EditorView, forward: boolean) {
   if (shared !== undefined) return shared;
   return (forward ? redo : undo)(view);
 }
+/** Types one character as if from the keyboard, so auto-closing pairs behave the same. */
+export function typeIntoEditor(view: EditorView, text: string) {
+  const { from, to } = view.state.selection.main;
+  const insert = () =>
+    view.state.update({
+      changes: { from, to, insert: text },
+      selection: { anchor: from + text.length },
+      userEvent: "input.type",
+    });
+  const handled = view.state
+    .facet(EditorView.inputHandler)
+    .some((handler) => handler(view, from, to, text, insert));
+  if (!handled) view.dispatch(insert());
+}
+
 export function openMusicFind(view: EditorView) {
   openSearchPanel(view);
   const field = view.dom.querySelector<HTMLInputElement>(".cm-panel.cm-search [main-field]");
@@ -231,6 +246,10 @@ export function createMusicEditor(
         drawSelection(),
         highlightActiveLine(),
         bracketMatching(),
+        // Phones wrap long lines instead of scrolling sideways to read them.
+        ...(typeof window !== "undefined" && window.matchMedia?.("(max-width: 599px)").matches
+          ? [EditorView.lineWrapping]
+          : []),
         // Typing ( [ { " ' ` inserts the closing character; closing braces re-indent.
         closeBrackets(),
         indentOnInput(),

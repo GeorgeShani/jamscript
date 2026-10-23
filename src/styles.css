@@ -3904,3 +3904,133 @@
     width: 128px;
   }
 }
+
+/* Phones: one task at a time. Code fills the screen, panels open as full-screen sheets
+   from a bottom tab bar, and Play/Stop sits in thumb reach. Desktop sizes are unchanged. */
+@media (max-width: 599px) {
+  .jam-workbench-main {
+    flex-direction: column;
+  }
+  .jam-activity-bar {
+    order: 99;
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 0;
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    border-right: 0;
+  }
+  .jam-activity-bar button {
+    width: 48px;
+    height: 48px;
+    border-left: 0;
+    border-top: 2px solid transparent;
+  }
+  /* Keyboard-driven views; phones reach files and search from the tab bar. */
+  .jam-activity-bar button[aria-label="Quick Open"],
+  .jam-activity-bar button[aria-label="Command palette"] {
+    display: none;
+  }
+  .jam-file-sidebar,
+  .jam-inspector,
+  .jam-assistant-pane,
+  .jam-inspector.is-expanded,
+  .jam-assistant-pane.is-expanded {
+    position: fixed;
+    z-index: 15;
+    top: 76px;
+    right: 0;
+    bottom: calc(82px + env(safe-area-inset-bottom));
+    left: 0;
+    width: auto;
+    box-shadow: none;
+  }
+  .jam-statusbar {
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+  .jam-transport .jam-play {
+    position: fixed;
+    z-index: 20;
+    right: 16px;
+    bottom: calc(98px + env(safe-area-inset-bottom));
+    min-width: 112px;
+    height: 52px;
+    padding: 0 22px;
+    border-radius: 26px;
+    font-size: 16px;
+    box-shadow: 0 6px 20px #0008;
+  }
+  .jam-transport .jam-play,
+  .jam-transport .jam-play:hover {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  /* Room under the last line so the Play button never covers code. */
+  .jam-editor-pane .cm-scroller {
+    padding-bottom: 88px;
+  }
+  /* While the coding keys are up, they replace Play and the tab bar. */
+  .jam-workbench.is-typing .jam-transport .jam-play,
+  .jam-workbench.is-typing .jam-activity-bar,
+  .jam-workbench.is-typing .jam-statusbar {
+    display: none;
+  }
+  .jam-tempo-advanced summary {
+    white-space: nowrap;
+  }
+}
+
+/* Touch screens get finger-sized controls; mouse and trackpad keep the compact sizes. */
+@media (pointer: coarse) {
+  .jam-rhythm-cell {
+    width: 32px;
+    height: 32px;
+  }
+  .jam-live-param .jam-knob,
+  .jam-knob {
+    --knob-size: 36px;
+  }
+  .jam-tempo-advanced summary,
+  .jam-export-control summary {
+    min-height: 40px;
+  }
+}
+
+.jam-code-keys {
+  position: fixed;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 4px;
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  scrollbar-width: none;
+}
+.jam-code-keys button {
+  flex: none;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-family: var(--font-mono, "Martian Mono", monospace);
+  font-size: 15px;
+  touch-action: manipulation;
+}
+.jam-code-keys button.is-play {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  font-family: inherit;
+  font-weight: 600;
+}

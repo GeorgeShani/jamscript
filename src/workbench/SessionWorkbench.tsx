@@ -56,6 +56,8 @@ import {
 import { PresenceAvatars, PresenceTabDots } from "@/features/collaboration/PresenceAvatars";
 import { aggregatePresence, type SharedPresence } from "@/features/collaboration/presence";
 import { ExportControl } from "./ExportControl";
+import { CodeKeys } from "./CodeKeys";
+import { releaseMobileAudio, unlockMobileAudio } from "@/engine/mobile-audio";
 const ChatPanel = lazy(() =>
   import("@/features/assistant/ChatPanel").then((module) => ({ default: module.ChatPanel })),
 );
@@ -218,6 +220,8 @@ export function SessionWorkbench({
   const [auditionTakeId, setAuditionTakeId] = useState<string | null>(null);
   const [tempo, setTempo] = useState(() => readTempo(""));
   const [readyVersion, setReadyVersion] = useState(0);
+  // True while the phone coding keys are showing above the on-screen keyboard.
+  const [typing, setTyping] = useState(false);
   const views = useRef(new Map<string, EditorView>());
   const pendingSearchHit = useRef<WorkspaceSearchHit | null>(null);
   const workspaceSearchField = useRef<HTMLInputElement>(null);
@@ -616,7 +620,11 @@ export function SessionWorkbench({
 
   const evaluateCurrent = useCallback(
     async (take?: TakeRecord, live = false) => {
-      if (!live) liveUpdates.cancel();
+      if (!live) {
+        liveUpdates.cancel();
+        // Must run inside the Play gesture so phones use a music (not ambient) audio session.
+        unlockMobileAudio();
+      }
       const request = ++evaluation.current;
       const evaluatedSource =
         take?.source ?? (live ? (liveSource.current?.source ?? code.current) : code.current);
@@ -746,6 +754,7 @@ export function SessionWorkbench({
     setAuditionTakeId(null);
     setAudioOutput(null);
     setOutputFrames(null);
+    releaseMobileAudio();
     for (const view of views.current.values()) clearPlaybackRanges(view);
     const pb = await import("@/engine/playback");
     pb.onHighlight(null);
@@ -1723,7 +1732,7 @@ export function SessionWorkbench({
     );
 
   return (
-    <div className="jam-app-frame jam-workbench">
+    <div className={`jam-app-frame jam-workbench${typing ? " is-typing" : ""}`}>
       {paletteMode && (
         <CommandPalette
           key={paletteMode}
@@ -2766,6 +2775,14 @@ export function SessionWorkbench({
         )}
         <LicensesLink />
       </footer>
+      <CodeKeys
+        view={activeId ? (views.current.get(activeId) ?? null) : null}
+        playing={playing || playLoading}
+        onPlay={() =>
+          void (playingNow.current || loadingNow.current ? stopPlayback() : evaluateCurrent())
+        }
+        onVisibleChange={setTyping}
+      />
     </div>
   );
 }
