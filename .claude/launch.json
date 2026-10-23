@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jamscript-preview",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "preview"],
+      "port": 4173
+    }
+  ]
+}
