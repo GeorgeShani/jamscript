@@ -1,0 +1,61 @@
+diff --git a/reverb.mjs b/reverb.mjs
+index c8b6eb3e5b3222b1d28b991582fb881c08cfbd26..07d1022c561b69253b0a61fa4b6bcf986b328656 100644
+--- a/reverb.mjs
++++ b/reverb.mjs
+@@ -1,6 +1,8 @@
+ import reverbGen from './reverbGen.mjs';
+ import { clamp } from './util.mjs';
+ 
++const generatedImpulses = new WeakMap();
++
+ if (typeof AudioContext !== 'undefined') {
+   BaseAudioContext.prototype.adjustLength = function (duration, buffer, speed = 1, offsetAmount = 0) {
+     const sampleOffset = Math.floor(clamp(offsetAmount, 0, 1) * buffer.length);
+@@ -36,19 +38,35 @@ if (typeof AudioContext !== 'undefined') {
+       if (ir) {
+         convolver.buffer = this.adjustLength(d, ir, irspeed, irbegin);
+       } else {
+-        reverbGen.generateReverb(
+-          {
+-            audioContext: this,
+-            numChannels: 2,
+-            decayTime: d,
+-            fadeInTime: fade,
+-            lpFreqStart: lp,
+-            lpFreqEnd: dim,
+-          },
+-          (buffer) => {
++        // JamScript patch: orbits with the same room settings share one generated impulse
++        // response instead of each rendering its own on the main thread.
++        const key = `${d}:${fade}:${lp}:${dim}`;
++        let cache = generatedImpulses.get(this);
++        if (!cache) generatedImpulses.set(this, (cache = new Map()));
++        let pending = cache.get(key);
++        if (!pending) {
++          pending = new Promise((resolve) => {
++            reverbGen.generateReverb(
++              {
++                audioContext: this,
++                numChannels: 2,
++                decayTime: d,
++                fadeInTime: fade,
++                lpFreqStart: lp,
++                lpFreqEnd: dim,
++              },
++              resolve,
++            );
++          });
++          cache.set(key, pending);
++          // Bound the cache; a knob sweep over room size would otherwise keep every step.
++          if (cache.size > 12) cache.delete(cache.keys().next().value);
++        }
++        pending.then((buffer) => {
++          // Ignore a result that a newer generate() call has already superseded.
++          if (convolver.duration === d && convolver.fade === fade && convolver.lp === lp && convolver.dim === dim)
+             convolver.buffer = buffer;
+-          },
+-        );
++        });
+       }
+     };
+     convolver.generate(duration, fade, lp, dim, ir, irspeed, irbegin);

@@ -117,7 +117,7 @@ pub struct ApiResult {
     pub body: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct Credentials {
     access_token: String,
     refresh_token: String,
@@ -169,6 +169,15 @@ struct PendingDevice {
 
 static PENDING: Mutex<Option<PendingDevice>> = Mutex::new(None);
 static REFRESH: Mutex<()> = Mutex::new(());
+/// Credentials as last read or written. `None` means not loaded yet, `Some(None)` signed out.
+/// Reading the OS keychain on every API call is slow; this process is its only writer.
+static CREDENTIAL_CACHE: Mutex<Option<Option<Credentials>>> = Mutex::new(None);
+
+fn forget_cached_credentials() {
+    if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
+        *cache = None;
+    }
+}
 
 fn configured(name: &str, built: Option<&'static str>) -> Option<String> {
     std::env::var(name)
@@ -323,7 +332,12 @@ fn restore_pending() -> Result<Option<DeviceBegin>, String> {
 }
 
 fn load() -> Result<Option<Credentials>, String> {
-    load_account(ACCOUNT)
+    if let Some(cached) = CREDENTIAL_CACHE.lock().map_err(|e| e.to_string())?.as_ref() {
+        return Ok(cached.clone());
+    }
+    let loaded = load_account(ACCOUNT)?;
+    *CREDENTIAL_CACHE.lock().map_err(|e| e.to_string())? = Some(loaded.clone());
+    Ok(loaded)
 }
 
 fn load_account(account: &str) -> Result<Option<Credentials>, String> {
@@ -359,7 +373,10 @@ fn clear_account(account: &str) -> Result<(), String> {
 }
 
 fn store(credentials: &Credentials) -> Result<(), String> {
-    store_account(ACCOUNT, credentials)
+    forget_cached_credentials();
+    store_account(ACCOUNT, credentials)?;
+    *CREDENTIAL_CACHE.lock().map_err(|e| e.to_string())? = Some(Some(credentials.clone()));
+    Ok(())
 }
 
 fn store_account(account: &str, credentials: &Credentials) -> Result<(), String> {
@@ -417,6 +434,7 @@ pub fn sign_out() -> Result<AuthStatus, String> {
         })();
         result.err()
     });
+    forget_cached_credentials();
     clear_account(ACCOUNT)?;
     let mut result = status()?;
     result.warning = warning;

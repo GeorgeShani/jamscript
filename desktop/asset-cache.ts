@@ -125,6 +125,12 @@ async function write(asset: CachedAsset) {
 
 export async function loadDesktopAsset(url: string): Promise<CachedAsset> {
   if (!canProxyAssetUrl(url)) throw new Error("Sample host is not approved for desktop caching");
+  // A cached sample should not wait behind slow downloads in the queue. Bank manifests
+  // still go through the queue so their freshness rule applies.
+  if (!isSampleManifest(url) && !pending.has(url)) {
+    const hit = await read(url).catch(() => null);
+    if (hit) return hit;
+  }
   let load = pending.get(url);
   if (!load) {
     load = queued(() => loadAsset(url)).finally(() => pending.delete(url));

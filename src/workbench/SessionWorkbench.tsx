@@ -1176,15 +1176,25 @@ export function SessionWorkbench({
     if (!nativeWorkspace || !workspace) return;
     let stop = false;
     let unsubscribe = () => {};
+    let watching = false;
     void storage
       .watchWorkspace?.(workspace.id, () => {
         if (!stop) void refreshOpenDocuments();
       })
       .then((remove) => {
         if (stop) remove();
-        else unsubscribe = remove;
+        else {
+          unsubscribe = remove;
+          watching = true;
+        }
       });
-    const timer = window.setInterval(() => void refreshOpenDocuments(), 8000);
+    // The watcher reports changes as they happen, so the poll is only a safety net: it
+    // skips hidden windows and runs a quarter as often while the watcher is working.
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+      if (document.hidden) return;
+      if (!watching || ++ticks % 4 === 0) void refreshOpenDocuments();
+    }, 8000);
     return () => {
       stop = true;
       unsubscribe();

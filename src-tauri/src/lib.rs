@@ -276,8 +276,13 @@ fn push_current_branch(selected: &Folder) -> Result<GitStatus, String> {
 async fn git_push(app: tauri::AppHandle, folder_id: String) -> Result<GitStatus, String> {
     blocking::run(move || {
         let state = app.state::<Folders>();
-        let _io = state.io.lock().map_err(|e| e.to_string())?;
-        push_current_branch(&folder(&state, &folder_id)?)
+        // Pushing only reads committed objects, so saves and refreshes must not wait for the
+        // network. Hold the lock just long enough to resolve the folder.
+        let selected = {
+            let _io = state.io.lock().map_err(|e| e.to_string())?;
+            folder(&state, &folder_id)?
+        };
+        push_current_branch(&selected)
     }).await
 }
 
